@@ -11,6 +11,8 @@ https://bitbucket.org/andrewpeterson/amp
 Documentation lives at:
 http://machine-learning-for-atomistics.readthedocs.org
 
+*Amp* (*A*tomistic *m*achine-learning *p*otentials) allows for the modular representation of the potential energy surface with fingerprinting and regression methods of choice for the user.
+
 License
 =======
 
