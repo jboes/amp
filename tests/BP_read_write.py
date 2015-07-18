@@ -13,7 +13,7 @@ from amp import AMP
 def make_training_images():
     atoms = molecule('CH4')
     atoms.set_calculator(EMT())
-    atoms.get_potential_energy()
+    atoms.get_potential_energy(apply_constraint=False)
 
     images = [atoms]
 
@@ -21,7 +21,7 @@ def make_training_images():
     atoms.set_calculator(EMT())
     atoms[3].z += 0.5
 
-    atoms.get_potential_energy()
+    atoms.get_potential_energy(apply_constraint=False)
 
     images += [atoms]
     return images

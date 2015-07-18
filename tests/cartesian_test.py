@@ -41,13 +41,13 @@ def generate_data(count):
     dyn = VelocityVerlet(atoms, dt=1. * units.fs)
     newatoms = atoms.copy()
     newatoms.set_calculator(EMT())
-    newatoms.get_potential_energy()
+    newatoms.get_potential_energy(apply_constraint=False)
     images = [newatoms]
     for step in range(count):
         dyn.run(5)
         newatoms = atoms.copy()
         newatoms.set_calculator(EMT())
-        newatoms.get_potential_energy()
+        newatoms.get_potential_energy(apply_constraint=False)
         images.append(newatoms)
     return images
 
@@ -84,14 +84,14 @@ def testCartesian():
     for image in train_images:
         pred_energy = calc1.get_potential_energy(atoms=image)
         pred_energies_int_train.append(pred_energy)
-        act_energy = image.get_potential_energy()
+        act_energy = image.get_potential_energy(apply_constraint=False)
         act_energies_int_train.append(act_energy)
         ax.plot(act_energy, pred_energy, 'b.')
 
     for image in test_images:
         pred_energy = calc1.get_potential_energy(atoms=image)
         pred_energies_int_test.append(pred_energy)
-        act_energy = image.get_potential_energy()
+        act_energy = image.get_potential_energy(apply_constraint=False)
         act_energies_int_test.append(act_energy)
         ax.plot(act_energy, pred_energy, 'r.')
 
@@ -166,14 +166,14 @@ def testCartesian():
     for image in train_images:
         pred_energy = calc2.get_potential_energy(atoms=image)
         pred_energies_ext_train.append(pred_energy)
-        act_energy = image.get_potential_energy()
+        act_energy = image.get_potential_energy(apply_constraint=False)
         act_energies_ext_train.append(act_energy)
         ax.plot(act_energy, pred_energy, 'b.')
 
     for image in test_images:
         pred_energy = calc2.get_potential_energy(atoms=image)
         pred_energies_ext_test.append(pred_energy)
-        act_energy = image.get_potential_energy()
+        act_energy = image.get_potential_energy(apply_constraint=False)
         act_energies_ext_test.append(act_energy)
         ax.plot(act_energy, pred_energy, 'r.')
 

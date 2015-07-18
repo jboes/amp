@@ -78,7 +78,7 @@ def BP_train_non_periodic_test():
 
     for image in images:
         image.set_calculator(EMT())
-        image.get_potential_energy()
+        image.get_potential_energy(apply_constraint=False)
         image.get_forces(apply_constraint=False)
 
     ###########################################################################
@@ -230,7 +230,7 @@ def BP_train_periodic_test():
 
     for image in images:
         image.set_calculator(EMT())
-        image.get_potential_energy()
+        image.get_potential_energy(apply_constraint=False)
         image.get_forces(apply_constraint=False)
 
     ###########################################################################

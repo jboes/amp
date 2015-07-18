@@ -27,7 +27,7 @@ def generate_images():
                 image[step - 1].position + np.array([0., 1., 1.])
 
         image.set_calculator(EMT())
-        image.get_potential_energy()
+        image.get_potential_energy(apply_constraint=False)
         image.get_forces(apply_constraint=False)
         images.append(image)
 

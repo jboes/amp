@@ -28,13 +28,13 @@ def generate_data(count):
     dyn = VelocityVerlet(atoms, dt=1. * units.fs)
     newatoms = atoms.copy()
     newatoms.set_calculator(EMT())
-    newatoms.get_potential_energy()
+    newatoms.get_potential_energy(apply_constraint=False)
     images = [newatoms]
     for step in range(count):
         dyn.run(5)
         newatoms = atoms.copy()
         newatoms.set_calculator(EMT())
-        newatoms.get_potential_energy()
+        newatoms.get_potential_energy(apply_constraint=False)
         images.append(newatoms)
     return images
 

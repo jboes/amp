@@ -771,16 +771,16 @@ def make_scalings_matrices(images, activation, elements=None):
     """Makes initial scaling matrices, such that the range of activation
     is scaled to the range of actual energies."""
 
-    max_act_energy = max(image.get_potential_energy()
+    max_act_energy = max(image.get_potential_energy(apply_constraint=False)
                          for hash_key, image in images.items())
-    min_act_energy = min(image.get_potential_energy()
+    min_act_energy = min(image.get_potential_energy(apply_constraint=False)
                          for hash_key, image in images.items())
 
     for hash_key, image in images.items():
-        if image.get_potential_energy() == \
+        if image.get_potential_energy(apply_constraint=False) == \
                 max_act_energy:
             no_atoms_of_max_act_energy = len(image)
-        if image.get_potential_energy() == \
+        if image.get_potential_energy(apply_constraint=False) == \
                 min_act_energy:
             no_atoms_of_min_act_energy = len(image)
 
