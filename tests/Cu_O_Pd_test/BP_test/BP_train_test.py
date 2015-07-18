@@ -14,7 +14,7 @@ from collections import OrderedDict
 from ase import Atoms
 from ase.calculators.emt import EMT
 from amp import AMP
-from amp.fingerprints import Behler
+from amp.fingerprint import Behler
 from amp.regression import NeuralNetwork
 
 ###############################################################################
@@ -24,7 +24,7 @@ from amp.regression import NeuralNetwork
 def BP_train_non_periodic_test():
 
     ###########################################################################
-    # Making the list of periodic image
+    # Making the list of non-periodic systems
 
     images = [Atoms(symbols='PdOPd2',
                     pbc=np.array([False, False, False], dtype=bool),
@@ -78,7 +78,7 @@ def BP_train_non_periodic_test():
 
     for image in images:
         image.set_calculator(EMT())
-        image.get_potential_energy(apply_constraint=False)
+        image.get_potential_energy()
         image.get_forces(apply_constraint=False)
 
     ###########################################################################
@@ -132,6 +132,26 @@ def BP_train_non_periodic_test():
                                                 ('slope', -0.5)]))])
 
     ###########################################################################
+    # Derivative of the cost function values
+
+    correct_der_cost_fxn = [0, 0, 0, 0, 0, 0, 0.01374139170953901,
+                            0.36318423812749656, 0.028312691567496464,
+                            0.6012336354445753, 0.9659002689921986,
+                            -1.0530349272974702, -0.4303494072486586,
+                            -2.320514821178775, -0.9180380156693098, 0, 0,
+                            -2.2461981230126393, -0.6426031874148609,
+                            -0.7055576174627515, -0.2131694024409814,
+                            -1.710609728440938, -0.5164830567828097,
+                            -0.008707182451020031, -0.6203842200394035,
+                            0.0013149358808439494, -0.23428021728592624,
+                            0.003194688530605789, -0.782859656115562,
+                            -0.009337005913608098, -0.25906917355908676,
+                            -4.087393428925091, -4.1652787777631675,
+                            -8.02385959091948, -3.240512651984099,
+                            -27.284932543550706, -26.892401706074804,
+                            -82.43628495875033, -80.72759582717585]
+
+    ###########################################################################
     # Testing pure-python and fortran versions of BPNeural on different number
     # of processes
 
@@ -140,10 +160,12 @@ def BP_train_non_periodic_test():
 
             label = 'NonperiodFortran%s-%i' % (fortran, cores)
 
-            calc = AMP(fingerprint=Behler, regression=NeuralNetwork,
-                       cutoff=6.5, Gs=Gs, hiddenlayers=hiddenlayers,
-                       weights=weights, scalings=scalings,
-                       activation='sigmoid', fortran=fortran,
+            calc = AMP(fingerprint=Behler(cutoff=6.5, Gs=Gs,),
+                       regression=NeuralNetwork(hiddenlayers=hiddenlayers,
+                                                weights=weights,
+                                                scalings=scalings,
+                                                activation='sigmoid',),
+                       fortran=fortran,
                        label=label)
 
             calc.train(images=images, energy_goal=10.**10.,
@@ -152,15 +174,21 @@ def BP_train_non_periodic_test():
 
             assert (abs(calc.cost_function[0] - 7144.30292363230) <
                     10.**(-5.)), \
-                'The predicted value of cost function is wrong!'
+                'The calculated value of cost function is wrong!'
 
             assert (abs(calc.energy_per_atom_rmse - 24.31472406476930) <
                     10.**(-5.)), \
-                'The predicted value of energy per atom RMSE is wrong!'
+                'The calculated value of energy per atom RMSE is wrong!'
 
             assert (abs(calc.force_rmse - 144.7113314827651) <
                     10 ** (-5)), \
-                'The predicted value of force RMSE is wrong!'
+                'The calculated value of force RMSE is wrong!'
+
+            for _ in range(len(correct_der_cost_fxn)):
+                assert(abs(calc.der_variables_cost_function[_] -
+                           correct_der_cost_fxn[_] < 10 ** (-8))), \
+                    'The calculated value of cost function derivative is \
+                    wrong!'
 
 ###############################################################################
 ###############################################################################
@@ -202,7 +230,7 @@ def BP_train_periodic_test():
 
     for image in images:
         image.set_calculator(EMT())
-        image.get_potential_energy(apply_constraint=False)
+        image.get_potential_energy()
         image.get_forces(apply_constraint=False)
 
     ###########################################################################
@@ -247,34 +275,67 @@ def BP_train_periodic_test():
                                                 ('slope', -0.5)]))])
 
     ###########################################################################
+    # Derivative of the cost function values
+
+    correct_der_cost_fxn = [3.8310870400843917 * (10 ** (-13)),
+                            1.2503659239313091 * (10 ** (-27)),
+                            2.103510760408106 * (10 ** (-12)),
+                            6.865305193847003 * (10 ** (-27)),
+                            1.3378423843513887 * (10 ** (-13)),
+                            4.366365241722989 * (10 ** (-28)),
+                            -0.02045805446811484, -0.02045805446824862,
+                            0.02045805446824862, 65.64757374227074,
+                            0.016395651946408484, -88.40824381641114,
+                            -0.01790386763283238, 88.34713720442579,
+                            0.017894801448348468, 103.81964389461949,
+                            -95.77552903208176, -98.14122995271147,
+                            -8.302900534252412, -1.2604369815702425,
+                            8.30289453040453, 1.2599968355841735,
+                            -8.302846709076462, -1.2549471650455433,
+                            28.325980890513435, 28.092259638399817,
+                            -29.377059572489596, -11.237957825468813,
+                            11.217481115669644, -87.08582317485761,
+                            -20.705307849287813, -125.73267675714658,
+                            -35.138861405305406]
+
+    ###########################################################################
     # Testing pure-python and fortran versions of BPNeural on different number
     # of processes
 
-    for fortran in [False, True]:
-        for cores in range(1, 5):
+    for fortran in [False]:
+        for cores in range(1, 2):
 
             label = 'PeriodFortran%s-%i' % (fortran, cores)
 
-            calc = AMP(fingerprint=Behler, regression=NeuralNetwork,
-                       cutoff=4., Gs=Gs, hiddenlayers=hiddenlayers,
-                       weights=weights, scalings=scalings,
-                       activation='tanh', fortran=fortran, label=label)
+            calc = AMP(fingerprint=Behler(cutoff=4., Gs=Gs,),
+                       regression=NeuralNetwork(hiddenlayers=hiddenlayers,
+                                                weights=weights,
+                                                scalings=scalings,
+                                                activation='tanh',),
+                       fortran=fortran,
+                       label=label)
 
             calc.train(images=images, energy_goal=10.**10.,
-                       force_goal=10.**10, force_coefficient=0.04,
+                       force_goal=10.**10., force_coefficient=0.04,
                        cores=cores, read_fingerprints=False)
 
             assert (abs(calc.cost_function[0] - 8005.262570965399) <
                     10.**(-7.)), \
-                'The predicted value of cost function is wrong!'
+                'The calculated value of cost function is wrong!'
 
             assert (abs(calc.energy_per_atom_rmse - 43.73579809791985) <
                     10.**(-7.)), \
-                'The predicted value of energy per atom RMSE is wrong!'
+                'The calculated value of energy per atom RMSE is wrong!'
 
             assert (abs(calc.force_rmse - 137.44097112273843) <
                     10 ** (-7.)), \
-                'The predicted value of force RMSE is wrong!'
+                'The calculated value of force RMSE is wrong!'
+
+            for _ in range(len(correct_der_cost_fxn)):
+                assert(abs(calc.der_variables_cost_function[_] -
+                           correct_der_cost_fxn[_] < 10 ** (-8))), \
+                    'The calculated value of cost function derivative is \
+                    wrong!'
 
     ###########################################################################
 

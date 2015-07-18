@@ -5,14 +5,15 @@ import os
 from ase.structure import molecule
 from ase.calculators.emt import EMT
 from ase import Atoms
-
 from amp import AMP
+
+###############################################################################
 
 
 def make_training_images():
     atoms = molecule('CH4')
     atoms.set_calculator(EMT())
-    atoms.get_potential_energy(apply_constraint=False)
+    atoms.get_potential_energy()
 
     images = [atoms]
 
@@ -20,10 +21,12 @@ def make_training_images():
     atoms.set_calculator(EMT())
     atoms[3].z += 0.5
 
-    atoms.get_potential_energy(apply_constraint=False)
+    atoms.get_potential_energy()
 
     images += [atoms]
     return images
+
+###############################################################################
 
 
 def test_read_write():
@@ -67,6 +70,8 @@ def test_read_write():
     calc.train(images)
 
     os.chdir(pwd)
+
+###############################################################################
 
 if __name__ == '__main__':
     test_read_write()

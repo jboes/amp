@@ -77,6 +77,7 @@ def hash_image(atoms):
 
 
 class Logger:
+
     """Logger that can also deliver timing information.
     Initialize with the path to the file to write to.
     """
@@ -99,7 +100,7 @@ class Logger:
         timing information in minutes to the timer."""
         dt = ''
         if toc:
-            if toc == True:
+            if toc is True:
                 tic = self._tic
             else:
                 tic = self._tics[toc]
@@ -122,11 +123,11 @@ def count_allocated_cpus():
         ncores = len(open(os.environ['PBS_NODEFILE']).readlines())
     elif 'SLURM_JOB_NODELIST' in os.environ.keys():
         raise Warning('Functionality for SLURM is untested and might not '
-        'work.')
+                      'work.')
         ncores = len(open(os.environ['SLURM_JOB_NODELIST']).readlines())
     elif 'LOADL_PROCESSOR_LIST' in os.environ.keys():
         raise Warning('Functionality for LoadLeveler is untested and might '
-        'not work.')
+                      'not work.')
         ncores = len(open(os.environ['LOADL_PROCESSOR_LIST']).readlines())
     elif 'PE_HOSTFILE' in os.environ.keys():
         raise Warning('Functionality for SGE is untested and might not work.')
@@ -138,7 +139,8 @@ def count_allocated_cpus():
             ncores += nprocs
     else:
         raise NotImplementedError('Unsupported batch management system. '
-        'Currently only PBS, SLURM, LoadLeveler and SGE are supported.')
+                                  'Currently only PBS, SLURM, LoadLeveler '
+                                  'and SGE are supported.')
 
     return ncores
 
@@ -159,7 +161,7 @@ def names_of_allocated_nodes():
         node_list = set(open(os.environ['SLURM_JOB_NODELIST']).readlines())
     elif 'LOADL_PROCESSOR_LIST' in os.environ.keys():
         raise Warning('Support for LoadLeveler is untested and might not '
-        'work.')
+                      'work.')
         node_list = set(open(os.environ['LOADL_PROCESSOR_LIST']).readlines())
     elif 'PE_HOSTFILE' in os.environ.keys():
         raise Warning('Support for SGE is untested and might not work.')
@@ -176,7 +178,8 @@ def names_of_allocated_nodes():
         node_list = set(nodes)
     else:
         raise NotImplementedError('Unsupported batch management system. '
-        'Currently only PBS and SLURM are supported.')
+                                  'Currently only PBS and SLURM are '
+                                  'supported.')
 
     return node_list, len(node_list)
 
@@ -251,11 +254,35 @@ def save_parameters(filename, param):
 
     parameters = {}
     for key in param.keys():
-        if key != 'variables':
+        if (key != 'regression') and (key != 'fingerprint'):
             parameters[key] = param[key]
 
+    if param.fingerprint is not None:
+        parameters['Gs'] = param.fingerprint.Gs
+        parameters['cutoff'] = param.fingerprint.cutoff
+        parameters['fingerprints_tag'] = param.fingerprint.fingerprints_tag
+
+    if param.fingerprint is None:
+        parameters['fingerprint'] = 'None'
+        parameters['no_of_atoms'] = param.regression.no_of_atoms
+    elif param.fingerprint.__class__.__name__ == 'Behler':
+        parameters['fingerprint'] = 'Behler'
+    else:
+        raise RuntimeError('Fingerprinting scheme is not recognized to AMP '
+                           'for saving parameters. User should add the '
+                           'fingerprinting scheme under consideration.')
+
+    if param.regression.__class__.__name__ == 'NeuralNetwork':
+        parameters['regression'] = 'NeuralNetwork'
+        parameters['hiddenlayers'] = param.regression.hiddenlayers
+        parameters['activation'] = param.regression.activation
+    else:
+        raise RuntimeError('Regression method is not recognized to AMP for '
+                           'saving parameters. User should add the '
+                           'regression method under consideration.')
+
     variables = []
-    for _ in param['variables']:
+    for _ in param.regression.variables:
         variables.append(_)
     parameters['variables'] = variables
 
@@ -290,4 +317,3 @@ def make_filename(label, base_filename):
     return filename
 
 ###############################################################################
-

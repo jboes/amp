@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 """
-Script that contains different local environment (fingerprint) descriptions.
+Script that contains Behler-Parrinello local environment descriptions.
+
 """
 
 import numpy as np
@@ -12,7 +13,7 @@ class Behler:
 
     """
     Class that calculates Behler-Parrinello fingerprints.
-        Parameters:
+        Inputs:
         cutoff: float (default 6.5 Angstroms)
                   Radius above which neighbor interactions are ignored.
         Gs: dictionary of symbols and lists of dictionaries for making
@@ -22,51 +23,41 @@ class Behler:
                     ... = {"type":"G2", "element":"O", "eta":0.0009} or
                     ... = {"type":"G4", "elements":["O", "Au"], "eta":0.0001,
                            "gamma":0.1, "zeta":1.0}
-        fingerprints_range: range of fingerprints of each chemical species.
-                            Should be fed as a dictionary of chemical species
-                            and a list of minimum and maximun, e.g.
-                            fingerprints_range={"Pd": [0.31, 0.59],
-                                "O":[0.56, 0.72]}
         fingerprints_tag (internal): a tag for identifying the functional form
                                      of fingerprints used in the code
+        fortran: boolean
+                If True, will use the fortran subroutines, else will not.
 
     """
 
-    def __init__(self):
+    def __init__(self, cutoff=6.5, Gs=None, fingerprints_tag=1, fortran=True,):
 
-        self.default_parameters = {'cutoff': 6.5,
-                                   'Gs': None,
-                                   'fingerprints_range': None,
-                                   'fingerprints_tag': 1,
-                                   }
-
-    #########################################################################
-
-    def initialize(self, param, fortran, atoms=None, nl=None):
-        """
-        Inputs:
-        param: dictionary that contains cutoff, Gs, and fingerprints_tag.
-        atoms: ASE atoms object
-                The initial atoms object on which the fingerprints will be
-                generated.
-        nl: ASE NeighborList object
-        fortran: boolean
-                If True, will use the fortran subroutines, else will not.
-        """
-
-        self.cutoff = param['cutoff']
-        self.Gs = param['Gs']
-        fingerprints_tag = param['fingerprints_tag']
-        self.atoms = atoms
-        self._nl = nl
+        self.cutoff = cutoff
+        self.Gs = Gs
+        self.fingerprints_tag = fingerprints_tag
         self.fortran = fortran
 
         # Checking if the functional forms of fingerprints in the train set
         # is the same as those of the current version of the code:
-        if fingerprints_tag != 1:
+        if self.fingerprints_tag != 1:
             raise FingerprintsError('Functional form of fingerprints has been '
                                     'changed. Re-train you train images set, '
                                     'and use the new weights and scalings.')
+
+    #########################################################################
+
+    def initialize(self, atoms, nl):
+        """
+        Inputs:
+        atoms: ASE atoms object
+                The initial atoms object on which the fingerprints will be
+                generated.
+        nl: ASE NeighborList object
+
+        """
+
+        self.atoms = atoms
+        self._nl = nl
 
     #########################################################################
 
@@ -170,11 +161,11 @@ class Behler:
         """Generates symmetry functions if do not exist."""
 
         # If Gs is not given, generates symmetry functions
-        if not param['Gs']:
-            param['Gs'] = make_symmetry_functions(elements)
+        if not param.fingerprint.Gs:
+            param.fingerprint.Gs = make_symmetry_functions(elements)
         log('Symmetry functions for each element:')
-        for _ in param['Gs'].keys():
-            log(' %2s: %i' % (_, len(param['Gs'][_])))
+        for _ in param.fingerprint.Gs.keys():
+            log(' %2s: %i' % (_, len(param.fingerprint.Gs[_])))
 
         return param
 
@@ -184,6 +175,7 @@ class Behler:
 
 
 class FingerprintsError(Exception):
+
     """Error class in case the functional form of fingerprints has
     changed"""
     pass

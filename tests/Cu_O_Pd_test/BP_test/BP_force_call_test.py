@@ -12,7 +12,7 @@ import numpy as np
 from ase import Atoms
 from collections import OrderedDict
 from amp import AMP
-from amp.fingerprints import Behler
+from amp.fingerprint import Behler
 from amp.regression import NeuralNetwork
 
 ###############################################################################
@@ -169,11 +169,11 @@ def BP_force_call_non_periodic_test():
 
     for fortran in [False, True]:
 
-        calc = AMP(fingerprint=Behler, regression=NeuralNetwork,
-                   cutoff=6.5, Gs=Gs, hiddenlayers=hiddenlayers,
-                   weights=weights, scalings=scalings,
+        calc = AMP(fingerprint=Behler(cutoff=6.5, Gs=Gs,),
+                   regression=NeuralNetwork(hiddenlayers=hiddenlayers,
+                   weights=weights, scalings=scalings, activation='sigmoid',),
                    fingerprints_range=fingerprints_range,
-                   activation='sigmoid', fortran=fortran)
+                   fortran=fortran)
 
         predicted_energies = [calc.get_potential_energy(image) for image in
                               images]
@@ -181,7 +181,7 @@ def BP_force_call_non_periodic_test():
         for image_no in range(len(predicted_energies)):
             assert (abs(predicted_energies[image_no] -
                         correct_predicted_energies[image_no]) < 10.**(-10.)), \
-                'The predicted energy of image %i is wrong!' % (image_no + 1)
+                'The calculated energy of image %i is wrong!' % (image_no + 1)
 
         predicted_forces = [calc.get_forces(image) for image in images]
 
@@ -192,7 +192,7 @@ def BP_force_call_non_periodic_test():
                     assert (abs(predicted_forces[image_no][index][direction] -
                                 correct_predicted_forces[image_no][index]
                                 [direction]) < 10.**(-10.)), \
-                        'The predicted %i force of atom %i of image %i is' \
+                        'The calculated %i force of atom %i of image %i is' \
                         'wrong!' % (direction, index, image_no + 1)
 
 
@@ -307,11 +307,11 @@ def BP_force_call_periodic_test():
 
     for fortran in [False, True]:
 
-        calc = AMP(fingerprint=Behler, regression=NeuralNetwork,
-                   cutoff=4., Gs=Gs, hiddenlayers=hiddenlayers,
-                   weights=weights, scalings=scalings,
+        calc = AMP(fingerprint=Behler(cutoff=4., Gs=Gs,),
+                   regression=NeuralNetwork(hiddenlayers=hiddenlayers,
+                   weights=weights, scalings=scalings, activation='tanh',),
                    fingerprints_range=fingerprints_range,
-                   activation='tanh', fortran=fortran)
+                   fortran=fortran)
 
         predicted_energies = [calc.get_potential_energy(image) for image in
                               images]
@@ -319,18 +319,17 @@ def BP_force_call_periodic_test():
         for image_no in range(len(predicted_energies)):
             assert (abs(predicted_energies[image_no] -
                         correct_predicted_energies[image_no]) < 10.**(-10.)), \
-                'The predicted energy of image %i is wrong!' % (image_no + 1)
+                'The calculated energy of image %i is wrong!' % (image_no + 1)
 
         predicted_forces = [calc.get_forces(image) for image in images]
 
         for image_no in range(len(predicted_forces)):
             for index in range(np.shape(predicted_forces[image_no])[0]):
-                for direction in range(
-                        np.shape(predicted_forces[image_no])[1]):
+                for direction in range(3):
                     assert (abs(predicted_forces[image_no][index][direction] -
                                 correct_predicted_forces[image_no][index]
                                 [direction]) < 10.**(-10.)), \
-                        'The predicted %i force of atom %i of image %i is' \
+                        'The calculated %i force of atom %i of image %i is' \
                         'wrong!' % (direction, index, image_no + 1)
 
     ###########################################################################

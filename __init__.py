@@ -25,9 +25,9 @@ import gc
 from collections import OrderedDict
 from scipy.optimize import fmin_bfgs as optimizer
 from ase.calculators.neighborlist import NeighborList
-from amp.utilities import *
-from amp.fingerprints import *
-from amp.regression import *
+from utilities import *
+from fingerprint import *
+from regression import *
 try:
     from amp import fmodules  # version 6 of fmodules
     fmodules_version = 6
@@ -50,6 +50,11 @@ class AMP(Calculator):
                     NeuralNetwork for now. Input arguments for NeuralNetwork
                     are hiddenlayers, activation, weights, and scalings; for
                     more information see docstring for the class NeuralNetwork.
+        fingerprints_range: range of fingerprints of each chemical species.
+                            Should be fed as a dictionary of chemical species
+                            and a list of minimum and maximun, e.g.
+                            fingerprints_range={"Pd": [0.31, 0.59],
+                                "O":[0.56, 0.72]}
         load: string
             load an existing (trained) BPNeural calculator from this path.
         label: string
@@ -73,13 +78,16 @@ class AMP(Calculator):
 
     implemented_properties = ['energy', 'forces']
 
-    default_parameters = {}
+    default_parameters = {
+        'fingerprint': Behler(),
+        'regression': NeuralNetwork(),
+        'fingerprints_range': None,
+    }
 
     #########################################################################
 
-    def __init__(self, fingerprint=Behler, regression=NeuralNetwork, load=None,
-                 label=None, dblabel=None, extrapolate=True, fortran=True,
-                 **kwargs):
+    def __init__(self, load=None, label=None, dblabel=None, extrapolate=True,
+                 fortran=True, **kwargs):
 
         self.extrapolate = extrapolate
         self.fortran = fortran
@@ -112,36 +120,46 @@ class AMP(Calculator):
 
             parameters = load_parameters(json_file)
 
+            kwargs = {}
             if parameters['fingerprint'] == 'Behler':
-                fingerprint = Behler
+                kwargs['fingerprint'] = \
+                    Behler(cutoff=parameters['cutoff'],
+                           Gs=parameters['Gs'],
+                           fingerprints_tag=parameters['fingerprints_tag'],
+                           fortran=fortran,)
+            elif parameters['fingerprint'] == 'None':
+                kwargs['fingerprint'] = None
+                if parameters['no_of_atoms'] == 'None':
+                    parameters['no_of_atoms'] = None
+            else:
+                raise RuntimeError('Fingerprinting scheme is not recognized '
+                                   'to AMP for loading parameters. User '
+                                   'should add the fingerprinting scheme '
+                                   'under consideration.')
+
             if parameters['regression'] == 'NeuralNetwork':
-                regression = NeuralNetwork
-
-            for key in parameters.keys():
-                kwargs[key] = parameters[key]
-
-        self.fp = fingerprint()
-        self.reg = regression()
-
-        for key, value in self.fp.default_parameters.items():
-            if key not in kwargs.keys():
-                kwargs[key] = value
-            # FIXME: Should it be added to the default_parameters also?
-#            Calculator.default_parameters[key] = value
-
-        for key, value in self.reg.default_parameters.items():
-            if key not in kwargs.keys():
-                kwargs[key] = value
-            # FIXME: Should it be added to the default_parameters also?
-#            Calculator.default_parameters[key] = value
-
-        kwargs['fingerprint'] = fingerprint.__name__
-        kwargs['regression'] = regression.__name__
-
-        self.fp.initialize(kwargs, self.fortran)
-        self.reg.initialize(kwargs, self.fortran, load)
+                kwargs['regression'] = \
+                    NeuralNetwork(hiddenlayers=parameters['hiddenlayers'],
+                                  activation=parameters['activation'],
+                                  variables=parameters['variables'],)
+                if kwargs['fingerprint'] is None:
+                    kwargs['no_of_atoms'] = parameters['no_of_atoms']
+            else:
+                raise RuntimeError('Regression method is not recognized to '
+                                   'AMP for loading parameters. User should '
+                                   'add the regression method under '
+                                   'consideration.')
 
         Calculator.__init__(self, label=label, **kwargs)
+
+        param = self.parameters
+
+        if param.fingerprint is not None:
+            self.fp = param.fingerprint
+
+        self.reg = param.regression
+
+        self.reg.initialize(param, load)
 
     #########################################################################
 
@@ -183,11 +201,13 @@ class AMP(Calculator):
         Calculator.calculate(self, atoms, properties, system_changes)
 
         self.atoms = atoms
-        self.cutoff = self.parameters.cutoff
-
+        param = self.parameters
+        if param.fingerprint is None:  # pure atomic-coordinates scheme
+            self.reg.initialize(param=param,
+                                atoms=self.atoms)
         param = self.reg.ravel_variables()
 
-        if param['variables'] is None:
+        if param.regression.variables is None:
             raise RuntimeError("Calculator not trained; can't return "
                                'properties.')
 
@@ -195,46 +215,51 @@ class AMP(Calculator):
             self.initialize(atoms)
 
         self.nl.update(atoms)
-        # FIXME: What is the difference between the two updates on the top
-        # and bottom? Is the one on the top necessary? Where is self.nl coming
-        # from?
-        self.update()
 
-        self.fp.atoms = atoms
-        self.fp._nl = self._nl
+        if param.fingerprint is not None:  # fingerprinting scheme
+            self.cutoff = param.fingerprint.cutoff
 
-        # If fingerprints_range is not available, it will raise an error.
-        if param['fingerprints_range'] is None:
-            raise RuntimeError('The keyword "fingerprints_range" is not '
-                               'available. It can be provided to the '
-                               'calculator either by introducing a JSON file, '
-                               'or by directly feeding the keyword to the '
-                               'calculator. If you do not know the values but '
-                               'still want to run the calculator, initialize '
-                               'it with fingerprints_range="auto".')
+            # FIXME: What is the difference between the two updates on the top
+            # and bottom? Is the one on the top necessary? Where is self.nl
+            #  coming from?
+            self.update()
 
-        # If fingerprints_range is not given either as a direct keyword or as
-        # the josn file, but instead is given as 'auto', it will be calculated
-        # here.
-        if param['fingerprints_range'] == 'auto':
-            warnings.warn('The values of "fingerprints_range" are not given. '
-                          'The user is expected to understand what is being '
-                          'done!')
-            param['fingerprints_range'] = \
-                calculate_fingerprints_range(self.fp,
-                                             self.reg.elements,
-                                             self.fp.atoms)
-        # Deciding on whether it is exptrapoling or interpolating is possible
-        # only when fingerprints_range is provided by the user.
-        elif self.extrapolate is False:
-            if compare_train_test_fingerprints(
-                    self.fp,
-                    self.fp.atoms,
-                    param['fingerprints_range']) == 1:
-                raise ExtrapolateError('Trying to extrapolate, which'
-                                       ' is not allowed. Change to '
-                                       'extrapolate=True if this is'
-                                       ' desired.')
+            self.fp.atoms = atoms
+            self.fp._nl = self._nl
+
+            # If fingerprints_range is not available, it will raise an error.
+            if param.fingerprints_range is None:
+                raise RuntimeError('The keyword "fingerprints_range" is not '
+                                   'available. It can be provided to the '
+                                   'calculator either by introducing a JSON '
+                                   'file, or by directly feeding the keyword '
+                                   'to the calculator. If you do not know the '
+                                   'values but still want to run the '
+                                   'calculator, initialize it with '
+                                   'fingerprints_range="auto".')
+
+            # If fingerprints_range is not given either as a direct keyword or
+            # as the josn file, but instead is given as 'auto', it will be
+            # calculated here.
+            if param.fingerprints_range == 'auto':
+                warnings.warn('The values of "fingerprints_range" are not '
+                              'given. The user is expected to understand what '
+                              'is being done!')
+                param.fingerprints_range = \
+                    calculate_fingerprints_range(self.fp,
+                                                 self.reg.elements,
+                                                 self.fp.atoms)
+            # Deciding on whether it is exptrapoling or interpolating is
+            # possible only when fingerprints_range is provided by the user.
+            elif self.extrapolate is False:
+                if compare_train_test_fingerprints(
+                        self.fp,
+                        self.fp.atoms,
+                        param.fingerprints_range) == 1:
+                    raise ExtrapolateError('Trying to extrapolate, which'
+                                           ' is not allowed. Change to '
+                                           'extrapolate=True if this is'
+                                           ' desired.')
 
     ##################################################################
 
@@ -242,118 +267,146 @@ class AMP(Calculator):
 
             self.reg.reset_energy()
             self.energy = 0.0
-            for atom in atoms:
-                index = atom.index
-                symbol = atom.symbol
-                indexfp = self.fp.index_fingerprint(symbol, index)
-                # fingerprints are scaled to [-1, 1] range
-                scaled_indexfp = []
-                for _ in range(len(indexfp)):
-                    if (param['fingerprints_range'][symbol][_][1] -
-                            param['fingerprints_range'][symbol][_][0]) \
-                            > (10.**(-8.)):
-                        scaled_value = -1. + \
-                            2. * (indexfp[_] - param['fingerprints_range'][
-                                symbol][_][0]) / \
-                            (param['fingerprints_range'][symbol][_][1] -
-                             param['fingerprints_range'][symbol][_][0])
-                    else:
-                        scaled_value = indexfp[_]
-                    scaled_indexfp.append(scaled_value)
-                atomic_amp_energy = self.reg.get_output(index, symbol,
-                                                        scaled_indexfp)
-                self.energy += atomic_amp_energy
+
+            if param.fingerprint is None:  # pure atomic-coordinates scheme
+
+                input = (atoms.positions).ravel()
+                self.energy = self.reg.get_output(input,)
+
+            else:  # fingerprinting scheme
+
+                for atom in atoms:
+                    index = atom.index
+                    symbol = atom.symbol
+                    indexfp = self.fp.index_fingerprint(symbol, index)
+                    # fingerprints are scaled to [-1, 1] range
+                    scaled_indexfp = []
+                    for _ in range(len(indexfp)):
+                        if (param.fingerprints_range[symbol][_][1] -
+                                param.fingerprints_range[symbol][_][0]) \
+                                > (10.**(-8.)):
+                            scaled_value = -1. + \
+                                2. * (indexfp[_] - param.fingerprints_range[
+                                    symbol][_][0]) / \
+                                (param.fingerprints_range[symbol][_][1] -
+                                 param.fingerprints_range[symbol][_][0])
+                        else:
+                            scaled_value = indexfp[_]
+                        scaled_indexfp.append(scaled_value)
+                    atomic_amp_energy = self.reg.get_output(scaled_indexfp,
+                                                            index, symbol,)
+                    self.energy += atomic_amp_energy
+
             self.results['energy'] = float(self.energy)
 
     ##################################################################
 
         if properties == ['forces']:
 
-            # Neighborlists for all atoms are calculated.
-            dict_nl = {}
-            n_self_offsets = {}
-            for self_atom in atoms:
-                self_index = self_atom.index
-                neighbor_indices, neighbor_offsets = \
-                    self._nl.get_neighbors(self_index)
-                n_self_indices = np.append(self_index, neighbor_indices)
-                if len(neighbor_offsets) == 0:
-                    _n_self_offsets = [[0, 0, 0]]
-                else:
-                    _n_self_offsets = np.vstack(([[0, 0, 0]],
-                                                 neighbor_offsets))
-                dict_nl[self_index] = n_self_indices
-                n_self_offsets[self_index] = _n_self_offsets
-
             self.reg.reset_energy()
             outputs = {}
-            for atom in atoms:
-                index = atom.index
-                symbol = atom.symbol
-                indexfp = self.fp.index_fingerprint(symbol, index)
-                # fingerprints are scaled to [-1, 1] range
-                scaled_indexfp = []
-                for _ in range(len(indexfp)):
-                    if (param['fingerprints_range'][symbol][_][1] -
-                            param['fingerprints_range'][symbol][_][0]) > \
-                            (10.**(-8.)):
-                        scaled_value = -1. + 2. * (indexfp[_] -
-                                                   param['fingerprints_range'][
-                                                   symbol][_][0]) / \
-                            (param['fingerprints_range'][symbol][_][1] -
-                             param['fingerprints_range'][symbol][_][0])
-                    else:
-                        scaled_value = indexfp[_]
-                    scaled_indexfp.append(scaled_value)
-                _ = self.reg.get_output(index, symbol, scaled_indexfp)
-
             self.forces[:] = 0.0
 
-            for atom in atoms:
-                self_index = atom.index
-                n_self_indices = dict_nl[self_index]
-                _n_self_offsets = n_self_offsets[self_index]
-                n_self_symbols = [atoms[n_index].symbol
-                                  for n_index in n_self_indices]
-                self.reg.reset_forces()
-                for i in range(3):
-                    force = 0.
-                    for n_symbol, n_index, n_offset in zip(n_self_symbols,
-                                                           n_self_indices,
-                                                           _n_self_offsets):
-                        # for calculating forces, summation runs over neighbor
-                        #  atoms of type II (within the main cell only)
-                        if n_offset[0] == 0 and n_offset[1] == 0 and \
-                                n_offset[2] == 0:
-                            der_indexfp = self.fp.get_der_fingerprint(
-                                n_symbol,
-                                n_index,
-                                self_index,
-                                i)
-                            # fingerprint derivatives are scaled
-                            scaled_der_indexfp = []
-                            for _ in range(len(der_indexfp)):
-                                if (param['fingerprints_range'][
-                                    n_symbol][_][1] -
-                                    param['fingerprints_range'][
-                                    n_symbol][_][0]) \
-                                        > (10.**(-8.)):
-                                    scaled_value = 2. * der_indexfp[_] / \
-                                        (param['fingerprints_range'][
-                                            n_symbol][_][1] -
-                                         param['fingerprints_range'][
-                                            n_symbol][_][0])
-                                else:
-                                    scaled_value = der_indexfp[_]
-                                scaled_der_indexfp.append(scaled_value)
+            if param.fingerprint is None:  # pure atomic-coordinates scheme
 
-                            force += self.reg.get_force(n_index, n_symbol,
-                                                        i, scaled_der_indexfp)
+                input = (atoms.positions).ravel()
+                _ = self.reg.get_output(input,)
+                for atom in atoms:
+                    self_index = atom.index
+                    self.reg.reset_forces()
+                    for i in range(3):
+                        _input = [0. for __ in range(3 * len(atoms))]
+                        _input[3 * self_index + i] = 1.
+                        force = self.reg.get_force(i, _input,)
+                        self.forces[self_index][i] = force
 
-                    self.forces[self_index][i] = force
+            else:  # fingerprinting scheme
 
-            del dict_nl, outputs, n_self_offsets, n_self_indices,
-            n_self_symbols, _n_self_offsets, scaled_indexfp, indexfp
+                # Neighborlists for all atoms are calculated.
+                dict_nl = {}
+                n_self_offsets = {}
+                for self_atom in atoms:
+                    self_index = self_atom.index
+                    neighbor_indices, neighbor_offsets = \
+                        self._nl.get_neighbors(self_index)
+                    n_self_indices = np.append(self_index, neighbor_indices)
+                    if len(neighbor_offsets) == 0:
+                        _n_self_offsets = [[0, 0, 0]]
+                    else:
+                        _n_self_offsets = np.vstack(([[0, 0, 0]],
+                                                     neighbor_offsets))
+                    dict_nl[self_index] = n_self_indices
+                    n_self_offsets[self_index] = _n_self_offsets
+
+                for atom in atoms:
+                    index = atom.index
+                    symbol = atom.symbol
+                    indexfp = self.fp.index_fingerprint(symbol, index)
+                    # fingerprints are scaled to [-1, 1] range
+                    scaled_indexfp = []
+                    for _ in range(len(indexfp)):
+                        if (param.fingerprints_range[symbol][_][1] -
+                                param.fingerprints_range[symbol][_][0]) > \
+                                (10.**(-8.)):
+                            scaled_value = \
+                                -1. + 2. * (indexfp[_] -
+                                            param.fingerprints_range[
+                                            symbol][_][0]) / \
+                                (param.fingerprints_range[symbol][_][1] -
+                                 param.fingerprints_range[symbol][_][0])
+                        else:
+                            scaled_value = indexfp[_]
+                        scaled_indexfp.append(scaled_value)
+                    __ = self.reg.get_output(scaled_indexfp, index, symbol)
+
+                for atom in atoms:
+                    self_index = atom.index
+                    n_self_indices = dict_nl[self_index]
+                    _n_self_offsets = n_self_offsets[self_index]
+                    n_self_symbols = [atoms[n_index].symbol
+                                      for n_index in n_self_indices]
+                    self.reg.reset_forces()
+                    for i in range(3):
+                        force = 0.
+                        for n_symbol, n_index, n_offset in zip(
+                                n_self_symbols,
+                                n_self_indices,
+                                _n_self_offsets):
+                            # for calculating forces, summation runs over
+                            # neighbor atoms of type II (within the main cell
+                            # only)
+                            if n_offset[0] == 0 and n_offset[1] == 0 and \
+                                    n_offset[2] == 0:
+                                der_indexfp = self.fp.get_der_fingerprint(
+                                    n_symbol,
+                                    n_index,
+                                    self_index,
+                                    i)
+                                # fingerprint derivatives are scaled
+                                scaled_der_indexfp = []
+                                for _ in range(len(der_indexfp)):
+                                    if (param.fingerprints_range[
+                                        n_symbol][_][1] -
+                                        param.fingerprints_range[
+                                        n_symbol][_][0]) \
+                                            > (10.**(-8.)):
+                                        scaled_value = 2. * der_indexfp[_] / \
+                                            (param.fingerprints_range[
+                                                n_symbol][_][1] -
+                                             param.fingerprints_range[
+                                                n_symbol][_][0])
+                                    else:
+                                        scaled_value = der_indexfp[_]
+                                    scaled_der_indexfp.append(scaled_value)
+
+                                force += self.reg.get_force(i,
+                                                            scaled_der_indexfp,
+                                                            n_index, n_symbol,)
+
+                        self.forces[self_index][i] = force
+
+                del dict_nl, outputs, n_self_offsets, n_self_indices,
+                n_self_symbols, _n_self_offsets, scaled_indexfp, indexfp
 
             self.results['forces'] = self.forces
 
@@ -424,7 +477,7 @@ class AMP(Calculator):
                     If a trained output file with the same name exists,
                     overwrite it.
         """
-        param = self.reg.param
+        param = self.parameters
         filename = make_filename(self.label, 'trained-parameters.json')
         if (not overwrite) and os.path.exists(filename):
             raise IOError('File exists: %s.\nIf you want to overwrite,'
@@ -440,17 +493,21 @@ class AMP(Calculator):
         else:
             train_forces = True
             if not force_coefficient:
-                force_coefficient = (energy_goal / force_goal)**2
+                force_coefficient = (energy_goal / force_goal)**2.
 
         log = Logger(make_filename(self.label, 'train-log.txt'))
 
         log('AMP training started. ' + now() + '\n')
-        log('Local environment descriptor: ' + param['fingerprint'])
-        log('Regression: ' + param['regression'] + '\n')
-        self.cores = cores
-        if not self.cores:
-            self.cores = mp.cpu_count()
-        log('Parallel processing over %i cores.\n' % self.cores)
+        if param.fingerprint is None:  # pure atomic-coordinates scheme
+            log('Local environment descriptor: None')
+        else:  # fingerprinting scheme
+            log('Local environment descriptor: ' +
+                param.fingerprint.__class__.__name__)
+        log('Regression: ' + param.regression.__class__.__name__ + '\n')
+
+        if not cores:
+            cores = mp.cpu_count()
+        log('Parallel processing over %i cores.\n' % cores)
 
         if isinstance(images, str):
             extension = os.path.splitext(images)[1]
@@ -458,6 +515,14 @@ class AMP(Calculator):
                 images = io.Trajectory(images, 'r')
             elif extension == '.db':
                 images = io.read(images)
+
+        if param.fingerprint is None:  # pure atomic-coordinates scheme
+            param.no_of_atoms = len(images[0])
+            for image in images:
+                if len(image) != param.no_of_atoms:
+                    raise RuntimeError('Number of atoms in different images '
+                                       'is not the same. Try '
+                                       'fingerprint=Behler.')
 
         log('Training on %i images.' % len(images))
 
@@ -485,36 +550,40 @@ class AMP(Calculator):
         msg += ', '.join(self.elements)
         log(msg)
 
-        param = self.fp.log(log, param, self.elements)
+        if param.fingerprint is not None:  # fingerprinting scheme
+            param = self.fp.log(log, param, self.elements)
         param = self.reg.log(log, param, self.elements, images)
 
         # "MultiProcess" object is initialized
-        _mp = MultiProcess(self.fortran, no_procs=self.cores)
+        _mp = MultiProcess(self.fortran, no_procs=cores)
 
-        # Neighborlist for all images are calculated and saved
-        log.tic()
-        snl = SaveNeighborLists(param['cutoff'], hash_keys, images,
-                                self.dblabel, log, train_forces,
-                                read_fingerprints)
+        if param.fingerprint is None:  # pure atomic-coordinates scheme
+            self.sfp = None
+            snl = None
+        else:  # fingerprinting scheme
+            # Neighborlist for all images are calculated and saved
+            log.tic()
+            snl = SaveNeighborLists(param.fingerprint.cutoff, hash_keys,
+                                    images, self.dblabel, log, train_forces,
+                                    read_fingerprints)
 
-        # Fingerprints are calculated and saved
-        self.sfp = SaveFingerprints(
-            self.fp,
-            param,
-            self.elements,
-            hash_keys,
-            images,
-            self.dblabel,
-            train_forces,
-            read_fingerprints,
-            snl,
-            log,
-            _mp)
+            # Fingerprints are calculated and saved
+            self.sfp = SaveFingerprints(
+                self.fp,
+                self.elements,
+                hash_keys,
+                images,
+                self.dblabel,
+                train_forces,
+                read_fingerprints,
+                snl,
+                log,
+                _mp)
 
-        # If fingerprints_range has not been loaded, it will take value from
-        # the json file.
-        if param['fingerprints_range'] is None:
-            param['fingerprints_range'] = self.sfp.fingerprints_range
+            # If fingerprints_range has not been loaded, it will take value
+            # from the json file.
+            if param.fingerprints_range is None:
+                param.fingerprints_range = self.sfp.fingerprints_range
 
         # If you want to use only one core for feed-forward evaluation
         # uncomment this line: Re-initializing "Multiprocessing" object with
@@ -530,13 +599,13 @@ class AMP(Calculator):
             log,
             energy_goal,
             force_goal,
-            self.sfp,
-            snl,
             train_forces,
             _mp,
             self.overfitting_constraint,
             force_coefficient,
-            self.fortran)
+            self.fortran,
+            self.sfp,
+            snl,)
 
         del hash_keys, images
 
@@ -555,7 +624,7 @@ class AMP(Calculator):
         log.tic()
         converged = False
 
-        variables = param['variables']
+        variables = param.regression.variables
 
         try:
             optimizer(f=costfxn.f, x0=variables,
@@ -575,7 +644,7 @@ class AMP(Calculator):
                 toc=True)
             raise TrainingConvergenceError()
 
-        param['variables'] = costfxn.param['variables']
+        param.regression.variables = costfxn.param.regression.variables
 
         log(' ...optimization completed successfully. Optimal '
             'parameters saved.', toc=True)
@@ -585,6 +654,7 @@ class AMP(Calculator):
         self.cost_function = costfxn.cost_function,
         self.energy_per_atom_rmse = costfxn.energy_per_atom_rmse
         self.force_rmse = costfxn.force_rmse
+        self.der_variables_cost_function = costfxn.der_variables_square_error
 
 ###############################################################################
 ###############################################################################
@@ -654,8 +724,7 @@ class MultiProcess:
         for x in range(self.no_procs):
             sub_hash_keys = self.list_sub_hashes[x]
             sub_images = self.list_sub_images[x]
-            args[x] = (x,) + (sub_hash_keys, sub_images,) + _args + \
-                (self.fortran,)
+            args[x] = (x,) + (sub_hash_keys, sub_images,) + _args
 
         processes = [mp.Process(target=task, args=args[x])
                      for x in range(self.no_procs)]
@@ -677,9 +746,9 @@ class MultiProcess:
 
         args = {}
         for x in range(self.no_procs):
-#            if self.fortran:
-#                args[x] = (x + 1,) + _args + (self.queues[x],)
-#            else:
+            #            if self.fortran:
+            #                args[x] = (x + 1,) + _args + (self.queues[x],)
+            #            else:
             sub_hash_keys = self.list_sub_hashes[x]
             sub_images = self.list_sub_images[x]
             args[x] = (sub_hash_keys, sub_images,) + _args + (self.queues[x],)
@@ -712,12 +781,12 @@ class MultiProcess:
             sub_force_square_error.append(result[1])
             sub_der_variables_square_error.append(result[2])
 
-        for i in range(len(sub_energy_square_error)):
-            energy_square_error += sub_energy_square_error[i]
-            force_square_error += sub_force_square_error[i]
+        for _ in range(len(sub_energy_square_error)):
+            energy_square_error += sub_energy_square_error[_]
+            force_square_error += sub_force_square_error[_]
             for j in range(len_of_variables):
                 der_variables_square_error[j] += \
-                    sub_der_variables_square_error[i][j]
+                    sub_der_variables_square_error[_][j]
 
         if not self.fortran:
             del sub_hash_keys, sub_images
@@ -852,8 +921,6 @@ class SaveFingerprints:
 
         fp: fingerprint object
 
-        param: dictionary that contains Gs
-
         elements: list if elements in images
 
         hash_keys: unique keys, one key per image
@@ -882,7 +949,6 @@ class SaveFingerprints:
 
     def __init__(self,
                  fp,
-                 param,
                  elements,
                  hash_keys,
                  images,
@@ -893,7 +959,7 @@ class SaveFingerprints:
                  log,
                  _mp):
 
-        self.Gs = param['Gs']
+        self.Gs = fp.Gs
         self.train_forces = train_forces
         self.fp_data = {}
         self.der_fp_data = {}
@@ -944,7 +1010,7 @@ class SaveFingerprints:
                 log('  Processor %i calculations stored in file %s.'
                     % (_, childfiles[_].name))
 
-            task_args = (fp, param, label, childfiles)
+            task_args = (fp, label, childfiles)
             _mp.share_fingerprints_task_between_cores(
                 task=_calculate_fingerprints, _args=task_args)
 
@@ -981,20 +1047,20 @@ class SaveFingerprints:
         fingerprint_values = {}
         for element in elements:
             fingerprint_values[element] = {}
-            for _ in range(len(param['Gs'][element])):
+            for _ in range(len(self.Gs[element])):
                 fingerprint_values[element][_] = []
 
         for hash_key in hash_keys:
             image = images[hash_key]
             for atom in image:
-                for _ in range(len(param['Gs'][atom.symbol])):
+                for _ in range(len(self.Gs[atom.symbol])):
                     fingerprint_values[atom.symbol][_].append(
                         dict_data[hash_key][atom.index][_])
 
         fingerprints_range = OrderedDict()
         for element in elements:
             fingerprints_range[element] = []
-            for _ in range(len(param['Gs'][element])):
+            for _ in range(len(self.Gs[element])):
                 fingerprints_range[element].append(
                     [min(fingerprint_values[element][_]),
                      max(fingerprint_values[element][_])])
@@ -1062,7 +1128,7 @@ class SaveFingerprints:
                     log('  Processor %i calculations stored in file %s.'
                         % (_, childfiles[_].name))
 
-                task_args = (fp, param, snl, label, childfiles)
+                task_args = (fp, snl, label, childfiles)
                 _mp.share_fingerprints_task_between_cores(
                     task=_calculate_der_fingerprints,
                     _args=task_args)
@@ -1133,11 +1199,6 @@ class CostFxnandDer:
 
         force_goal: threshold rmse/atom at which simulation is converged
 
-        sfp: object of the class SaveFingerprints, which contains all
-           fingerprints
-
-        snl: object of the class SaveNeighborLists
-
         train_forces:  boolean representing whether forces are also trained or
         not
 
@@ -1153,16 +1214,21 @@ class CostFxnandDer:
         fortran: boolean
             If True, will use the fortran subroutines, else will not.
 
+        sfp: object of the class SaveFingerprints, which contains all
+           fingerprints
+
+        snl: object of the class SaveNeighborLists
+
     """
     #########################################################################
 
     def __init__(self, reg, param, hash_keys, images, label, log,
-                 energy_goal, force_goal, sfp, snl, train_forces, _mp,
-                 overfitting_constraint, force_coefficient, fortran):
+                 energy_goal, force_goal, train_forces, _mp,
+                 overfitting_constraint, force_coefficient, fortran, sfp=None,
+                 snl=None,):
 
         self.reg = reg
         self.param = param
-        self.cutoff = param['cutoff']
         self.hash_keys = hash_keys
         self.images = images
         self.label = label
@@ -1177,6 +1243,9 @@ class CostFxnandDer:
         self.overfitting_constraint = overfitting_constraint
         self.force_coefficient = force_coefficient
         self.fortran = fortran
+
+        if param.fingerprint is not None:  # pure atomic-coordinates scheme
+            self.cutoff = param.fingerprint.cutoff
 
         self.energy_convergence = False
         self.force_convergence = False
@@ -1199,11 +1268,11 @@ class CostFxnandDer:
         """function to calculate the cost function"""
 
         log = self.log
-        self.param['variables'] = variables
+        self.param.regression.variables = variables
 
         task_args = (self.reg, self.param, self.sfp, self.snl,
                      self.energy_coefficient, self.force_coefficient,
-                     len(variables))
+                     self.train_forces, len(variables))
 
         (energy_square_error,
          force_square_error,
@@ -1304,11 +1373,11 @@ class CostFxnandDer:
 
         if self.steps == 0:
 
-            self.param['variables'] = variables
+            self.param.regression.variables = variables
 
             task_args = (self.reg, self.param, self.sfp, self.snl,
                          self.energy_coefficient, self.force_coefficient,
-                         len(variables))
+                         self.train_forces, len(variables))
 
             (energy_square_error,
              force_square_error,
@@ -1362,10 +1431,8 @@ def _calculate_fingerprints(proc_no,
                             hashes,
                             images,
                             fp,
-                            param,
                             label,
-                            childfiles,
-                            fortran):
+                            childfiles):
     """wrapper function to be used in multiprocessing for calculating
     fingerprints."""
 
@@ -1373,12 +1440,12 @@ def _calculate_fingerprints(proc_no,
     for hash_key in hashes:
         fingerprints[hash_key] = {}
         atoms = images[hash_key]
-        _nl = NeighborList(cutoffs=([param['cutoff'] / 2.] * len(atoms)),
+        _nl = NeighborList(cutoffs=([fp.cutoff / 2.] * len(atoms)),
                            self_interaction=False,
                            bothways=True,
                            skin=0.)
         _nl.update(atoms)
-        fp.initialize(param, fortran, atoms, _nl)
+        fp.initialize(atoms, _nl)
         for atom in atoms:
             index = atom.index
             symbol = atom.symbol
@@ -1392,8 +1459,8 @@ def _calculate_fingerprints(proc_no,
 ###############################################################################
 
 
-def _calculate_der_fingerprints(proc_no, hashes, images, fp, param,
-                                snl, label, childfiles, fortran):
+def _calculate_der_fingerprints(proc_no, hashes, images, fp,
+                                snl, label, childfiles):
     """wrapper function to be used in multiprocessing for calculating
     derivatives of fingerprints."""
 
@@ -1401,12 +1468,13 @@ def _calculate_der_fingerprints(proc_no, hashes, images, fp, param,
     for hash_key in hashes:
         data[hash_key] = {}
         atoms = images[hash_key]
-        _nl = NeighborList(cutoffs=([param['cutoff'] / 2.] * len(atoms)),
+        _nl = NeighborList(cutoffs=([fp.cutoff / 2.] *
+                                    len(atoms)),
                            self_interaction=False,
                            bothways=True,
                            skin=0.)
         _nl.update(atoms)
-        fp.initialize(param, fortran, atoms, _nl)
+        fp.initialize(atoms, _nl)
         for self_atom in atoms:
             self_index = self_atom.index
             n_self_indices = snl.nl_data[(hash_key, self_index)][0]
@@ -1434,7 +1502,7 @@ def _calculate_der_fingerprints(proc_no, hashes, images, fp, param,
 
 def _calculate_cost_function_python(hashes, images, reg, param, sfp,
                                     snl, energy_coefficient,
-                                    force_coefficient,
+                                    force_coefficient, train_forces,
                                     len_of_variables, queue):
     """wrapper function to be used in multiprocessing for calculating
     cost function and it's derivative with respect to variables."""
@@ -1454,86 +1522,116 @@ def _calculate_cost_function_python(hashes, images, reg, param, sfp,
         reg.reset_energy()
         amp_energy = 0.
 
-        for atom in atoms:
-            index = atom.index
-            symbol = atom.symbol
-            indexfp = sfp.fp_data[(hash_key, index)]
-            # fingerprints are scaled to [-1, 1] range
-            scaled_indexfp = []
-            for _ in range(len(indexfp)):
-                if (sfp.fingerprints_range[symbol][_][1] -
-                        sfp.fingerprints_range[symbol][_][0]) > (10.**(-8.)):
-                    scaled_value = -1. + 2. * (indexfp[_] -
-                                               sfp.fingerprints_range[
-                                               symbol][_][0]) / \
-                        (sfp.fingerprints_range[symbol][_][1] -
-                         sfp.fingerprints_range[symbol][_][0])
-                else:
-                    scaled_value = indexfp[_]
-                scaled_indexfp.append(scaled_value)
-            atomic_amp_energy = reg.get_output(index, symbol, scaled_indexfp)
+        if param.fingerprint is None:  # pure atomic-coordinates scheme
 
-            amp_energy += atomic_amp_energy
+            input = (atoms.positions).ravel()
+            amp_energy = reg.get_output(input,)
 
-        energy_square_error += (amp_energy - real_energy) ** 2. / \
+        else:  # fingerprinting scheme
+
+            for atom in atoms:
+                index = atom.index
+                symbol = atom.symbol
+                indexfp = sfp.fp_data[(hash_key, index)]
+                # fingerprints are scaled to [-1, 1] range
+                scaled_indexfp = []
+                for _ in range(len(indexfp)):
+                    if (sfp.fingerprints_range[symbol][_][1] -
+                            sfp.fingerprints_range[symbol][_][0]) > \
+                            (10.**(-8.)):
+                        scaled_value = \
+                            -1. + 2. * (indexfp[_] -
+                                        sfp.fingerprints_range[symbol][_][0]) \
+                            / (sfp.fingerprints_range[symbol][_][1] -
+                               sfp.fingerprints_range[symbol][_][0])
+                    else:
+                        scaled_value = indexfp[_]
+                    scaled_indexfp.append(scaled_value)
+                atomic_amp_energy = reg.get_output(scaled_indexfp,
+                                                   index, symbol,)
+                amp_energy += atomic_amp_energy
+
+        energy_square_error += ((amp_energy - real_energy) ** 2.) / \
             (len(atoms) ** 2.)
 
-        for atom in atoms:
-            index = atom.index
-            symbol = atom.symbol
-            partial_der_variables_square_error =\
-                reg.get_variable_der_of_energy(index, symbol)
+        if param.fingerprint is None:  # pure atomic-coordinates scheme
 
+            partial_der_variables_square_error = \
+                reg.get_variable_der_of_energy()
             der_variables_square_error += \
                 energy_coefficient * 2. * (amp_energy - real_energy) * \
                 partial_der_variables_square_error / (len(atoms) ** 2.)
 
-        if sfp.train_forces is True:
+        else:  # fingerprinting scheme
+
+            for atom in atoms:
+                index = atom.index
+                symbol = atom.symbol
+                partial_der_variables_square_error =\
+                    reg.get_variable_der_of_energy(index, symbol)
+                der_variables_square_error += \
+                    energy_coefficient * 2. * (amp_energy - real_energy) * \
+                    partial_der_variables_square_error / (len(atoms) ** 2.)
+
+        if train_forces is True:
 
             real_forces = atoms.get_forces(apply_constraint=False)
             amp_forces = np.zeros((len(atoms), 3))
             for self_atom in atoms:
                 self_index = self_atom.index
-                n_self_indices = snl.nl_data[(hash_key, self_index)][0]
-                n_self_offsets = snl.nl_data[(hash_key, self_index)][1]
-                n_symbols = [atoms[n_index].symbol
-                             for n_index in n_self_indices]
                 reg.reset_forces()
-                for n_symbol, n_index, n_offset in zip(n_symbols,
-                                                       n_self_indices,
-                                                       n_self_offsets):
-                    # for calculating forces, summation runs over neighbor
-                    # atoms of type II (within the main cell only)
-                    if n_offset[0] == 0 and n_offset[1] == 0 and \
-                            n_offset[2] == 0:
-                        for i in range(3):
-                            der_indexfp = \
-                                sfp.der_fp_data[(hash_key,
-                                                 (n_index, self_index, i))]
-                            # fingerprint derivatives are scaled
-                            scaled_der_indexfp = []
-                            for _ in range(len(der_indexfp)):
-                                if (sfp.fingerprints_range[n_symbol][_][1] -
-                                        sfp.fingerprints_range
-                                        [n_symbol][_][0]) > (10.**(-8.)):
-                                    scaled_value = 2. * der_indexfp[_] / \
-                                        (sfp.fingerprints_range
-                                         [n_symbol][_][1] -
-                                         sfp.fingerprints_range
-                                         [n_symbol][_][0])
-                                else:
-                                    scaled_value = der_indexfp[_]
-                                scaled_der_indexfp.append(scaled_value)
 
-                            force = reg.get_force(n_index, n_symbol, i,
-                                                  scaled_der_indexfp)
+                if param.fingerprint is None:  # pure atomic-coordinates scheme
 
-                            amp_forces[self_index][i] += force
+                    for i in range(3):
+                        _input = [0. for __ in range(3 * len(atoms))]
+                        _input[3 * self_index + i] = 1.
+                        force = reg.get_force(i, _input,)
+                        amp_forces[self_index][i] = force
+                        reg.calculate_variable_der_of_forces(self_index, i)
 
-                            reg.calculate_variable_der_of_forces(
-                                self_index,
-                                n_index,
-                                n_symbol, i)
+                else:  # fingerprinting scheme
+
+                    n_self_indices = snl.nl_data[(hash_key, self_index)][0]
+                    n_self_offsets = snl.nl_data[(hash_key, self_index)][1]
+                    n_symbols = [atoms[n_index].symbol
+                                 for n_index in n_self_indices]
+
+                    for n_symbol, n_index, n_offset in zip(n_symbols,
+                                                           n_self_indices,
+                                                           n_self_offsets):
+                        # for calculating forces, summation runs over neighbor
+                        # atoms of type II (within the main cell only)
+                        if n_offset[0] == 0 and n_offset[1] == 0 and \
+                                n_offset[2] == 0:
+                            for i in range(3):
+                                der_indexfp = sfp.der_fp_data[(hash_key,
+                                                               (n_index,
+                                                                self_index,
+                                                                i))]
+                                # fingerprint derivatives are scaled
+                                scaled_der_indexfp = []
+                                for _ in range(len(der_indexfp)):
+                                    if (sfp.fingerprints_range[
+                                            n_symbol][_][1] -
+                                            sfp.fingerprints_range
+                                            [n_symbol][_][0]) > (10.**(-8.)):
+                                        scaled_value = 2. * der_indexfp[_] / \
+                                            (sfp.fingerprints_range
+                                             [n_symbol][_][1] -
+                                             sfp.fingerprints_range
+                                             [n_symbol][_][0])
+                                    else:
+                                        scaled_value = der_indexfp[_]
+                                    scaled_der_indexfp.append(scaled_value)
+
+                                force = reg.get_force(i, scaled_der_indexfp,
+                                                      n_index, n_symbol,)
+
+                                amp_forces[self_index][i] += force
+
+                                reg.calculate_variable_der_of_forces(
+                                    self_index, i, n_index, n_symbol)
 
                 for i in range(3):
                     force_square_error += \
@@ -1541,22 +1639,37 @@ def _calculate_cost_function_python(hashes, images, reg, param, sfp,
                                         real_forces[self_index][i]) **
                          2.) / len(atoms)
 
-                    for n_symbol, n_index, n_offset in zip(n_symbols,
-                                                           n_self_indices,
-                                                           n_self_offsets):
-                        if n_offset[0] == 0 and n_offset[1] == 0 and \
-                                n_offset[2] == 0:
-                            partial_der_variables_square_error = \
-                                reg.get_variable_der_of_forces(self_index,
-                                                               n_index,
-                                                               n_symbol,
-                                                               i)
-                            der_variables_square_error += \
-                                force_coefficient * (2.0 / 3.0) * \
-                                (- amp_forces[self_index][i] +
-                                 real_forces[self_index][i]) * \
-                                partial_der_variables_square_error \
-                                / len(atoms)
+                for i in range(3):
+                    # pure atomic-coordinates scheme
+                    if param.fingerprint is None:
+
+                        partial_der_variables_square_error = \
+                            reg.get_variable_der_of_forces(self_index, i)
+                        der_variables_square_error += \
+                            force_coefficient * (2.0 / 3.0) * \
+                            (- amp_forces[self_index][i] +
+                             real_forces[self_index][i]) * \
+                            partial_der_variables_square_error \
+                            / len(atoms)
+
+                    else:  # fingerprinting scheme
+
+                        for n_symbol, n_index, n_offset in zip(n_symbols,
+                                                               n_self_indices,
+                                                               n_self_offsets):
+                            if n_offset[0] == 0 and n_offset[1] == 0 and \
+                                    n_offset[2] == 0:
+                                partial_der_variables_square_error = \
+                                    reg.get_variable_der_of_forces(self_index,
+                                                                   i,
+                                                                   n_index,
+                                                                   n_symbol,)
+                                der_variables_square_error += \
+                                    force_coefficient * (2.0 / 3.0) * \
+                                    (- amp_forces[self_index][i] +
+                                     real_forces[self_index][i]) * \
+                                    partial_der_variables_square_error \
+                                    / len(atoms)
 
     del hashes, images
 

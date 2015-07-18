@@ -4,7 +4,6 @@ At some point in the development, this ability was temporarily lost!
 """
 
 import os
-
 from ase.calculators.emt import EMT
 from ase.lattice.surface import fcc110
 from ase import Atoms, Atom
@@ -12,8 +11,9 @@ from ase.md.velocitydistribution import MaxwellBoltzmannDistribution
 from ase import units
 from ase.md import VelocityVerlet
 from ase.constraints import FixAtoms
-
 from amp import AMP
+
+###############################################################################
 
 
 def generate_data(count):
@@ -38,6 +38,8 @@ def generate_data(count):
         images.append(newatoms)
     return images
 
+###############################################################################
+
 
 def testBP():
     label = 'BPnoforce_test'
@@ -48,8 +50,10 @@ def testBP():
     images = generate_data(10)
 
     print('Training network.')
-    calc = AMP(label=os.path.join(label, 'calc1'))
-    calc.train(images, force_goal=None)
+    calc1 = AMP(label=os.path.join(label, 'calc1'))
+    calc1.train(images, force_goal=None)
+
+###############################################################################
 
 if __name__ == '__main__':
-    calc = testBP()
+    testBP()
