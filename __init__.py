@@ -248,14 +248,16 @@ class AMP(Calculator):
                 param.fingerprints_range = \
                     calculate_fingerprints_range(self.fp,
                                                  self.reg.elements,
-                                                 self.fp.atoms)
+                                                 self.fp.atoms,
+                                                 self._nl)
             # Deciding on whether it is exptrapoling or interpolating is
             # possible only when fingerprints_range is provided by the user.
             elif self.extrapolate is False:
                 if compare_train_test_fingerprints(
                         self.fp,
                         self.fp.atoms,
-                        param.fingerprints_range) == 1:
+                        param.fingerprints_range,
+                        self._nl) == 1:
                     raise ExtrapolateError('Trying to extrapolate, which'
                                            ' is not allowed. Change to '
                                            'extrapolate=True if this is'
@@ -278,7 +280,18 @@ class AMP(Calculator):
                 for atom in atoms:
                     index = atom.index
                     symbol = atom.symbol
-                    indexfp = self.fp.index_fingerprint(symbol, index)
+                    n_indices, n_offsets = self._nl.get_neighbors(index)
+                    n_symbols = []
+                    Rs = []
+                    # for calculating fingerprints, summation runs over
+                    # neighboring atoms of type I (either inside or outside
+                    # the main cell)
+                    for n_index, n_offset in zip(n_indices, n_offsets):
+                        n_symbols.append(atoms[n_index].symbol)
+                        Rs.append(atoms.positions[n_index] +
+                                  np.dot(n_offset, atoms.get_cell()))
+                    indexfp = self.fp.get_fingerprint(index, symbol,
+                                                      n_symbols, Rs)
                     # fingerprints are scaled to [-1, 1] range
                     scaled_indexfp = []
                     for _ in range(len(indexfp)):
@@ -341,7 +354,18 @@ class AMP(Calculator):
                 for atom in atoms:
                     index = atom.index
                     symbol = atom.symbol
-                    indexfp = self.fp.index_fingerprint(symbol, index)
+                    n_indices, n_offsets = self._nl.get_neighbors(index)
+                    n_symbols = []
+                    Rs = []
+                    # for calculating fingerprints, summation runs over
+                    # neighboring atoms of type I (either inside or outside
+                    # the main cell)
+                    for n_index, n_offset in zip(n_indices, n_offsets):
+                        n_symbols.append(atoms[n_index].symbol)
+                        Rs.append(atoms.positions[n_index] +
+                                  np.dot(n_offset, atoms.get_cell()))
+                    indexfp = self.fp.get_fingerprint(index, symbol,
+                                                      n_symbols, Rs)
                     # fingerprints are scaled to [-1, 1] range
                     scaled_indexfp = []
                     for _ in range(len(indexfp)):
@@ -377,11 +401,28 @@ class AMP(Calculator):
                             # only)
                             if n_offset[0] == 0 and n_offset[1] == 0 and \
                                     n_offset[2] == 0:
+
+                                neighbor_indices, neighbor_offsets = \
+                                    self._nl.get_neighbors(n_index)
+                                neighbor_symbols = []
+                                Rs = []
+                                # for calculating derivatives of fingerprints,
+                                # summation runs over neighboring atoms of type
+                                # I (either inside or outside the main cell)
+                                for _index, _offset in zip(neighbor_indices,
+                                                           neighbor_offsets):
+                                    neighbor_symbols.append(
+                                        atoms[_index].symbol)
+                                    Rs.append(atoms.positions[_index] +
+                                              np.dot(_offset,
+                                                     atoms.get_cell()))
+
                                 der_indexfp = self.fp.get_der_fingerprint(
-                                    n_symbol,
-                                    n_index,
-                                    self_index,
-                                    i)
+                                    n_index, n_symbol,
+                                    neighbor_indices,
+                                    neighbor_symbols,
+                                    Rs, self_index, i)
+
                                 # fingerprint derivatives are scaled
                                 scaled_der_indexfp = []
                                 for _ in range(len(der_indexfp)):
@@ -1440,16 +1481,26 @@ def _calculate_fingerprints(proc_no,
     for hash_key in hashes:
         fingerprints[hash_key] = {}
         atoms = images[hash_key]
+        fp.initialize(atoms)
         _nl = NeighborList(cutoffs=([fp.cutoff / 2.] * len(atoms)),
                            self_interaction=False,
                            bothways=True,
                            skin=0.)
         _nl.update(atoms)
-        fp.initialize(atoms, _nl)
         for atom in atoms:
             index = atom.index
             symbol = atom.symbol
-            indexfp = fp.index_fingerprint(symbol, index)
+            n_indices, n_offsets = _nl.get_neighbors(index)
+            n_symbols = []
+            Rs = []
+            # for calculating fingerprints, summation runs over neighboring
+            # atoms of type I (either inside or outside the main cell)
+            for n_index, n_offset in zip(n_indices, n_offsets):
+                n_symbols.append(atoms[n_index].symbol)
+                Rs.append(atoms.positions[n_index] +
+                          np.dot(n_offset, atoms.get_cell()))
+
+            indexfp = fp.get_fingerprint(index, symbol, n_symbols, Rs)
             fingerprints[hash_key][index] = indexfp
 
     save_fingerprints(f=childfiles[proc_no], fingerprints=fingerprints)
@@ -1468,13 +1519,13 @@ def _calculate_der_fingerprints(proc_no, hashes, images, fp,
     for hash_key in hashes:
         data[hash_key] = {}
         atoms = images[hash_key]
+        fp.initialize(atoms)
         _nl = NeighborList(cutoffs=([fp.cutoff / 2.] *
                                     len(atoms)),
                            self_interaction=False,
                            bothways=True,
                            skin=0.)
         _nl.update(atoms)
-        fp.initialize(atoms, _nl)
         for self_atom in atoms:
             self_index = self_atom.index
             n_self_indices = snl.nl_data[(hash_key, self_index)][0]
@@ -1486,11 +1537,25 @@ def _calculate_der_fingerprints(proc_no, hashes, images, fp,
                 # coordinates of atoms of type II (within the main cell only)
                 if n_offset[0] == 0 and n_offset[1] == 0 and n_offset[2] == 0:
                     for i in range(3):
+                        neighbor_indices, neighbor_offsets = \
+                            _nl.get_neighbors(n_index)
+                        neighbor_symbols = []
+                        Rs = []
+                        # for calculating derivatives of fingerprints,
+                        # summation runs over neighboring atoms of type I
+                        # (either inside or outside the main cell)
+                        for _index, _offset in zip(neighbor_indices,
+                                                   neighbor_offsets):
+                            neighbor_symbols.append(atoms[_index].symbol)
+                            Rs.append(atoms.positions[_index] +
+                                      np.dot(_offset, atoms.get_cell()))
+
                         der_indexfp = fp.get_der_fingerprint(
-                            n_symbol,
-                            n_index,
-                            self_index,
-                            i)
+                            n_index, n_symbol,
+                            neighbor_indices,
+                            neighbor_symbols,
+                            Rs, self_index, i)
+
                         data[hash_key][(n_index, self_index, i)] = der_indexfp
 
     save_der_fingerprints(childfiles[proc_no], data)
@@ -1680,12 +1745,13 @@ def _calculate_cost_function_python(hashes, images, reg, param, sfp,
 ###############################################################################
 
 
-def calculate_fingerprints_range(fp, elements, atoms):
+def calculate_fingerprints_range(fp, elements, atoms, nl):
     """function to calculate fingerprints range.
     inputs:
         fp: object of fingerprint class
         elements: list if all elements of atoms
         atoms: ASE atom object
+        nl: ASE NeighborList object
     output:
         fingerprints_range: range of fingerprints of atoms"""
 
@@ -1698,7 +1764,17 @@ def calculate_fingerprints_range(fp, elements, atoms):
     for atom in atoms:
         index = atom.index
         symbol = atom.symbol
-        indexfp = fp.index_fingerprint(symbol, index)
+        n_indices, n_offsets = nl.get_neighbors(index)
+        n_symbols = []
+        Rs = []
+        # for calculating fingerprints, summation runs over neighboring
+        # atoms of type I (either inside or outside the main cell)
+        for n_index, n_offset in zip(n_indices, n_offsets):
+            n_symbols.append(atoms[n_index].symbol)
+            Rs.append(atoms.positions[n_index] +
+                      np.dot(n_offset, atoms.get_cell()))
+
+        indexfp = fp.get_fingerprint(index, symbol, n_symbols, Rs)
         for i in range(len(fp.Gs[symbol])):
             fingerprint_values[symbol][i].append(indexfp[i])
 
@@ -1719,13 +1795,14 @@ def calculate_fingerprints_range(fp, elements, atoms):
 ###############################################################################
 
 
-def compare_train_test_fingerprints(fp, atoms, fingerprints_range):
+def compare_train_test_fingerprints(fp, atoms, fingerprints_range, nl):
     """function to compare train images with the test image and decide whether
     the prediction is interpolation or extrapolation.
     inputs:
         fp: object of CalculateFingerprints class
         atoms: ASE atom object
         fingerprints_range: range of fingerprints of the train images
+        nl: ASE NeighborList object
     output:
         compare_train_test_fingerprints:
         integer: zero for interpolation, and one for extrapolation"""
@@ -1735,7 +1812,17 @@ def compare_train_test_fingerprints(fp, atoms, fingerprints_range):
     for atom in atoms:
         index = atom.index
         symbol = atom.symbol
-        indexfp = fp.index_fingerprint(symbol, index)
+        n_indices, n_offsets = nl.get_neighbors(index)
+        n_symbols = []
+        Rs = []
+        # for calculating fingerprints, summation runs over neighboring
+        # atoms of type I (either inside or outside the main cell)
+        for n_index, n_offset in zip(n_indices, n_offsets):
+            n_symbols.append(atoms[n_index].symbol)
+            Rs.append(atoms.positions[n_index] +
+                      np.dot(n_offset, atoms.get_cell()))
+
+        indexfp = fp.get_fingerprint(index, symbol, n_symbols, Rs)
         for i in range(len(indexfp)):
             if indexfp[i] < fingerprints_range[symbol][i][0] or \
                     indexfp[i] > fingerprints_range[symbol][i][1]:

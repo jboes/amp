@@ -42,118 +42,96 @@ class Behler:
         if self.fingerprints_tag != 1:
             raise FingerprintsError('Functional form of fingerprints has been '
                                     'changed. Re-train you train images set, '
-                                    'and use the new weights and scalings.')
+                                    'and use the new variables.')
 
     #########################################################################
 
-    def initialize(self, atoms, nl):
+    def initialize(self, atoms):
         """
         Inputs:
         atoms: ASE atoms object
                 The initial atoms object on which the fingerprints will be
                 generated.
-        nl: ASE NeighborList object
 
         """
 
         self.atoms = atoms
-        self._nl = nl
 
     #########################################################################
 
-    def index_fingerprint(self, symbol, index):
+    def get_fingerprint(self, index, symbol, n_symbols, Rs):
         """Returns the fingerprint of symmetry function values for atom
-        specified by its index. Will automatically update if atom positions
-        has changed; you don't need to call update() unless you are
-        specifying a new atoms object."""
+        specified by its index. n_symbols and Rs are lists of neighbors'
+        symbols and Cartesian positions, respectively. Will automatically
+        update if atom positions has changed; you don't need to call update()
+        unless you are specifying a new atoms object.
+        """
+        home = self.atoms[index].position
 
-        neighbor_indices, neighbor_offsets = self._nl.get_neighbors(index)
-        neighbor_symbols = []
-        Rs = []
-        # for calculating fingerprints, summation runs over neighboring atoms
-        # of type I (either inside or outside the main cell)
-        for n_index, n_offset in zip(neighbor_indices, neighbor_offsets):
-            neighbor_symbols.append(self.atoms[n_index].symbol)
-            Rs.append(self.atoms.positions[n_index] +
-                      np.dot(n_offset, self.atoms.get_cell()))
         fingerprint = []
+
         for G in self.Gs[symbol]:
-            ridge = self.process_G(G, index, neighbor_symbols, Rs)
+
+            if G['type'] == 'G2':
+                ridge = calculate_G2(n_symbols, Rs, G['element'], G['eta'],
+                                     self.cutoff, home, self.fortran)
+            elif G['type'] == 'G4':
+                ridge = calculate_G4(n_symbols, Rs, G['elements'], G['gamma'],
+                                     G['zeta'], G['eta'], self.cutoff, home,
+                                     self.fortran)
+            else:
+                raise NotImplementedError('Unknown G type: %s' % G['type'])
+
             fingerprint.append(ridge)
 
         return fingerprint
 
     #########################################################################
 
-    def get_der_fingerprint(self, symbol, index, mm, ii):
-        """Returns the derivative of the fingerprint of symmetry function
-        values for atom specified by its index with respect to coordinate
-        x_{ii} of atom index mm."""
-
-        Rindex = self.atoms.positions[index]
-        neighbor_indices, neighbor_offsets = self._nl.get_neighbors(index)
-        neighbor_symbols = []
-        Rs = []
-        # for calculating derivatives of fingerprints, summation runs over
-        # neighboring atoms of type I (either inside or outside the main cell)
-        for _index, _offset in zip(neighbor_indices, neighbor_offsets):
-            neighbor_symbols.append(self.atoms[_index].symbol)
-            Rs.append(self.atoms.positions[_index] +
-                      np.dot(_offset, self.atoms.get_cell()))
-        der_fingerprint = []
-        for G in self.Gs[symbol]:
-            ridge = self.process_der_G(G, neighbor_indices, neighbor_symbols,
-                                       Rs, index, Rindex, mm, ii)
-            der_fingerprint.append(ridge)
-        return der_fingerprint
-
-    #########################################################################
-
-    def process_G(self, G, index, symbols, Rs):
-        """Returns the value of G for atom at index. symbols and Rs are
-        lists of neighbors' symbols and Cartesian positions, respectively.
-        """
-        home = self.atoms[index].position
-
-        if G['type'] == 'G2':
-            return calculate_G2(symbols, Rs, G['element'], G['eta'],
-                                self.cutoff, home, self.fortran)
-        elif G['type'] == 'G4':
-            return calculate_G4(symbols, Rs, G['elements'], G['gamma'],
-                                G['zeta'], G['eta'], self.cutoff, home,
-                                self.fortran)
-        else:
-            raise NotImplementedError('Unknown G type: %s' % G['type'])
-
-    #########################################################################
-
-    def process_der_G(self, G, indices, symbols, Rs, a, Ra, m, i):
+    def get_der_fingerprint(self, index, symbol, n_indices, n_symbols, Rs,
+                            m, i):
         """Returns the value of the derivative of G for atom at index a and
         position Ra with respect to coordinate x_{i} of atom index m.
         Symbols and Rs are lists of neighbors' symbols and Cartesian positions,
         respectively."""
 
-        if G['type'] == 'G2':
-            return calculate_der_G2(indices, symbols, Rs, G['element'],
-                                    G['eta'], self.cutoff, a, Ra, m, i,
-                                    self.fortran)
-        elif G['type'] == 'G4':
-            return calculate_der_G4(
-                indices,
-                symbols,
-                Rs,
-                G['elements'],
-                G['gamma'],
-                G['zeta'],
-                G['eta'],
-                self.cutoff,
-                a,
-                Ra,
-                m,
-                i,
-                self.fortran)
-        else:
-            raise NotImplementedError('Unknown G type: %s' % G['type'])
+        Rindex = self.atoms.positions[index]
+        der_fingerprint = []
+        for G in self.Gs[symbol]:
+            if G['type'] == 'G2':
+                ridge = calculate_der_G2(
+                    n_indices,
+                    n_symbols,
+                    Rs,
+                    G['element'],
+                    G['eta'],
+                    self.cutoff,
+                    index,
+                    Rindex,
+                    m,
+                    i,
+                    self.fortran)
+            elif G['type'] == 'G4':
+                ridge = calculate_der_G4(
+                    n_indices,
+                    n_symbols,
+                    Rs,
+                    G['elements'],
+                    G['gamma'],
+                    G['zeta'],
+                    G['eta'],
+                    self.cutoff,
+                    index,
+                    Rindex,
+                    m,
+                    i,
+                    self.fortran)
+            else:
+                raise NotImplementedError('Unknown G type: %s' % G['type'])
+
+            der_fingerprint.append(ridge)
+
+        return der_fingerprint
 
     #########################################################################
 
