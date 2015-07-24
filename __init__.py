@@ -1653,7 +1653,6 @@ def _calculate_cost_function_python(hashes, images, reg, param, sfp,
                         _input[3 * self_index + i] = 1.
                         force = reg.get_force(i, _input,)
                         amp_forces[self_index][i] = force
-                        reg.calculate_variable_der_of_forces(self_index, i)
 
                 else:  # fingerprinting scheme
 
@@ -1692,11 +1691,7 @@ def _calculate_cost_function_python(hashes, images, reg, param, sfp,
 
                                 force = reg.get_force(i, scaled_der_indexfp,
                                                       n_index, n_symbol,)
-
                                 amp_forces[self_index][i] += force
-
-                                reg.calculate_variable_der_of_forces(
-                                    self_index, i, n_index, n_symbol)
 
                 for i in range(3):
                     force_square_error += \

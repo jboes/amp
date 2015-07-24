@@ -236,7 +236,6 @@ class NeuralNetwork:
         """Resets local variables corresponding to forces."""
 
         self.der_coordinates_o = {}
-        self.der_coordinates_weights_atomic_output = {}
 
     #########################################################################
 
@@ -404,7 +403,8 @@ class NeuralNetwork:
     #########################################################################
 
     def get_variable_der_of_energy(self, index=None, symbol=None):
-        """Calculates energy square error with respect to variables."""
+        """Returns the derivative of energy square error with respect to
+        variables."""
 
         partial_der_variables_square_error = np.zeros(self.ravel.count)
 
@@ -478,10 +478,15 @@ class NeuralNetwork:
 
     #########################################################################
 
-    def calculate_variable_der_of_forces(self, self_index, i,
-                                         n_index=None,
-                                         n_symbol=None,):
-        """Calculates force square error with respect to variables."""
+    def get_variable_der_of_forces(self, self_index, i,
+                                   n_index=None, n_symbol=None,):
+        """Returns the derivative of force square error with respect to
+        variables."""
+
+        partial_der_variables_square_error = np.zeros(self.ravel.count)
+
+        partial_der_weights_square_error, partial_der_scalings_square_error = \
+            self.ravel.to_dicts(partial_der_variables_square_error)
 
         if self.param.fingerprint is None:  # pure atomic-coordinates scheme
             o = self.o
@@ -542,40 +547,19 @@ class NeuralNetwork:
                        np.matrix(der_coordinates_delta[k]).T)
 
         if self.param.fingerprint is None:  # pure atomic-coordinates scheme
-            self.der_coordinates_weights_atomic_output[i] = \
-                der_coordinates_weights_atomic_output
-        else:  # fingerprinting scheme
-            self.der_coordinates_weights_atomic_output[(n_index, i)] = \
-                der_coordinates_weights_atomic_output
-
-    #########################################################################
-
-    def get_variable_der_of_forces(self, self_index, i,
-                                   n_index=None, n_symbol=None,):
-        """Adds up partial variable derivatives of forces calculated by
-        calculate_variable_der_of_forces."""
-
-        partial_der_variables_square_error = np.zeros(self.ravel.count)
-
-        partial_der_weights_square_error, partial_der_scalings_square_error = \
-            self.ravel.to_dicts(partial_der_variables_square_error)
-
-        if self.param.fingerprint is None:  # pure atomic-coordinates scheme
-            N = len(self.o) - 2
             for k in range(1, N + 2):
                 partial_der_weights_square_error[k] = \
                     float(self.scalings['slope']) * \
-                    self.der_coordinates_weights_atomic_output[i][k]
+                    der_coordinates_weights_atomic_output[k]
             partial_der_scalings_square_error['slope'] = \
-                self.der_coordinates_o[i][N + 1][0]
+                der_coordinates_o[N + 1][0]
         else:  # fingerprinting scheme
-            N = len(self.o[n_index]) - 2
             for k in range(1, N + 2):
                 partial_der_weights_square_error[n_symbol][k] = \
                     float(self.scalings[n_symbol]['slope']) * \
-                    self.der_coordinates_weights_atomic_output[(n_index, i)][k]
+                    der_coordinates_weights_atomic_output[k]
             partial_der_scalings_square_error[n_symbol]['slope'] = \
-                self.der_coordinates_o[(n_index, i)][N + 1][0]
+                der_coordinates_o[N + 1][0]
 
         partial_der_variables_square_error = \
             self.ravel.to_vector(partial_der_weights_square_error,
