@@ -1,5 +1,5 @@
 """
-Exact BPNeural-scheme forces and energies of five different non-periodic
+Exact behler-neural scheme forces and energies of five different non-periodic
 configurations and three different periodic configurations have been calculated
 in Mathematica, and are given below.  This script checks the values calculated
 by the code with and without fortran modules.
@@ -19,7 +19,7 @@ from amp.regression import NeuralNetwork
 # The test function for non-periodic systems
 
 
-def BP_force_call_non_periodic_test():
+def non_periodic_test():
 
     ###########################################################################
     # Making the list of non-periodic images
@@ -165,13 +165,15 @@ def BP_force_call_non_periodic_test():
                                  [0.0, 0.37848964715610417]]}
 
     ###########################################################################
-    # Testing pure-python and fortran versions of BPNeural force call
+    # Testing pure-python and fortran versions of behler-neural force call
 
     for fortran in [False, True]:
 
         calc = AMP(fingerprint=Behler(cutoff=6.5, Gs=Gs,),
                    regression=NeuralNetwork(hiddenlayers=hiddenlayers,
-                   weights=weights, scalings=scalings, activation='sigmoid',),
+                                            weights=weights,
+                                            scalings=scalings,
+                                            activation='sigmoid',),
                    fingerprints_range=fingerprints_range,
                    fortran=fortran)
 
@@ -181,7 +183,7 @@ def BP_force_call_non_periodic_test():
         for image_no in range(len(predicted_energies)):
             assert (abs(predicted_energies[image_no] -
                         correct_predicted_energies[image_no]) < 10.**(-10.)), \
-                'The calculated energy of image %i is wrong!' % (image_no + 1)
+                'The predicted energy of image %i is wrong!' % (image_no + 1)
 
         predicted_forces = [calc.get_forces(image) for image in images]
 
@@ -192,7 +194,7 @@ def BP_force_call_non_periodic_test():
                     assert (abs(predicted_forces[image_no][index][direction] -
                                 correct_predicted_forces[image_no][index]
                                 [direction]) < 10.**(-10.)), \
-                        'The calculated %i force of atom %i of image %i is' \
+                        'The predicted %i force of atom %i of image %i is' \
                         'wrong!' % (direction, index, image_no + 1)
 
 
@@ -201,7 +203,7 @@ def BP_force_call_non_periodic_test():
 # The test function for periodic systems
 
 
-def BP_force_call_periodic_test():
+def periodic_test():
 
     ###########################################################################
     # Making the list of periodic images
@@ -303,13 +305,15 @@ def BP_force_call_periodic_test():
                                   2.5119093855123076]]}
 
     ###########################################################################
-    # Testing pure-python and fortran versions of BPNeural force call
+    # Testing pure-python and fortran versions of behler-neural force call
 
     for fortran in [False, True]:
 
         calc = AMP(fingerprint=Behler(cutoff=4., Gs=Gs,),
                    regression=NeuralNetwork(hiddenlayers=hiddenlayers,
-                   weights=weights, scalings=scalings, activation='tanh',),
+                                            weights=weights,
+                                            scalings=scalings,
+                                            activation='tanh',),
                    fingerprints_range=fingerprints_range,
                    fortran=fortran)
 
@@ -319,21 +323,22 @@ def BP_force_call_periodic_test():
         for image_no in range(len(predicted_energies)):
             assert (abs(predicted_energies[image_no] -
                         correct_predicted_energies[image_no]) < 10.**(-10.)), \
-                'The calculated energy of image %i is wrong!' % (image_no + 1)
+                'The predicted energy of image %i is wrong!' % (image_no + 1)
 
         predicted_forces = [calc.get_forces(image) for image in images]
 
         for image_no in range(len(predicted_forces)):
             for index in range(np.shape(predicted_forces[image_no])[0]):
-                for direction in range(3):
+                for direction in range(
+                        np.shape(predicted_forces[image_no])[1]):
                     assert (abs(predicted_forces[image_no][index][direction] -
                                 correct_predicted_forces[image_no][index]
                                 [direction]) < 10.**(-10.)), \
-                        'The calculated %i force of atom %i of image %i is' \
+                        'The predicted %i force of atom %i of image %i is' \
                         'wrong!' % (direction, index, image_no + 1)
 
     ###########################################################################
 
 if __name__ == '__main__':
-    BP_force_call_non_periodic_test()
-    BP_force_call_periodic_test()
+    non_periodic_test()
+    periodic_test()

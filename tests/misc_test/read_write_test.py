@@ -29,15 +29,15 @@ def make_training_images():
 ###############################################################################
 
 
-def test_read_write():
+def test():
     pwd = os.getcwd()
-    testdir = 'BP_read_write'
+    testdir = 'read_write_test'
     os.mkdir(testdir)
     os.chdir(testdir)
 
     images = make_training_images()
 
-    calc = AMP(label='test_writing')
+    calc = AMP(label='calc')
     calc.train(images)
 
     # Test that we cannot overwrite. (Strange code here
@@ -57,16 +57,16 @@ def test_read_write():
     calc.train(images)
 
     # Open existing, save under new name.
-    calc = AMP(load='test_writing',
-                    label='test_writing2')
+    calc = AMP(load='calc',
+                    label='calc2')
     calc.train(images)
 
     # Change label and re-train
-    calc.set_label('test_writing_new/calc')
+    calc.set_label('calc_new/calc')
     calc.train(images)
 
     # Open existing without specifying new name.
-    calc = AMP(load='test_writing')
+    calc = AMP(load='calc')
     calc.train(images)
 
     os.chdir(pwd)
@@ -74,4 +74,4 @@ def test_read_write():
 ###############################################################################
 
 if __name__ == '__main__':
-    test_read_write()
+    test()

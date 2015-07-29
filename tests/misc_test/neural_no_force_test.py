@@ -1,5 +1,6 @@
 #!/usr/bin/env python
-"""Test that the BP calculator works in training on energy only.
+"""Test that the neural network regression works in training on energy only
+both with none and behler fingerprint.
 At some point in the development, this ability was temporarily lost!
 """
 
@@ -12,6 +13,7 @@ from ase import units
 from ase.md import VelocityVerlet
 from ase.constraints import FixAtoms
 from amp import AMP
+from amp.fingerprint import Behler
 
 ###############################################################################
 
@@ -41,19 +43,33 @@ def generate_data(count):
 ###############################################################################
 
 
-def testBP():
-    label = 'BPnoforce_test'
+def test_none():
+    label = 'noforce_test'
     if not os.path.exists(label):
         os.mkdir(label)
 
     print('Generating data.')
     images = generate_data(10)
 
-    print('Training network.')
-    calc1 = AMP(label=os.path.join(label, 'calc1'))
-    calc1.train(images, force_goal=None)
+    print('Training none-neural network.')
+    calc = AMP(fingerprint=None, label=os.path.join(label, 'none'))
+    calc.train(images, force_goal=None)
+
+###############################################################################
+
+
+def test_behler():
+    label = 'noforce_test'
+
+    print('Generating data.')
+    images = generate_data(10)
+
+    print('Training behler-neural network.')
+    calc = AMP(fingerprint=Behler(), label=os.path.join(label, 'behler'))
+    calc.train(images, force_goal=None)
 
 ###############################################################################
 
 if __name__ == '__main__':
-    testBP()
+    test_none()
+    test_behler()

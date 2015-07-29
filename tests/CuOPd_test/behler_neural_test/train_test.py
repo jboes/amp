@@ -1,7 +1,7 @@
 """
-Exact BPNeural-scheme cost function, energy per atom RMSE and force RMSE for
-five different non-periodic configurations and three three different periodic
-configurations have been calculated in Mathematica. This script
+Exact behler-neural scheme cost function, energy per atom RMSE and force RMSE
+for five different non-periodic configurations and three three different
+periodic configurations have been calculated in Mathematica. This script
 checks the values calculated by the code during training with and without
 fortran modules and also on different number of cores.
 
@@ -21,10 +21,10 @@ from amp.regression import NeuralNetwork
 # The test function for non-periodic systems
 
 
-def BP_train_non_periodic_test():
+def non_periodic_test():
 
     ###########################################################################
-    # Making the list of non-periodic systems
+    # Making the list of periodic image
 
     images = [Atoms(symbols='PdOPd2',
                     pbc=np.array([False, False, False], dtype=bool),
@@ -152,7 +152,7 @@ def BP_train_non_periodic_test():
                             -82.43628495875033, -80.72759582717585]
 
     ###########################################################################
-    # Testing pure-python and fortran versions of BPNeural on different number
+    # Testing pure-python and fortran versions of behler-neural on different number
     # of processes
 
     for fortran in [False, True]:
@@ -177,16 +177,16 @@ def BP_train_non_periodic_test():
                 'The calculated value of cost function is wrong!'
 
             assert (abs(calc.energy_per_atom_rmse - 24.31472406476930) <
-                    10.**(-5.)), \
+                    10.**(-7.)), \
                 'The calculated value of energy per atom RMSE is wrong!'
 
             assert (abs(calc.force_rmse - 144.7113314827651) <
-                    10 ** (-5)), \
+                    10 ** (-7)), \
                 'The calculated value of force RMSE is wrong!'
 
             for _ in range(len(correct_der_cost_fxn)):
                 assert(abs(calc.der_variables_cost_function[_] -
-                           correct_der_cost_fxn[_] < 10 ** (-8))), \
+                           correct_der_cost_fxn[_] < 10 ** (-10))), \
                     'The calculated value of cost function derivative is \
                     wrong!'
 
@@ -195,7 +195,7 @@ def BP_train_non_periodic_test():
 # The test function for periodic systems
 
 
-def BP_train_periodic_test():
+def periodic_test():
 
     ###########################################################################
     # Making the list of images
@@ -299,11 +299,11 @@ def BP_train_periodic_test():
                             -35.138861405305406]
 
     ###########################################################################
-    # Testing pure-python and fortran versions of BPNeural on different number
-    # of processes
+    # Testing pure-python and fortran versions of behler-neural on different
+    # number of processes
 
-    for fortran in [False]:
-        for cores in range(1, 2):
+    for fortran in [False, True]:
+        for cores in range(1, 5):
 
             label = 'PeriodFortran%s-%i' % (fortran, cores)
 
@@ -316,7 +316,7 @@ def BP_train_periodic_test():
                        label=label)
 
             calc.train(images=images, energy_goal=10.**10.,
-                       force_goal=10.**10., force_coefficient=0.04,
+                       force_goal=10.**10, force_coefficient=0.04,
                        cores=cores, read_fingerprints=False)
 
             assert (abs(calc.cost_function[0] - 8005.262570965399) <
@@ -324,11 +324,11 @@ def BP_train_periodic_test():
                 'The calculated value of cost function is wrong!'
 
             assert (abs(calc.energy_per_atom_rmse - 43.73579809791985) <
-                    10.**(-7.)), \
+                    10.**(-8.)), \
                 'The calculated value of energy per atom RMSE is wrong!'
 
             assert (abs(calc.force_rmse - 137.44097112273843) <
-                    10 ** (-7.)), \
+                    10 ** (-8.)), \
                 'The calculated value of force RMSE is wrong!'
 
             for _ in range(len(correct_der_cost_fxn)):
@@ -340,5 +340,5 @@ def BP_train_periodic_test():
     ###########################################################################
 
 if __name__ == '__main__':
-    BP_train_non_periodic_test()
-    BP_train_periodic_test()
+    non_periodic_test()
+    periodic_test()

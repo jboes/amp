@@ -6,6 +6,10 @@ Script that contains neural network regression method.
 
 import numpy as np
 from collections import OrderedDict
+try:
+    from amp import fmodules
+except ImportError:
+    fmodules = None
 
 ###############################################################################
 
@@ -560,7 +564,6 @@ class NeuralNetwork:
                     der_coordinates_weights_atomic_output[k]
             partial_der_scalings_square_error[n_symbol]['slope'] = \
                 der_coordinates_o[N + 1][0]
-
         partial_der_variables_square_error = \
             self.ravel.to_vector(partial_der_weights_square_error,
                                  partial_der_scalings_square_error)
@@ -664,6 +667,66 @@ class NeuralNetwork:
                 self.ravel.to_vector(self.weights, self.scalings)
 
         return param
+
+    #########################################################################
+
+    def send_data_to_fortran(self, param):
+        """Sends regression data to fortran."""
+
+        if param.fingerprint is None:
+            fingerprinting = False
+        else:
+            fingerprinting = True
+
+        if fingerprinting:
+            no_layers_of_elements = []
+            for elm in self.elements:
+                if isinstance(param.regression.hiddenlayers[elm], int):
+                    no_layers_of_elements.append(3)
+                else:
+                    no_layers_of_elements.append(
+                        len(param.regression.hiddenlayers[elm]) + 2)
+            nn_structure = OrderedDict()
+            for elm in self.elements:
+                if isinstance(param.regression.hiddenlayers[elm], int):
+                    nn_structure[elm] = ([len(param.fingerprint.Gs[elm])] +
+                                         [param.regression.hiddenlayers[elm]] +
+                                         [1])
+                else:
+                    nn_structure[elm] = ([len(param.fingerprint.Gs[elm])] +
+                                         [layer for layer in
+                                          param.regression.hiddenlayers[elm]] +
+                                         [1])
+            no_nodes_of_elements = []
+            for elm in self.elements:
+                for _ in range(len(nn_structure[elm])):
+                    no_nodes_of_elements.append(nn_structure[elm][_])
+        else:
+            no_layers_of_elements = []
+            if isinstance(param.regression.hiddenlayers, int):
+                no_layers_of_elements = [3]
+            else:
+                no_layers_of_elements = \
+                    [len(param.regression.hiddenlayers) + 2]
+            if isinstance(param.regression.hiddenlayers, int):
+                nn_structure = ([3 * param.no_of_atoms] +
+                                [param.regression.hiddenlayers] + [1])
+            else:
+                nn_structure = ([3 * param.no_of_atoms] +
+                                [layer for layer in
+                                 param.regression.hiddenlayers] + [1])
+            no_nodes_of_elements = [nn_structure[_]
+                                    for _ in range(len(nn_structure))]
+
+        fmodules.regression.no_layers_of_elements = no_layers_of_elements
+        fmodules.regression.no_nodes_of_elements = no_nodes_of_elements
+        if param.regression.activation == 'tanh':
+            activation_signal = 1
+        elif param.regression.activation == 'sigmoid':
+            activation_signal = 2
+        elif param.regression.activation == 'linear':
+            activation_signal = 3
+        fmodules.regression.activation_signal = activation_signal
 
 ###############################################################################
 ###############################################################################

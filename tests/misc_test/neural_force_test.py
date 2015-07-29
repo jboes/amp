@@ -1,7 +1,7 @@
 #!/usr/bin/env python
-"""Test of the AMP calculator. Randomly generates data
-with the EMT potential in MD simulations. Both trains and tests getting
-energy out of the calculator. Shows results for both interpolation and
+"""Test of the behler-neural scheme of AMP with force training. Randomly
+generates data with the EMT potential in MD simulations. Both trains and tests
+getting energy out of the calculator. Shows results for both interpolation and
 extrapolation."""
 
 import os
@@ -43,8 +43,8 @@ def generate_data(count):
 ###############################################################################
 
 
-def testBP():
-    label = 'BP_test'
+def test_none():
+    label = 'force_test'
     if not os.path.exists(label):
         os.mkdir(label)
 
@@ -52,11 +52,40 @@ def testBP():
     all_images = generate_data(4)
     train_images, test_images = randomize_images(all_images)
 
-    print('Training network.')
-    calc1 = AMP(label=os.path.join(label, 'calc1'))
+    print('Training none-neural network.')
+    calc1 = AMP(fingerprint=None, label=os.path.join(label, 'none'))
     calc1.train(train_images, energy_goal=0.01, force_goal=0.05)
 
-    print('Testing network.')
+    print('Testing none-neural network.')
+    energies1 = []
+    for image in all_images:
+        energies1.append(calc1.get_potential_energy(atoms=image))
+
+    print('Verify making new calc works.')
+    params = calc1.todict()
+    calc2 = AMP(**params)
+    energies2 = []
+    for image in all_images:
+        energies2.append(calc2.get_potential_energy(atoms=image))
+    assert energies1 == energies2
+
+###############################################################################
+
+
+def test_behler():
+    label = 'force_test'
+    if not os.path.exists(label):
+        os.mkdir(label)
+
+    print('Generating data.')
+    all_images = generate_data(4)
+    train_images, test_images = randomize_images(all_images)
+
+    print('Training behler-neural network.')
+    calc1 = AMP(label=os.path.join(label, 'behler'))
+    calc1.train(train_images, energy_goal=0.01, force_goal=0.05)
+
+    print('Testing behler-neural network.')
     energies1 = []
     for image in all_images:
         energies1.append(calc1.get_potential_energy(atoms=image))
@@ -72,4 +101,5 @@ def testBP():
 ###############################################################################
 
 if __name__ == '__main__':
-    testBP()
+    test_none()
+    test_behler()

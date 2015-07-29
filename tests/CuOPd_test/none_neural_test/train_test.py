@@ -1,6 +1,9 @@
 """
-This simple script aims to check the python neural network against an analytic
-analog in mathematica for accuracy. It checks the energy E and the SquareError.
+Exact none-neural scheme cost function, energy per atom RMSE and force RMSE
+for five different configurations have been calculated in Mathematica. This
+script checks the values calculated by the code during training with and
+without fortran modules and also on different number of cores.
+
 """
 ###############################################################################
 
@@ -79,7 +82,7 @@ force_rmse = np.sqrt(SumSquareErrorForces / 5)
 # The test function
 
 
-def Cartesian_train_test():
+def test():
 
     ###########################################################################
     # Parameters
@@ -109,11 +112,11 @@ def Cartesian_train_test():
     images = generate_images()
 
     ###########################################################################
-    # Testing pure-python and fortran versions of BPNeural on different number
-    # of processes
+    # Testing pure-python and fortran versions of behler-neural on different
+    # number of processes
 
-    for fortran in [False]:
-        for cores in range(1, 6):
+    for fortran in [False, True]:
+        for cores in range(1, 7):
 
             calc = AMP(fingerprint=None,
                        regression=NeuralNetwork(hiddenlayers=(2, 1),
@@ -127,6 +130,7 @@ def Cartesian_train_test():
             calc.train(images=images, energy_goal=10.**10.,
                        force_goal=10.**10., force_coefficient=0.04,
                        cores=cores, read_fingerprints=False)
+
             # Check for consistency between the two models
             assert (abs(calc.cost_function[0] - cost_function) <
                     10.**(-5.)), \
@@ -141,4 +145,4 @@ def Cartesian_train_test():
 ###############################################################################
 
 if __name__ == '__main__':
-    Cartesian_train_test()
+    test()

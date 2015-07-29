@@ -1,7 +1,6 @@
 '''This simple script aims to check the forces for 5 configurations of Pd and O
-atoms from CartesianNeural against their analytic analogs obtained from
-mathematica scripts. This ensures satisfactory reliability of CartesianNeural
-calculator'''
+atoms from none-neural scheme of AMP against their analytic analogs obtained
+from mathematica scripts.'''
 
 ###############################################################################
 
@@ -90,7 +89,7 @@ correct_predicted_forces = \
 # The test function
 
 
-def Cartesian_force_call_test():
+def test():
 
     ###########################################################################
     # Parameters
@@ -124,8 +123,7 @@ def Cartesian_force_call_test():
     # Testing pure-python and fortran versions of CartesianNeural on different
     # number of processes
 
-    for fortran in [False]:  # change to [False, True] when fortran subroutines
-        # added.
+    for fortran in [False, True]:
 
         calc = AMP(fingerprint=None,
                    regression=NeuralNetwork(hiddenlayers=(2, 1),
@@ -157,4 +155,4 @@ def Cartesian_force_call_test():
 ###############################################################################
 
 if __name__ == '__main__':
-    Cartesian_force_call_test()
+    test()
