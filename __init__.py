@@ -97,7 +97,7 @@ class AMP(Calculator):
             self.dblabel = label
 
         if self.fortran and not fmodules:
-            raise RuntimeError('Not using the Fortran 90 part of the code. '
+            raise RuntimeError('Not using fortran modules. '
                                'Either compile fmodules as described in the '
                                'README for improved performance, or '
                                'initialize calculator with fortran=False.')
