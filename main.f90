@@ -123,7 +123,7 @@
       integer, allocatable:: unraveled_atomic_numbers(:)
       double precision:: amp_energy, real_energy, atomic_amp_energy
       double precision:: force, temp
-      integer:: i, index, j, p, layer, nn, k, q, l, m, &
+      integer:: i, index, j, p, k, q, l, m, &
       len_of_fingerprint, symbol, element, image_no, no_of_atoms, &
       len_of_input
       double precision:: &
@@ -213,7 +213,7 @@
                     unraveled_fingerprints_of_images(&
                     image_no)%onedarray(index)%onedarray(p)
                 end do
-                atomic_amp_energy = get_energy(index, symbol, &
+                atomic_amp_energy = get_energy(symbol, &
                 len_of_fingerprint, fingerprint, &
                 no_of_elements, elements_numbers, &
                 len_of_variables, variables)

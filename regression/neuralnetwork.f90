@@ -41,7 +41,7 @@
       double precision :: variables(len_of_variables)
       double precision :: get_energy_
    
-      integer:: p, m, n, layer, i
+      integer:: p, m, n, layer
       integer:: l, j, no_of_rows, no_of_cols, q
       integer, allocatable :: hiddensizes(:)
       double precision, allocatable :: net(:)
@@ -138,20 +138,20 @@
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !     Returns energy value in the fingerprinting scheme 
-      function get_energy(index, symbol, &
+      function get_energy(symbol, &
       len_of_fingerprint, fingerprint, &
       no_of_elements, elements_numbers, &
       len_of_variables, variables)
       implicit none
       
-      integer :: index, symbol, len_of_variables, &
+      integer :: symbol, len_of_variables, &
       len_of_fingerprint, no_of_elements
       double precision :: fingerprint(len_of_fingerprint)
       integer :: elements_numbers(no_of_elements)
       double precision :: variables(len_of_variables)
       double precision :: get_energy
    
-      integer:: p, element, m, n, layer, i
+      integer:: p, element, m, n, layer
       integer:: k, l, j, no_of_rows, no_of_cols, q
       integer, allocatable :: hiddensizes(:)
       double precision, allocatable :: net(:)
@@ -589,7 +589,7 @@
       double precision :: variables(len_of_variables)
       double precision :: input(len_of_input)
       
-      integer:: m, n, i, j, l, layer, p, q, nn, no_of_cols, no_of_rows
+      integer:: m, n, j, l, layer, p, q, nn, no_of_cols, no_of_rows
       double precision:: temp1, temp2
       integer, allocatable :: hiddensizes(:)
       double precision, allocatable :: net(:)
@@ -788,7 +788,7 @@
       double precision :: fingerprint(len_of_fingerprint)
       integer :: elements_numbers(no_of_elements)
       
-      integer:: element, m, n, i, j, k, l, layer, p, q, nn, no_of_cols
+      integer:: element, m, n, j, k, l, layer, p, q, nn, no_of_cols
       integer:: no_of_rows
       double precision:: temp1, temp2
       integer, allocatable :: hiddensizes(:)
@@ -1023,7 +1023,7 @@
       double precision :: input(len_of_input)
       double precision :: input_(len_of_input)
 
-      integer:: m, n, i, j, l, layer, p, q, nn, no_of_cols
+      integer:: m, n, j, l, layer, p, q, nn, no_of_cols
       integer:: no_of_rows
       double precision:: temp1, temp2
       integer, allocatable :: hiddensizes(:)
@@ -1358,7 +1358,7 @@
       double precision :: variables(len_of_variables)
       double precision:: get_variable_der_of_forces(len_of_variables)
 
-      integer:: element, m, n, i, j, k, l, layer, p, q, nn, no_of_cols
+      integer:: element, m, n, j, k, l, layer, p, q, nn, no_of_cols
       integer:: no_of_rows
       double precision:: temp1, temp2
       integer, allocatable :: hiddensizes(:)
