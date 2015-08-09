@@ -275,7 +275,7 @@ class AMP(Calculator):
             if param.fingerprint is None:  # pure atomic-coordinates scheme
 
                 input = (atoms.positions).ravel()
-                self.energy = self.reg.get_output(input,)
+                self.energy = self.reg.get_energy(input,)
 
             else:  # fingerprinting scheme
 
@@ -310,7 +310,7 @@ class AMP(Calculator):
                         scaled_indexfp[count] = scaled_value
                         count += 1
 
-                    atomic_amp_energy = self.reg.get_output(scaled_indexfp,
+                    atomic_amp_energy = self.reg.get_energy(scaled_indexfp,
                                                             index, symbol,)
                     self.energy += atomic_amp_energy
 
@@ -327,7 +327,7 @@ class AMP(Calculator):
             if param.fingerprint is None:  # pure atomic-coordinates scheme
 
                 input = (atoms.positions).ravel()
-                _ = self.reg.get_output(input,)
+                _ = self.reg.get_energy(input,)
                 for atom in atoms:
                     self_index = atom.index
                     self.reg.reset_forces()
@@ -386,7 +386,7 @@ class AMP(Calculator):
                         scaled_indexfp[count] = scaled_value
                         count += 1
 
-                    __ = self.reg.get_output(scaled_indexfp, index, symbol)
+                    __ = self.reg.get_energy(scaled_indexfp, index, symbol)
 
                 for atom in atoms:
                     self_index = atom.index
@@ -1661,7 +1661,7 @@ def _calculate_cost_function_python(hashes, images, reg, param, sfp,
         if param.fingerprint is None:  # pure atomic-coordinates scheme
 
             input = (atoms.positions).ravel()
-            amp_energy = reg.get_output(input,)
+            amp_energy = reg.get_energy(input,)
 
         else:  # fingerprinting scheme
 
@@ -1685,7 +1685,7 @@ def _calculate_cost_function_python(hashes, images, reg, param, sfp,
                         scaled_value = indexfp[_]
                     scaled_indexfp[count] = scaled_value
                     count += 1
-                atomic_amp_energy = reg.get_output(scaled_indexfp,
+                atomic_amp_energy = reg.get_energy(scaled_indexfp,
                                                    index, symbol,)
                 amp_energy += atomic_amp_energy
 

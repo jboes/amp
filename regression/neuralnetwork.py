@@ -265,7 +265,7 @@ class NeuralNetwork:
 
     #########################################################################
 
-    def get_output(self, input, index=None, symbol=None,):
+    def get_energy(self, input, index=None, symbol=None,):
         """Given fingerprints of the indexed atom and its symbol, outputs of
         the neural network are calculated."""
 
