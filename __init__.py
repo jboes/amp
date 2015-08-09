@@ -122,6 +122,7 @@ class AMP(Calculator):
             parameters = load_parameters(json_file)
 
             kwargs = {}
+            kwargs['fingerprints_range'] = parameters['fingerprints_range']
             if parameters['fingerprint'] == 'Behler':
                 kwargs['fingerprint'] = \
                     Behler(cutoff=parameters['cutoff'],
@@ -687,13 +688,14 @@ class AMP(Calculator):
             raise TrainingConvergenceError()
 
         param.regression.variables = costfxn.param.regression.variables
+        self.reg.update_variables(param)
 
         log(' ...optimization completed successfully. Optimal '
             'parameters saved.', toc=True)
         filename = make_filename(self.label, 'trained-parameters.json')
         save_parameters(filename, param)
 
-        self.cost_function = costfxn.cost_function,
+        self.cost_function = costfxn.cost_function
         self.energy_per_atom_rmse = costfxn.energy_per_atom_rmse
         self.force_rmse = costfxn.force_rmse
         self.der_variables_cost_function = costfxn.der_variables_square_error
