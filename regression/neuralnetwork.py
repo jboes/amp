@@ -366,20 +366,18 @@ class NeuralNetwork:
             layer += 1
             temp = np.dot(np.matrix(der_o[layer - 1]),
                           np.delete(weight[layer], -1, 0))
-            der_o[layer] = []
+            der_o[layer] = [None] * np.size(o[layer])
+            count = 0
             for j in range(np.size(o[layer])):
                 if self.activation == 'linear':  # linear function
-                    der_o[layer].append(float(temp[0, j]))
+                    der_o[layer][count] = float(temp[0, j])
                 elif self.activation == 'sigmoid':  # sigmoid function
-                    der_o[layer].append(float(o[layer][0, j] *
-                                              (1. -
-                                               o[layer][0, j])) *
-                                        float(temp[0, j]))
+                    der_o[layer][count] = float(temp[0, j]) * \
+                        float(o[layer][0, j] * (1. - o[layer][0, j]))
                 elif self.activation == 'tanh':  # tanh function
-                    der_o[layer].append(
-                        float(1. - o[layer][0, j] *
-                              o[layer][0, j]) *
-                        float(temp[0, j]))
+                    der_o[layer][count] = float(temp[0, j]) * \
+                        float(1. - o[layer][0, j] * o[layer][0, j])
+                count += 1
         layer += 1  # output layer
         temp = np.dot(np.matrix(der_o[layer - 1]),
                       np.delete(weight[layer], -1, 0))
@@ -539,11 +537,14 @@ class NeuralNetwork:
         der_coordinates_ohat = {}
         der_coordinates_weights_atomic_output = {}
         for k in range(1, N + 2):
-            der_coordinates_ohat[k - 1] = []
+            der_coordinates_ohat[k - 1] = \
+                [None] * (1 + len(der_coordinates_o[k - 1]))
+            count = 0
             for j in range(len(der_coordinates_o[k - 1])):
-                der_coordinates_ohat[k - 1].append(
-                    der_coordinates_o[k - 1][j])
-            der_coordinates_ohat[k - 1].append(0.)
+                der_coordinates_ohat[k - 1][count] = \
+                    der_coordinates_o[k - 1][j]
+                count += 1
+            der_coordinates_ohat[k - 1][count] = 0.
             der_coordinates_weights_atomic_output[k] = \
                 np.dot(np.matrix(der_coordinates_ohat[k - 1]).T,
                        np.matrix(delta[k]).T) + \
@@ -679,13 +680,10 @@ class NeuralNetwork:
             fingerprinting = True
 
         if fingerprinting:
-            no_layers_of_elements = []
-            for elm in self.elements:
-                if isinstance(param.regression.hiddenlayers[elm], int):
-                    no_layers_of_elements.append(3)
-                else:
-                    no_layers_of_elements.append(
-                        len(param.regression.hiddenlayers[elm]) + 2)
+            no_layers_of_elements = \
+                [3 if isinstance(param.regression.hiddenlayers[elm], int)
+                 else (len(param.regression.hiddenlayers[elm]) + 2)
+                 for elm in self.elements]
             nn_structure = OrderedDict()
             for elm in self.elements:
                 if isinstance(param.regression.hiddenlayers[elm], int):
@@ -697,10 +695,11 @@ class NeuralNetwork:
                                          [layer for layer in
                                           param.regression.hiddenlayers[elm]] +
                                          [1])
-            no_nodes_of_elements = []
-            for elm in self.elements:
-                for _ in range(len(nn_structure[elm])):
-                    no_nodes_of_elements.append(nn_structure[elm][_])
+
+            no_nodes_of_elements = [nn_structure[elm][_]
+                                    for elm in self.elements
+                                    for _ in range(len(nn_structure[elm]))]
+
         else:
             no_layers_of_elements = []
             if isinstance(param.regression.hiddenlayers, int):

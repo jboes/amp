@@ -73,8 +73,8 @@ class Behler:
         """
         home = self.atoms[index].position
 
-        fingerprint = []
-
+        fingerprint = [None] * len(self.Gs[symbol])
+        count = 0
         for G in self.Gs[symbol]:
 
             if G['type'] == 'G2':
@@ -86,8 +86,8 @@ class Behler:
                                      self.fortran)
             else:
                 raise NotImplementedError('Unknown G type: %s' % G['type'])
-
-            fingerprint.append(ridge)
+            fingerprint[count] = ridge
+            count += 1
 
         return fingerprint
 
@@ -101,7 +101,8 @@ class Behler:
         positions, respectively."""
 
         Rindex = self.atoms.positions[index]
-        der_fingerprint = []
+        der_fingerprint = [None] * len(self.Gs[symbol])
+        count = 0
         for G in self.Gs[symbol]:
             if G['type'] == 'G2':
                 ridge = calculate_der_G2(
@@ -134,7 +135,8 @@ class Behler:
             else:
                 raise NotImplementedError('Unknown G type: %s' % G['type'])
 
-            der_fingerprint.append(ridge)
+            der_fingerprint[count] = ridge
+            count += 1
 
         return der_fingerprint
 
@@ -313,38 +315,14 @@ def Kronecker_delta(i, j):
 def der_position_vector(a, b, m, i):
     """Returns the derivative of the position vector R_{ab} with respect to
         x_{i} of atomic index m."""
+    der_position_vector = [None, None, None]
+    der_position_vector[0] = (Kronecker_delta(m, a) - Kronecker_delta(m, b)) \
+        * Kronecker_delta(0, i)
+    der_position_vector[1] = (Kronecker_delta(m, a) - Kronecker_delta(m, b)) \
+        * Kronecker_delta(1, i)
+    der_position_vector[2] = (Kronecker_delta(m, a) - Kronecker_delta(m, b)) \
+        * Kronecker_delta(2, i)
 
-    der_position_vector = []
-    der_position_vector.append(
-        (Kronecker_delta(
-            m,
-            a) -
-            Kronecker_delta(
-            m,
-            b)) *
-        Kronecker_delta(
-            0,
-            i))
-    der_position_vector.append(
-        (Kronecker_delta(
-            m,
-            a) -
-            Kronecker_delta(
-            m,
-            b)) *
-        Kronecker_delta(
-            1,
-            i))
-    der_position_vector.append(
-        (Kronecker_delta(
-            m,
-            a) -
-            Kronecker_delta(
-            m,
-            b)) *
-        Kronecker_delta(
-            2,
-            i))
     return der_position_vector
 
 ###############################################################################

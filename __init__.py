@@ -283,19 +283,19 @@ class AMP(Calculator):
                     index = atom.index
                     symbol = atom.symbol
                     n_indices, n_offsets = self._nl.get_neighbors(index)
-                    n_symbols = []
-                    Rs = []
                     # for calculating fingerprints, summation runs over
                     # neighboring atoms of type I (either inside or outside
                     # the main cell)
-                    for n_index, n_offset in zip(n_indices, n_offsets):
-                        n_symbols.append(atoms[n_index].symbol)
-                        Rs.append(atoms.positions[n_index] +
-                                  np.dot(n_offset, atoms.get_cell()))
+                    n_symbols = [atoms[n_index].symbol
+                                 for n_index in n_indices]
+                    Rs = [atoms.positions[n_index] +
+                          np.dot(n_offset, atoms.get_cell())
+                          for n_index, n_offset in zip(n_indices, n_offsets)]
                     indexfp = self.fp.get_fingerprint(index, symbol,
                                                       n_symbols, Rs)
                     # fingerprints are scaled to [-1, 1] range
-                    scaled_indexfp = []
+                    scaled_indexfp = [None] * len(indexfp)
+                    count = 0
                     for _ in range(len(indexfp)):
                         if (param.fingerprints_range[symbol][_][1] -
                                 param.fingerprints_range[symbol][_][0]) \
@@ -307,7 +307,9 @@ class AMP(Calculator):
                                  param.fingerprints_range[symbol][_][0])
                         else:
                             scaled_value = indexfp[_]
-                        scaled_indexfp.append(scaled_value)
+                        scaled_indexfp[count] = scaled_value
+                        count += 1
+
                     atomic_amp_energy = self.reg.get_output(scaled_indexfp,
                                                             index, symbol,)
                     self.energy += atomic_amp_energy
@@ -357,32 +359,33 @@ class AMP(Calculator):
                     index = atom.index
                     symbol = atom.symbol
                     n_indices, n_offsets = self._nl.get_neighbors(index)
-                    n_symbols = []
-                    Rs = []
                     # for calculating fingerprints, summation runs over
                     # neighboring atoms of type I (either inside or outside
                     # the main cell)
-                    for n_index, n_offset in zip(n_indices, n_offsets):
-                        n_symbols.append(atoms[n_index].symbol)
-                        Rs.append(atoms.positions[n_index] +
-                                  np.dot(n_offset, atoms.get_cell()))
+                    n_symbols = [atoms[n_index].symbol
+                                 for n_index in n_indices]
+                    Rs = [atoms.positions[n_index] +
+                          np.dot(n_offset, atoms.get_cell())
+                          for n_index, n_offset in zip(n_indices, n_offsets)]
                     indexfp = self.fp.get_fingerprint(index, symbol,
                                                       n_symbols, Rs)
                     # fingerprints are scaled to [-1, 1] range
-                    scaled_indexfp = []
+                    scaled_indexfp = [None] * len(indexfp)
+                    count = 0
                     for _ in range(len(indexfp)):
                         if (param.fingerprints_range[symbol][_][1] -
-                                param.fingerprints_range[symbol][_][0]) > \
-                                (10.**(-8.)):
-                            scaled_value = \
-                                -1. + 2. * (indexfp[_] -
-                                            param.fingerprints_range[
-                                            symbol][_][0]) / \
+                                param.fingerprints_range[symbol][_][0]) \
+                                > (10.**(-8.)):
+                            scaled_value = -1. + \
+                                2. * (indexfp[_] - param.fingerprints_range[
+                                    symbol][_][0]) / \
                                 (param.fingerprints_range[symbol][_][1] -
                                  param.fingerprints_range[symbol][_][0])
                         else:
                             scaled_value = indexfp[_]
-                        scaled_indexfp.append(scaled_value)
+                        scaled_indexfp[count] = scaled_value
+                        count += 1
+
                     __ = self.reg.get_output(scaled_indexfp, index, symbol)
 
                 for atom in atoms:
@@ -406,19 +409,17 @@ class AMP(Calculator):
 
                                 neighbor_indices, neighbor_offsets = \
                                     self._nl.get_neighbors(n_index)
-                                neighbor_symbols = []
-                                Rs = []
+                                neighbor_symbols = \
+                                    [atoms[_index].symbol
+                                     for _index in neighbor_indices]
+                                Rs = [atoms.positions[_index] +
+                                      np.dot(_offset, atoms.get_cell())
+                                      for _index, _offset
+                                      in zip(neighbor_indices,
+                                             neighbor_offsets)]
                                 # for calculating derivatives of fingerprints,
                                 # summation runs over neighboring atoms of type
                                 # I (either inside or outside the main cell)
-                                for _index, _offset in zip(neighbor_indices,
-                                                           neighbor_offsets):
-                                    neighbor_symbols.append(
-                                        atoms[_index].symbol)
-                                    Rs.append(atoms.positions[_index] +
-                                              np.dot(_offset,
-                                                     atoms.get_cell()))
-
                                 der_indexfp = self.fp.get_der_fingerprint(
                                     n_index, n_symbol,
                                     neighbor_indices,
@@ -426,7 +427,8 @@ class AMP(Calculator):
                                     Rs, self_index, i)
 
                                 # fingerprint derivatives are scaled
-                                scaled_der_indexfp = []
+                                scaled_der_indexfp = [None] * len(der_indexfp)
+                                count = 0
                                 for _ in range(len(der_indexfp)):
                                     if (param.fingerprints_range[
                                         n_symbol][_][1] -
@@ -440,7 +442,8 @@ class AMP(Calculator):
                                                 n_symbol][_][0])
                                     else:
                                         scaled_value = der_indexfp[_]
-                                    scaled_der_indexfp.append(scaled_value)
+                                    scaled_der_indexfp[count] = scaled_value
+                                    count += 1
 
                                 force += self.reg.get_force(i,
                                                             scaled_der_indexfp,
@@ -610,6 +613,8 @@ class AMP(Calculator):
                                     images, self.dblabel, log, train_forces,
                                     read_fingerprints)
 
+            gc.collect()
+
             # Fingerprints are calculated and saved
             self.sfp = SaveFingerprints(
                 self.fp,
@@ -622,6 +627,8 @@ class AMP(Calculator):
                 snl,
                 log,
                 _mp)
+
+            gc.collect()
 
             # If fingerprints_range has not been loaded, it will take value
             # from the json file.
@@ -651,6 +658,8 @@ class AMP(Calculator):
             snl,)
 
         del hash_keys, images
+
+        gc.collect()
 
         # saving initial parameters
         filename = make_filename(self.label, 'initial-parameters.json')
@@ -731,33 +740,35 @@ class MultiProcess:
         and the entry of the second list contains dictionary of images to be
         calculated by that core."""
 
-        self.hash_keys = hash_keys
-        self.images = images
-
         quotient = int(len(hash_keys) / self.no_procs)
         remainder = len(hash_keys) - self.no_procs * quotient
-        list_sub_hashes = []
-        list_sub_images = []
-        count = 0
+        list_sub_hashes = [None] * self.no_procs
+        list_sub_images = [None] * self.no_procs
+        count0 = 0
+        count1 = 0
         for _ in range(self.no_procs):
-            sub_hashes = []
-            sub_images = {}
             if _ < remainder:
                 len_sub_hashes = quotient + 1
             else:
                 len_sub_hashes = quotient
+            sub_hashes = [None] * len_sub_hashes
+            sub_images = {}
+            count2 = 0
             for j in range(len_sub_hashes):
-                hash = hash_keys[count]
-                sub_hashes.append(hash)
+                hash = hash_keys[count1]
+                sub_hashes[count2] = hash
                 sub_images[hash] = images[hash]
-                count += 1
-            list_sub_hashes.append(sub_hashes)
-            list_sub_images.append(sub_images)
+                count1 += 1
+                count2 += 1
+            list_sub_hashes[count0] = sub_hashes
+            list_sub_images[count0] = sub_images
+            count0 += 1
 
         self.list_sub_hashes = list_sub_hashes
         self.list_sub_images = list_sub_images
 
-        del images
+        del hash_keys, images, list_sub_hashes, list_sub_images, sub_hashes,
+        sub_images
 
     ##########################################################################
 
@@ -778,6 +789,9 @@ class MultiProcess:
 
         for x in range(self.no_procs):
             processes[x].join()
+
+        for x in range(self.no_procs):
+            processes[x].terminate()
 
         del sub_hash_keys, sub_images
 
@@ -801,9 +815,7 @@ class MultiProcess:
         energy_square_error = 0.
         force_square_error = 0.
 
-        der_variables_square_error = []
-        for _ in range(len_of_variables):
-            der_variables_square_error.append(0.)
+        der_variables_square_error = [0.] * len_of_variables
 
         processes = [mp.Process(target=task, args=args[x])
                      for x in range(self.no_procs)]
@@ -814,17 +826,23 @@ class MultiProcess:
         for x in range(self.no_procs):
             processes[x].join()
 
+        for x in range(self.no_procs):
+            processes[x].terminate()
+
         sub_energy_square_error = []
         sub_force_square_error = []
         sub_der_variables_square_error = []
 
 #       Construct total square_error and derivative with respect to variables
 #       from subprocesses
+        results = {}
         for x in range(self.no_procs):
-            result = self.queues[x].get()
-            sub_energy_square_error.append(result[0])
-            sub_force_square_error.append(result[1])
-            sub_der_variables_square_error.append(result[2])
+            results[x] = self.queues[x].get()
+
+        sub_energy_square_error = [results[x][0] for x in range(self.no_procs)]
+        sub_force_square_error = [results[x][1] for x in range(self.no_procs)]
+        sub_der_variables_square_error = [results[x][2]
+                                          for x in range(self.no_procs)]
 
         for _ in range(len(sub_energy_square_error)):
             energy_square_error += sub_energy_square_error[_]
@@ -1104,11 +1122,10 @@ class SaveFingerprints:
 
         fingerprints_range = OrderedDict()
         for element in elements:
-            fingerprints_range[element] = []
-            for _ in range(len(self.Gs[element])):
-                fingerprints_range[element].append(
-                    [min(fingerprint_values[element][_]),
-                     max(fingerprint_values[element][_])])
+            fingerprints_range[element] = \
+                [[min(fingerprint_values[element][_]),
+                  max(fingerprint_values[element][_])]
+                 for _ in range(len(self.Gs[element]))]
 
         self.fingerprints_range = fingerprints_range
 
@@ -1528,15 +1545,12 @@ def _calculate_fingerprints(proc_no,
             index = atom.index
             symbol = atom.symbol
             n_indices, n_offsets = _nl.get_neighbors(index)
-            n_symbols = []
-            Rs = []
             # for calculating fingerprints, summation runs over neighboring
             # atoms of type I (either inside or outside the main cell)
-            for n_index, n_offset in zip(n_indices, n_offsets):
-                n_symbols.append(atoms[n_index].symbol)
-                Rs.append(atoms.positions[n_index] +
-                          np.dot(n_offset, atoms.get_cell()))
-
+            n_symbols = [atoms[n_index].symbol for n_index in n_indices]
+            Rs = [atoms.positions[n_index] +
+                  np.dot(n_offset, atoms.get_cell())
+                  for n_index, n_offset in zip(n_indices, n_offsets)]
             indexfp = fp.get_fingerprint(index, symbol, n_symbols, Rs)
             fingerprints[hash_key][index] = indexfp
 
@@ -1576,17 +1590,16 @@ def _calculate_der_fingerprints(proc_no, hashes, images, fp,
                     for i in range(3):
                         neighbor_indices, neighbor_offsets = \
                             _nl.get_neighbors(n_index)
-                        neighbor_symbols = []
-                        Rs = []
                         # for calculating derivatives of fingerprints,
                         # summation runs over neighboring atoms of type I
                         # (either inside or outside the main cell)
-                        for _index, _offset in zip(neighbor_indices,
-                                                   neighbor_offsets):
-                            neighbor_symbols.append(atoms[_index].symbol)
-                            Rs.append(atoms.positions[_index] +
-                                      np.dot(_offset, atoms.get_cell()))
-
+                        neighbor_symbols = \
+                            [atoms[
+                                _index].symbol for _index in neighbor_indices]
+                        Rs = [atoms.positions[_index] +
+                              np.dot(_offset, atoms.get_cell())
+                              for _index, _offset
+                              in zip(neighbor_indices, neighbor_offsets)]
                         der_indexfp = fp.get_der_fingerprint(
                             n_index, n_symbol,
                             neighbor_indices,
@@ -1657,7 +1670,8 @@ def _calculate_cost_function_python(hashes, images, reg, param, sfp,
                 symbol = atom.symbol
                 indexfp = sfp.fp_data[(hash_key, index)]
                 # fingerprints are scaled to [-1, 1] range
-                scaled_indexfp = []
+                scaled_indexfp = [None] * len(indexfp)
+                count = 0
                 for _ in range(len(indexfp)):
                     if (sfp.fingerprints_range[symbol][_][1] -
                             sfp.fingerprints_range[symbol][_][0]) > \
@@ -1669,7 +1683,8 @@ def _calculate_cost_function_python(hashes, images, reg, param, sfp,
                                sfp.fingerprints_range[symbol][_][0])
                     else:
                         scaled_value = indexfp[_]
-                    scaled_indexfp.append(scaled_value)
+                    scaled_indexfp[count] = scaled_value
+                    count += 1
                 atomic_amp_energy = reg.get_output(scaled_indexfp,
                                                    index, symbol,)
                 amp_energy += atomic_amp_energy
@@ -1732,7 +1747,8 @@ def _calculate_cost_function_python(hashes, images, reg, param, sfp,
                                                                 self_index,
                                                                 i))]
                                 # fingerprint derivatives are scaled
-                                scaled_der_indexfp = []
+                                scaled_der_indexfp = [None] * len(der_indexfp)
+                                count = 0
                                 for _ in range(len(der_indexfp)):
                                     if (sfp.fingerprints_range[
                                             n_symbol][_][1] -
@@ -1745,7 +1761,8 @@ def _calculate_cost_function_python(hashes, images, reg, param, sfp,
                                              [n_symbol][_][0])
                                     else:
                                         scaled_value = der_indexfp[_]
-                                    scaled_der_indexfp.append(scaled_value)
+                                    scaled_der_indexfp[count] = scaled_value
+                                    count += 1
 
                                 force = reg.get_force(i, scaled_der_indexfp,
                                                       n_index, n_symbol,)
@@ -1820,30 +1837,29 @@ def calculate_fingerprints_range(fp, elements, atoms, nl):
         index = atom.index
         symbol = atom.symbol
         n_indices, n_offsets = nl.get_neighbors(index)
-        n_symbols = []
-        Rs = []
         # for calculating fingerprints, summation runs over neighboring
         # atoms of type I (either inside or outside the main cell)
-        for n_index, n_offset in zip(n_indices, n_offsets):
-            n_symbols.append(atoms[n_index].symbol)
-            Rs.append(atoms.positions[n_index] +
-                      np.dot(n_offset, atoms.get_cell()))
-
+        n_symbols = [atoms[n_index].symbol for n_index in n_indices]
+        Rs = [atoms.positions[n_index] +
+              np.dot(n_offset, atoms.get_cell())
+              for n_index, n_offset in zip(n_indices, n_offsets)]
         indexfp = fp.get_fingerprint(index, symbol, n_symbols, Rs)
-        for i in range(len(fp.Gs[symbol])):
-            fingerprint_values[symbol][i].append(indexfp[i])
+        for _ in range(len(fp.Gs[symbol])):
+            fingerprint_values[symbol][_].append(indexfp[_])
 
     fingerprints_range = {}
     for element in elements:
-        fingerprints_range[element] = []
-        for i in range(len(fp.Gs[element])):
-            if len(fingerprint_values[element][i]) > 0:
-                minimum = min(fingerprint_values[element][i])
-                maximum = max(fingerprint_values[element][i])
+        fingerprints_range[element] = [None] * len(fp.Gs[element])
+        count = 0
+        for _ in range(len(fp.Gs[element])):
+            if len(fingerprint_values[element][_]) > 0:
+                minimum = min(fingerprint_values[element][_])
+                maximum = max(fingerprint_values[element][_])
             else:
                 minimum = -1.0
                 maximum = -1.0
-            fingerprints_range[element].append([minimum, maximum])
+            fingerprints_range[element][count] = [minimum, maximum]
+            count += 1
 
     return fingerprints_range
 
@@ -1868,15 +1884,12 @@ def compare_train_test_fingerprints(fp, atoms, fingerprints_range, nl):
         index = atom.index
         symbol = atom.symbol
         n_indices, n_offsets = nl.get_neighbors(index)
-        n_symbols = []
-        Rs = []
         # for calculating fingerprints, summation runs over neighboring
         # atoms of type I (either inside or outside the main cell)
-        for n_index, n_offset in zip(n_indices, n_offsets):
-            n_symbols.append(atoms[n_index].symbol)
-            Rs.append(atoms.positions[n_index] +
-                      np.dot(n_offset, atoms.get_cell()))
-
+        n_symbols = [atoms[n_index].symbol for n_index in n_indices]
+        Rs = [atoms.positions[n_index] +
+              np.dot(n_offset, atoms.get_cell())
+              for n_index, n_offset in zip(n_indices, n_offsets)]
         indexfp = fp.get_fingerprint(index, symbol, n_symbols, Rs)
         for i in range(len(indexfp)):
             if indexfp[i] < fingerprints_range[symbol][i][0] or \
@@ -1902,50 +1915,41 @@ def send_data_to_fortran(hash_keys, images, sfp, snl, elements, train_forces,
         fingerprinting = True
 
     no_of_images = len(images)
-    real_energies = []
-    for hash_key in hash_keys:
-        atoms = images[hash_key]
-        real_energy = atoms.get_potential_energy(apply_constraint=False)
-        real_energies.append(real_energy)
+    real_energies = \
+        [images[hash_key].get_potential_energy(apply_constraint=False)
+         for hash_key in hash_keys]
 
     if fingerprinting:
         no_of_elements = len(elements)
         elements_numbers = [atomic_numbers[elm] for elm in elements]
-        no_of_atoms_of_images = []
-        atomic_numbers_of_images = []
-        for hash_key in hash_keys:
-            atoms = images[hash_key]
-            no_of_atoms_of_images.append(len(atoms))
-            for atom in atoms:
-                atomic_numbers_of_images.append(atomic_numbers[atom.symbol])
-        min_fingerprints = []
-        max_fingerprints = []
-        for elm in elements:
-            min_fps = []
-            max_fps = []
-            for i in range(len(param.fingerprints_range[elm])):
-                min_fps.append(param.fingerprints_range[elm][i][0])
-                max_fps.append(param.fingerprints_range[elm][i][1])
-            min_fingerprints.append(min_fps)
-            max_fingerprints.append(max_fps)
+        no_of_atoms_of_images = [len(images[hash_key])
+                                 for hash_key in hash_keys]
+        atomic_numbers_of_images = \
+            [atomic_numbers[atom.symbol]
+             for hash_key in hash_keys
+             for atom in images[hash_key]]
+        min_fingerprints = \
+            [[param.fingerprints_range[elm][_][0]
+              for _ in range(len(param.fingerprints_range[elm]))]
+             for elm in elements]
+        max_fingerprints = [[param.fingerprints_range[elm][_][1]
+                             for _
+                             in range(len(param.fingerprints_range[elm]))]
+                            for elm in elements]
         raveled_fingerprints_of_images = \
-            ravel_fingerprints_of_images(hash_keys,
-                                         images,
-                                         sfp)
+            ravel_fingerprints_of_images(hash_keys, images, sfp)
         len_fingerprints_of_elements = [len(sfp.Gs[elm]) for elm in elements]
     else:
         no_of_atoms_of_image = param.no_of_atoms
-        atomic_positions_of_images = []
-        for hash_key in hash_keys:
-            atoms = images[hash_key]
-            atomic_positions_of_images.append(atoms.positions.ravel())
+        atomic_positions_of_images = \
+            [images[hash_key].positions.ravel()
+             for hash_key in hash_keys]
 
     if train_forces is True:
         real_forces_of_images = []
         for hash_key in hash_keys:
-            atoms = images[hash_key]
-            forces = atoms.get_forces(apply_constraint=False)
-            for index in range(len(atoms)):
+            forces = images[hash_key].get_forces(apply_constraint=False)
+            for index in range(len(images[hash_key])):
                 real_forces_of_images.append(forces[index])
         if fingerprinting:
             (list_of_no_of_neighbors,
@@ -2015,14 +2019,12 @@ def send_data_to_fortran(hash_keys, images, sfp, snl, elements, train_forces,
 def ravel_fingerprints_of_images(hash_keys, images, sfp):
     """Reshape fingerprints of all images into a matrix"""
 
-    keys = []
-    for hash_key in hash_keys:
-        atoms = images[hash_key]
-        for index in range(len(atoms)):
-            keys.append((hash_key, index))
+    keys = [(hash_key, index) for hash_key in hash_keys
+            for index in range(len(images[hash_key]))]
+
     raveled_fingerprints = [sfp.fp_data[key] for key in keys]
 
-    del hash_keys, images
+    del hash_keys, images, keys
 
     return raveled_fingerprints
 
@@ -2034,63 +2036,43 @@ def ravel_neighborlists_and_der_fingerprints_of_images(hash_keys,
     """Reshape neighborlists and derivatives of fingerprints of all images into
     a matrix"""
 
+    # Only neighboring atoms of type II (within the main cell) needs to be sent
+    # to fortran for force training
     list_of_no_of_neighbors = []
-    raveled_neighborlists = []
-    raveled_der_fingerprints = []
     for hash_key in hash_keys:
         atoms = images[hash_key]
         for self_atom in atoms:
             self_index = self_atom.index
-            n_self_indices = snl.nl_data[(hash_key, self_index)][0]
             n_self_offsets = snl.nl_data[(hash_key, self_index)][1]
             count = 0
-            for n_index, n_offset in zip(n_self_indices, n_self_offsets):
-                # Only neighboring atoms of type II (within the main cell)
-                # needs to be sent to fortran for force training
+            for n_offset in n_self_offsets:
                 if n_offset[0] == 0 and n_offset[1] == 0 and n_offset[2] == 0:
                     count += 1
-                    raveled_neighborlists.append(n_index)
-                    for i in range(3):
-                        self_n_index_der_fp = \
-                            sfp.der_fp_data[(hash_key,
-                                             (n_index, self_index, i))]
-                        raveled_der_fingerprints.append(self_n_index_der_fp)
             list_of_no_of_neighbors.append(count)
+
+    raveled_neighborlists = [n_index for hash_key in hash_keys
+                             for self_atom in images[hash_key]
+                             for n_index, n_offset in
+                             zip(snl.nl_data[(hash_key, self_atom.index)][0],
+                                 snl.nl_data[(hash_key, self_atom.index)][1])
+                             if (n_offset[0] == 0 and n_offset[1] == 0 and
+                                 n_offset[2] == 0)]
+
+    raveled_der_fingerprints = \
+        [sfp.der_fp_data[(hash_key, (n_index, self_atom.index, i))]
+         for hash_key in hash_keys
+         for self_atom in images[hash_key]
+         for n_index, n_offset in
+         zip(snl.nl_data[(hash_key, self_atom.index)][0],
+             snl.nl_data[(hash_key, self_atom.index)][1])
+         if (n_offset[0] == 0 and n_offset[1] == 0 and
+             n_offset[2] == 0) for i in range(3)]
 
     del hash_keys, images
 
     return (list_of_no_of_neighbors,
             raveled_neighborlists,
             raveled_der_fingerprints)
-
-###############################################################################
-
-
-def ravel_der_fingerprints_of_images(hash_keys, images, sfp, snl):
-    """Reshape derivatives of fingerprints of all images into a matrix"""
-
-    raveled_der_fingerprints = []
-    for hash_key in hash_keys:
-        atoms = images[hash_key]
-        for self_atom in atoms:
-            self_index = self_atom.index
-            n_self_indices = snl.nl_data[(hash_key, self_index)][0]
-            n_self_offsets = snl.nl_data[(hash_key, self_index)][1]
-            count = 0
-            for n_index, n_offset in zip(n_self_indices, n_self_offsets):
-                # Only neighboring atoms of type II (within the main cell)
-                # needs to be sent to fortran for force training
-                if n_offset[0] == 0 and n_offset[1] == 0 and n_offset[2] == 0:
-                    count += 1
-                    for i in range(3):
-                        self_n_index_der_fp = \
-                            sfp.der_fp_data[(hash_key,
-                                             (n_index, self_index, i))]
-                        raveled_der_fingerprints.append(self_n_index_der_fp)
-
-    del hash_keys, images
-
-    return raveled_der_fingerprints
 
 ###############################################################################
 
