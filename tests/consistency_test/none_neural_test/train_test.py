@@ -89,13 +89,13 @@ def test():
                        read_fingerprints=False)
 
             if count == 0:
-                reference_cost_function = calc.cost_function[0]
+                reference_cost_function = calc.cost_function
                 reference_energy_rmse = calc.energy_per_atom_rmse
                 reference_force_rmse = calc.force_rmse
                 ref_cost_fxn_variable_derivatives = \
                     calc.der_variables_cost_function
             else:
-                assert (abs(calc.cost_function[0] -
+                assert (abs(calc.cost_function -
                             reference_cost_function) < 10.**(-20.)), \
                     'Cost function value for %r fortran and %i cores \
                 is not consistent with the value of \

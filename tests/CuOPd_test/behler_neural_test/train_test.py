@@ -172,7 +172,7 @@ def non_periodic_test():
                        force_goal=10.**10., force_coefficient=0.04,
                        cores=cores, read_fingerprints=False)
 
-            assert (abs(calc.cost_function[0] - 7144.30292363230) <
+            assert (abs(calc.cost_function - 7144.30292363230) <
                     10.**(-5.)), \
                 'The calculated value of cost function is wrong!'
 
@@ -319,7 +319,7 @@ def periodic_test():
                        force_goal=10.**10, force_coefficient=0.04,
                        cores=cores, read_fingerprints=False)
 
-            assert (abs(calc.cost_function[0] - 8005.262570965399) <
+            assert (abs(calc.cost_function - 8005.262570965399) <
                     10.**(-7.)), \
                 'The calculated value of cost function is wrong!'
 

@@ -132,7 +132,7 @@ def test():
                        cores=cores, read_fingerprints=False)
 
             # Check for consistency between the two models
-            assert (abs(calc.cost_function[0] - cost_function) <
+            assert (abs(calc.cost_function - cost_function) <
                     10.**(-5.)), \
                 'The calculated value of cost function is wrong!'
             assert (abs(calc.energy_per_atom_rmse - energy_per_atom_rmse) <
