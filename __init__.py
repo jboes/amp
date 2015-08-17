@@ -15,7 +15,7 @@ from ase.calculators.calculator import Calculator
 from ase.data import atomic_numbers
 from ase.parallel import paropen
 import os
-import io
+from ase import io
 import numpy as np
 import json
 import tempfile
@@ -30,8 +30,8 @@ from utilities import *
 from fingerprint import *
 from regression import *
 try:
-    from amp import fmodules  # version 1 of fmodules
-    fmodules_version = 1
+    from amp import fmodules  # version 2 of fmodules
+    fmodules_version = 2
 except ImportError:
     fmodules = None
 
@@ -716,7 +716,7 @@ class AMP(Calculator):
 
 class MultiProcess:
 
-    """Class to do parallel processing, using multiprocessing package which
+    """Class to do parallel processing, using multiprocessing module which
     works on Python versions 2.6 and above.
     Inputs:
             fortran: boolean
@@ -728,9 +728,6 @@ class MultiProcess:
 
         self.fortran = fortran
         self.no_procs = no_procs
-        self.queues = {}
-        for x in range(no_procs):
-            self.queues[x] = mp.Queue()
 
     ##########################################################################
 
@@ -797,20 +794,103 @@ class MultiProcess:
 
     ##########################################################################
 
+    def ravel_images_data(self,
+                          param,
+                          sfp,
+                          snl,
+                          elements,
+                          train_forces,
+                          log,):
+
+        log('Re-shaping images data to send to fortran90...')
+        log.tic()
+
+        self.train_forces = train_forces
+
+        if param.fingerprint is None:
+            self.fingerprinting = False
+        else:
+            self.fingerprinting = True
+
+        self.no_of_images = {}
+        self.real_energies = {}
+        for x in range(self.no_procs):
+            self.no_of_images[x] = len(self.list_sub_hashes[x])
+            self.real_energies[x] = \
+                [self.list_sub_images[x][
+                    hash_key].get_potential_energy(apply_constraint=False)
+                    for hash_key in self.list_sub_hashes[x]]
+
+        if self.fingerprinting:
+
+            self.no_of_atoms_of_images = {}
+            self.atomic_numbers_of_images = {}
+            self.raveled_fingerprints_of_images = {}
+            for x in range(self.no_procs):
+                self.no_of_atoms_of_images[x] = \
+                    [len(self.list_sub_images[x][hash_key])
+                     for hash_key in self.list_sub_hashes[x]]
+                self.atomic_numbers_of_images[x] = \
+                    [atomic_numbers[atom.symbol]
+                     for hash_key in self.list_sub_hashes[x]
+                     for atom in self.list_sub_images[x][hash_key]]
+                self.raveled_fingerprints_of_images[x] = \
+                    ravel_fingerprints_of_images(self.list_sub_hashes[x],
+                                                 self.list_sub_images[x],
+                                                 sfp)
+        else:
+            self.atomic_positions_of_images = {}
+            for x in range(self.no_procs):
+                self.atomic_positions_of_images[x] = \
+                    [self.list_sub_images[x][hash_key].positions.ravel()
+                     for hash_key in self.list_sub_hashes[x]]
+
+        if train_forces is True:
+
+            self.real_forces = {}
+            for x in range(self.no_procs):
+                self.real_forces[x] = \
+                    [self.list_sub_images[x][hash_key].get_forces(
+                        apply_constraint=False)[index]
+                     for hash_key in self.list_sub_hashes[x]
+                     for index in range(len(self.list_sub_images[x][
+                         hash_key]))]
+
+            if self.fingerprinting:
+                self.list_of_no_of_neighbors = {}
+                self.raveled_neighborlists = {}
+                self.raveled_der_fingerprints = {}
+                for x in range(self.no_procs):
+                    (self.list_of_no_of_neighbors[x],
+                     self.raveled_neighborlists[x],
+                     self.raveled_der_fingerprints[x]) = \
+                        ravel_neighborlists_and_der_fingerprints_of_images(
+                        self.list_sub_hashes[x],
+                        self.list_sub_images[x],
+                        sfp,
+                        snl)
+
+        log(' ...data re-shaped.', toc=True)
+
+    ##########################################################################
+
     def share_cost_function_task_between_cores(self, task, _args,
                                                len_of_variables):
         """Derivatives of the cost function with respect to variables are
         calculated in parallel"""
 
+        queues = {}
+        for x in range(self.no_procs):
+            queues[x] = mp.Queue()
+
         args = {}
         for x in range(self.no_procs):
             if self.fortran:
-                args[x] = (x + 1,) + _args + (self.queues[x],)
+                args[x] = _args + (queues[x],)
             else:
                 sub_hash_keys = self.list_sub_hashes[x]
                 sub_images = self.list_sub_images[x]
-                args[x] = (sub_hash_keys, sub_images,) + _args + \
-                    (self.queues[x],)
+                args[x] = (sub_hash_keys, sub_images,) + _args + (queues[x],)
 
         energy_square_error = 0.
         force_square_error = 0.
@@ -821,6 +901,9 @@ class MultiProcess:
                      for x in range(self.no_procs)]
 
         for x in range(self.no_procs):
+            if self.fortran:
+                # data particular to each process is sent to fortran modules
+                self.send_data_to_fortran(x,)
             processes[x].start()
 
         for x in range(self.no_procs):
@@ -837,7 +920,7 @@ class MultiProcess:
 #       from subprocesses
         results = {}
         for x in range(self.no_procs):
-            results[x] = self.queues[x].get()
+            results[x] = queues[x].get()
 
         sub_energy_square_error = [results[x][0] for x in range(self.no_procs)]
         sub_force_square_error = [results[x][1] for x in range(self.no_procs)]
@@ -856,6 +939,38 @@ class MultiProcess:
 
         return (energy_square_error, force_square_error,
                 der_variables_square_error)
+
+    ##########################################################################
+
+    def send_data_to_fortran(self, x,):
+        """Function to send images data to fortran90 code"""
+
+        fmodules.images_props.no_of_images = self.no_of_images[x]
+        fmodules.images_props.real_energies = self.real_energies[x]
+
+        if self.fingerprinting:
+            fmodules.images_props.no_of_atoms_of_images = \
+                self.no_of_atoms_of_images[x]
+            fmodules.images_props.atomic_numbers_of_images = \
+                self.atomic_numbers_of_images[x]
+            fmodules.fingerprint_props.raveled_fingerprints_of_images = \
+                self.raveled_fingerprints_of_images[x]
+        else:
+            fmodules.images_props.atomic_positions_of_images = \
+                self.atomic_positions_of_images[x]
+
+        if self.train_forces is True:
+
+            fmodules.images_props.real_forces_of_images = \
+                self.real_forces[x]
+
+            if self.fingerprinting:
+                fmodules.images_props.list_of_no_of_neighbors = \
+                    self.list_of_no_of_neighbors[x]
+                fmodules.images_props.raveled_neighborlists = \
+                    self.raveled_neighborlists[x]
+                fmodules.fingerprint_props.raveled_der_fingerprints = \
+                    self.raveled_der_fingerprints[x]
 
 ###############################################################################
 ###############################################################################
@@ -1291,8 +1406,6 @@ class CostFxnandDer:
 
         self.reg = reg
         self.param = param
-        self.hash_keys = hash_keys
-        self.images = images
         self.label = label
         self.log = log
         self.energy_goal = energy_goal
@@ -1316,30 +1429,33 @@ class CostFxnandDer:
 
         self.energy_coefficient = 1.0
 
-        self.no_of_images = len(self.hash_keys)
+        self.no_of_images = len(hash_keys)
 
         # all images are shared between cores for feed-forward and
         # back-propagation calculations
-        self._mp.make_list_of_sub_images(self.hash_keys, self.images)
+        self._mp.make_list_of_sub_images(hash_keys, images)
 
         if self.fortran:
-            no_procs = self._mp.no_procs
-            no_sub_images = [len(self._mp.list_sub_images[i])
-                             for i in range(no_procs)]
+            # regression data is sent to fortran modules
             self.reg.send_data_to_fortran(param)
-            send_data_to_fortran(self.hash_keys, self.images,
-                                 self.sfp, self.snl,
+            # data common between processes is sent to fortran modules
+            send_data_to_fortran(self.sfp,
                                  self.reg.elements,
                                  self.train_forces,
                                  self.energy_coefficient,
                                  self.force_coefficient,
-                                 log,
-                                 param,
-                                 no_procs,
-                                 no_sub_images)
+                                 param,)
+            self._mp.ravel_images_data(param,
+                                       self.sfp,
+                                       self.snl,
+                                       self.reg.elements,
+                                       self.train_forces,
+                                       log,)
             del self._mp.list_sub_images, self._mp.list_sub_hashes
 
-        del self.hash_keys, hash_keys, self.images, images
+        del hash_keys, images
+
+        gc.collect()
 
     #########################################################################
 
@@ -1615,7 +1731,7 @@ def _calculate_der_fingerprints(proc_no, hashes, images, fp,
 ###############################################################################
 
 
-def _calculate_cost_function_fortran(proc_no, param, queue):
+def _calculate_cost_function_fortran(param, queue):
     """wrapper function to be used in multiprocessing for calculating
     cost function and it's derivative with respect to variables"""
 
@@ -1624,8 +1740,7 @@ def _calculate_cost_function_fortran(proc_no, param, queue):
     (energy_square_error,
      force_square_error,
      der_variables_square_error) = \
-        fmodules.share_cost_function_task_between_cores(proc=proc_no,
-                                                        variables=variables,
+        fmodules.share_cost_function_task_between_cores(variables=variables,
                                                         len_of_variables=len(
                                                             variables))
 
@@ -1901,33 +2016,18 @@ def compare_train_test_fingerprints(fp, atoms, fingerprints_range, nl):
 ###############################################################################
 
 
-def send_data_to_fortran(hash_keys, images, sfp, snl, elements, train_forces,
-                         energy_coefficient, force_coefficient, log,
-                         param, no_procs, no_sub_images):
+def send_data_to_fortran(sfp, elements, train_forces,
+                         energy_coefficient, force_coefficient, param):
     """Function to send images data to fortran90 code"""
-
-    log('Re-shaping data to send to fortran90...')
-    log.tic()
 
     if param.fingerprint is None:
         fingerprinting = False
     else:
         fingerprinting = True
 
-    no_of_images = len(images)
-    real_energies = \
-        [images[hash_key].get_potential_energy(apply_constraint=False)
-         for hash_key in hash_keys]
-
     if fingerprinting:
         no_of_elements = len(elements)
         elements_numbers = [atomic_numbers[elm] for elm in elements]
-        no_of_atoms_of_images = [len(images[hash_key])
-                                 for hash_key in hash_keys]
-        atomic_numbers_of_images = \
-            [atomic_numbers[atom.symbol]
-             for hash_key in hash_keys
-             for atom in images[hash_key]]
         min_fingerprints = \
             [[param.fingerprints_range[elm][_][0]
               for _ in range(len(param.fingerprints_range[elm]))]
@@ -1936,82 +2036,24 @@ def send_data_to_fortran(hash_keys, images, sfp, snl, elements, train_forces,
                              for _
                              in range(len(param.fingerprints_range[elm]))]
                             for elm in elements]
-        raveled_fingerprints_of_images = \
-            ravel_fingerprints_of_images(hash_keys, images, sfp)
         len_fingerprints_of_elements = [len(sfp.Gs[elm]) for elm in elements]
     else:
         no_of_atoms_of_image = param.no_of_atoms
-        atomic_positions_of_images = \
-            [images[hash_key].positions.ravel()
-             for hash_key in hash_keys]
-
-    if train_forces is True:
-        real_forces_of_images = []
-        for hash_key in hash_keys:
-            forces = images[hash_key].get_forces(apply_constraint=False)
-            for index in range(len(images[hash_key])):
-                real_forces_of_images.append(forces[index])
-        if fingerprinting:
-            (list_of_no_of_neighbors,
-             raveled_neighborlists,
-             raveled_der_fingerprints) = \
-                ravel_neighborlists_and_der_fingerprints_of_images(hash_keys,
-                                                                   images,
-                                                                   sfp,
-                                                                   snl)
-
-    log(' ...data re-shaped.', toc=True)
-
-    log('Sending data to fortran90...')
-    log.tic()
 
     fmodules.images_props.energy_coefficient = energy_coefficient
     fmodules.images_props.force_coefficient = force_coefficient
-    fmodules.images_props.no_of_images = no_of_images
-    fmodules.images_props.real_energies = real_energies
     fmodules.images_props.train_forces = train_forces
     fmodules.images_props.fingerprinting = fingerprinting
-    fmodules.images_props.no_procs = no_procs
-    fmodules.images_props.no_sub_images = no_sub_images
-    del real_energies, hash_keys, images
 
     if fingerprinting:
         fmodules.images_props.no_of_elements = no_of_elements
         fmodules.images_props.elements_numbers = elements_numbers
-        fmodules.images_props.no_of_atoms_of_images = no_of_atoms_of_images
-        fmodules.images_props.atomic_numbers_of_images = \
-            atomic_numbers_of_images
         fmodules.fingerprint_props.min_fingerprints = min_fingerprints
         fmodules.fingerprint_props.max_fingerprints = max_fingerprints
-        fmodules.fingerprint_props.raveled_fingerprints_of_images = \
-            raveled_fingerprints_of_images
         fmodules.fingerprint_props.len_fingerprints_of_elements = \
             len_fingerprints_of_elements
-        del min_fingerprints, max_fingerprints, raveled_fingerprints_of_images,
-        no_of_atoms_of_images, atomic_numbers_of_images
     else:
-        fmodules.images_props.atomic_positions_of_images = \
-            atomic_positions_of_images
-        del atomic_positions_of_images
         fmodules.images_props.no_of_atoms_of_image = no_of_atoms_of_image
-
-    if train_forces is True:
-
-        fmodules.images_props.real_forces_of_images = real_forces_of_images
-        del real_forces_of_images
-
-        if fingerprinting:
-            fmodules.images_props.list_of_no_of_neighbors = \
-                list_of_no_of_neighbors
-            fmodules.images_props.raveled_neighborlists = raveled_neighborlists
-            fmodules.fingerprint_props.raveled_der_fingerprints = \
-                raveled_der_fingerprints
-            del list_of_no_of_neighbors, raveled_neighborlists,
-            raveled_der_fingerprints
-
-    gc.collect()
-
-    log(' ...data sent to fortran90.', toc=True)
 
 ##############################################################################
 

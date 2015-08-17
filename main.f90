@@ -1,14 +1,14 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
  
-!     Fortran Version = 1
+!     Fortran Version = 2
       subroutine check_version(version, warning) 
       implicit none
     
       integer :: version, warning
 !f2py         intent(in) :: version
 !f2py         intent(out) :: warning
-      if (version .NE. 1) then
+      if (version .NE. 2) then
           warning = 1
       else
           warning = 0
@@ -40,8 +40,6 @@
       double precision:: force_coefficient
       logical:: train_forces
       logical:: fingerprinting
-      integer:: no_procs
-      integer, allocatable:: no_sub_images(:)
       integer:: no_of_images
 !     fingerprinting variables
       integer:: no_of_elements
@@ -62,7 +60,7 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !     subroutine that shares the task corresponding to calculation of cost function and its derivative
 !     between cores
-      subroutine share_cost_function_task_between_cores(proc, &
+      subroutine share_cost_function_task_between_cores(&
       variables, len_of_variables, energy_square_error, &
       force_square_error, der_variables_square_error)
 
@@ -72,12 +70,11 @@
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!! input/output variables !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-      integer:: proc
       integer:: len_of_variables
       double precision:: variables(len_of_variables)
       double precision:: energy_square_error, force_square_error
       double precision:: der_variables_square_error(len_of_variables)
-!f2py         intent(in):: variables, proc
+!f2py         intent(in):: variables
 !f2py         intent(out):: energy_square_error, force_square_error
 !f2py         intent(out):: der_variables_square_error
 
@@ -116,10 +113,10 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! dummy variables !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
       double precision, allocatable :: fingerprint(:)
-      type(embedded_real_one_one_d_array):: &
-      unraveled_fingerprints_of_images(no_sub_images(proc))
-      type(integer_one_d_array):: &
-      unraveled_atomic_numbers_of_images(no_sub_images(proc))
+      type(embedded_real_one_one_d_array), allocatable:: &
+      unraveled_fingerprints_of_images(:)
+      type(integer_one_d_array), allocatable:: &
+      unraveled_atomic_numbers_of_images(:)
       integer, allocatable:: unraveled_atomic_numbers(:)
       double precision:: amp_energy, real_energy, atomic_amp_energy
       double precision:: force, temp
@@ -128,44 +125,46 @@
       len_of_input
       double precision:: &
       partial_der_variables_square_error(len_of_variables)
-      type(image_forces):: unraveled_real_forces(no_sub_images(proc))
-      type(embedded_integer_one_one_d_array):: &
-      unraveled_neighborlists(no_sub_images(proc))
-      type(embedded_one_one_two_d_array):: &
-      unraveled_der_fingerprints_of_images(no_sub_images(proc))
+      type(image_forces), allocatable:: unraveled_real_forces(:)
+      type(embedded_integer_one_one_d_array), allocatable:: &
+      unraveled_neighborlists(:)
+      type(embedded_one_one_two_d_array), allocatable:: &
+      unraveled_der_fingerprints_of_images(:)
       double precision, allocatable:: der_fingerprint(:)
       integer:: n_index, n_symbol, self_index
-      integer:: first_image_no, no_proc_images
       double precision, allocatable:: &
       real_forces(:, :), amp_forces(:, :)
       integer, allocatable:: n_self_indices(:)
 !     no fingerprinting scheme
-      type(real_one_d_array):: &
-      unraveled_atomic_positions(no_sub_images(proc))
-      double precision :: input(3 * no_of_atoms_of_image)
-      double precision :: input_(3 * no_of_atoms_of_image)
+      type(real_one_d_array), allocatable:: &
+      unraveled_atomic_positions(:)
+      double precision, allocatable :: input(:)
+      double precision, allocatable :: input_(:)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! calculations !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-      first_image_no = 1
-      do i = 1, proc - 1
-        first_image_no = first_image_no + no_sub_images(i)
-      end do
-      no_proc_images = no_sub_images(proc)
       if (fingerprinting .eqv. .false.) then
-        call unravel_atomic_positions(first_image_no, no_proc_images)
+        allocate(input(3 * no_of_atoms_of_image))
+        allocate(input_(3 * no_of_atoms_of_image))
+        allocate(unraveled_atomic_positions(no_of_images))
+        call unravel_atomic_positions()
       else
-        call unravel_atomic_numbers(first_image_no, no_proc_images)
-        call unravel_fingerprints(first_image_no, no_proc_images)
-        call scale_fingerprints(no_proc_images)
+        allocate(unraveled_fingerprints_of_images(no_of_images))
+        allocate(unraveled_atomic_numbers_of_images(no_of_images))
+        allocate(unraveled_neighborlists(no_of_images))
+        allocate(unraveled_der_fingerprints_of_images(no_of_images))
+        call unravel_atomic_numbers()
+        call unravel_fingerprints()
+        call scale_fingerprints()
       end if
       if (train_forces .eqv. .true.) then
-          call unravel_real_forces(first_image_no, no_proc_images)
+           allocate(unraveled_real_forces(no_of_images))
+          call unravel_real_forces()
           if (fingerprinting .eqv. .true.) then
-              call unravel_neighborlists(first_image_no, no_proc_images)
+              call unravel_neighborlists()
               call &
-              unravel_der_fingerprints(first_image_no, no_proc_images)
-              call scale_der_fingerprints(no_proc_images)
+              unravel_der_fingerprints()
+              call scale_der_fingerprints()
           end if
       end if
 
@@ -176,8 +175,8 @@
       end do
 
 !     summation over images
-      do image_no = 1, no_proc_images
-        real_energy = real_energies(first_image_no - 1 + image_no)
+      do image_no = 1, no_of_images
+        real_energy = real_energies(image_no)
         do j = 1, len_of_variables
             partial_der_variables_square_error(j) = 0.0d0
         end do
@@ -189,8 +188,7 @@
             get_energy_(len_of_input, input, len_of_variables, &
             variables)
         else
-            no_of_atoms = &
-            no_of_atoms_of_images(first_image_no - 1 + image_no)
+            no_of_atoms = no_of_atoms_of_images(image_no)
             allocate(unraveled_atomic_numbers(no_of_atoms))
             do p = 1, no_of_atoms
                 unraveled_atomic_numbers(p) = &
@@ -221,7 +219,6 @@
                 amp_energy = amp_energy + atomic_amp_energy
             end do
         end if
-
         energy_square_error = energy_square_error + &
         (amp_energy - real_energy) ** 2.0d0 / (no_of_atoms ** 2.0d0)
         
@@ -267,7 +264,7 @@
                 end do
             end do
         end if
-        
+
         if (train_forces .eqv. .true.) then
             allocate(real_forces(no_of_atoms, 3))
             allocate(amp_forces(no_of_atoms, 3))
@@ -430,17 +427,20 @@
 
 !     deallocations for all images
       if (fingerprinting .eqv. .false.) then
-        do image_no = 1, no_proc_images
+        do image_no = 1, no_of_images
             deallocate(unraveled_atomic_positions(image_no)%onedarray)
         end do
+        deallocate(unraveled_atomic_positions)
+        deallocate(input)
+        deallocate(input_)
       else
-        do image_no = 1, no_proc_images
+        do image_no = 1, no_of_images
             deallocate(unraveled_atomic_numbers_of_images(&
             image_no)%onedarray)
         end do
-        do image_no = 1, no_proc_images
-            no_of_atoms = &
-            no_of_atoms_of_images(first_image_no - 1 + image_no)
+        deallocate(unraveled_atomic_numbers_of_images)
+        do image_no = 1, no_of_images
+            no_of_atoms = no_of_atoms_of_images(image_no)
             do index = 1, no_of_atoms
                 deallocate(unraveled_fingerprints_of_images(&
                 image_no)%onedarray(index)%onedarray)
@@ -448,16 +448,17 @@
             deallocate(unraveled_fingerprints_of_images(&
             image_no)%onedarray)
         end do
+        deallocate(unraveled_fingerprints_of_images)
       end if
 
       if (train_forces .eqv. .true.) then
-        do image_no = 1, no_proc_images
+        do image_no = 1, no_of_images
             deallocate(unraveled_real_forces(image_no)%atomic_forces)
         end do
+        deallocate(unraveled_real_forces)
         if (fingerprinting .eqv. .true.) then 
-            do image_no = 1, no_proc_images
-                no_of_atoms = &
-                no_of_atoms_of_images(first_image_no - 1 + image_no)
+            do image_no = 1, no_of_images
+                no_of_atoms = no_of_atoms_of_images(image_no)
                 do self_index = 1, no_of_atoms
                     do n_index = 1, &
                     size(unraveled_der_fingerprints_of_images(&
@@ -473,57 +474,77 @@
                 deallocate(unraveled_der_fingerprints_of_images(&
                 image_no)%onedarray)
             end do
-            do image_no = 1, no_proc_images
-                no_of_atoms = &
-                no_of_atoms_of_images(first_image_no - 1 + image_no)
+            deallocate(unraveled_der_fingerprints_of_images)
+            do image_no = 1, no_of_images
+                no_of_atoms = no_of_atoms_of_images(image_no)
                 do index = 1, no_of_atoms
                     deallocate(unraveled_neighborlists(&
                     image_no)%onedarray(index)%onedarray)
                 end do
                 deallocate(unraveled_neighborlists(image_no)%onedarray)
             end do
+            deallocate(unraveled_neighborlists)
         end if
+      end if
+
+!     deallocating fingerprint_props
+      if (allocated(raveled_fingerprints_of_images) .eqv. .true.)  then
+        deallocate(raveled_fingerprints_of_images)
+      end if
+      if (allocated(raveled_der_fingerprints) .eqv. .true.)  then
+        deallocate(raveled_der_fingerprints)
+      end if
+
+!     deallocating images_props
+      if (allocated(real_energies) .eqv. .true.)  then
+        deallocate(real_energies)
+      end if
+      if (allocated(real_forces_of_images) .eqv. .true.)  then
+        deallocate(real_forces_of_images)
+      end if
+      if (allocated(no_of_atoms_of_images) .eqv. .true.)  then
+        deallocate(no_of_atoms_of_images)
+      end if
+      if (allocated(atomic_numbers_of_images) .eqv. .true.)  then
+        deallocate(atomic_numbers_of_images)
+      end if
+      if (allocated(list_of_no_of_neighbors) .eqv. .true.)  then
+        deallocate(list_of_no_of_neighbors)
+      end if
+      if (allocated(raveled_neighborlists) .eqv. .true.)  then
+        deallocate(raveled_neighborlists)
+      end if
+      if (allocated(atomic_positions_of_images) .eqv. .true.)  then
+        deallocate(atomic_positions_of_images)
       end if
 
       contains
 
  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !     used only in the no-fingerprinting scheme
-      subroutine unravel_atomic_positions(first_image_no, &
-      no_proc_images)
- 
-      integer:: first_image_no, no_proc_images
+      subroutine unravel_atomic_positions()
 
-      do image_no = 1, no_proc_images
+      do image_no = 1, no_of_images
         allocate(unraveled_atomic_positions(image_no)%onedarray(&
         3 * no_of_atoms_of_image))
         do index = 1, no_of_atoms_of_image
             do i = 1, 3
                 unraveled_atomic_positions(image_no)%onedarray(&
                 3 * (index - 1) + i) = atomic_positions_of_images(&
-                first_image_no + image_no - 1, 3 * (index - 1) + i)
+                image_no, 3 * (index - 1) + i)
              end do
         end do
       end do
-      
       end subroutine unravel_atomic_positions
 
  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
  
-      subroutine unravel_atomic_numbers(first_image_no, no_proc_images)
- 
-      integer:: first_image_no, no_proc_images
+      subroutine unravel_atomic_numbers()
 
       k = 0
-      if (first_image_no .GT. 1) then
-        do image_no = 1, first_image_no - 1
-            no_of_atoms = no_of_atoms_of_images(image_no)
-            k = k + no_of_atoms
-        end do
-      end if
-      do image_no = 1, no_proc_images
+      do image_no = 1, no_of_images
         no_of_atoms = &
-        no_of_atoms_of_images(first_image_no - 1 + image_no)
+        no_of_atoms_of_images(image_no)
         allocate(unraveled_atomic_numbers_of_images(&
         image_no)%onedarray(no_of_atoms))
         do l = 1, no_of_atoms
@@ -537,24 +558,12 @@
 
  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
  
-      subroutine unravel_neighborlists(first_image_no, no_proc_images)
-
-      integer:: first_image_no, no_proc_images
+      subroutine unravel_neighborlists()
 
       k = 0
       q = 0
-      if (first_image_no .GT. 1) then
-        do image_no = 1, first_image_no - 1
-            no_of_atoms = no_of_atoms_of_images(image_no)
-            do index = 1, no_of_atoms
-                q = q + list_of_no_of_neighbors(k + index)
-            end do
-            k = k + no_of_atoms
-        end do
-      end if
-      do image_no = 1, no_proc_images
-        no_of_atoms = &
-        no_of_atoms_of_images(first_image_no - 1 + image_no)
+      do image_no = 1, no_of_images
+        no_of_atoms = no_of_atoms_of_images(image_no)
         allocate(unraveled_neighborlists(image_no)%onedarray(&
         no_of_atoms))
         do index = 1, no_of_atoms
@@ -573,27 +582,14 @@
 
  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-      subroutine unravel_real_forces(first_image_no, no_proc_images)
-
-      integer:: first_image_no, no_proc_images
+      subroutine unravel_real_forces()
 
       k = 0
-       if (first_image_no .GT. 1) then
-        do image_no = 1, first_image_no - 1
-            if (fingerprinting .eqv. .false.) then
-                no_of_atoms = no_of_atoms_of_image
-            else
-                no_of_atoms = no_of_atoms_of_images(image_no)
-            end if
-            k = k + no_of_atoms
-        end do
-      end if
-      do image_no = 1, no_proc_images
+      do image_no = 1, no_of_images
         if (fingerprinting .eqv. .false.) then
             no_of_atoms = no_of_atoms_of_image
         else
-            no_of_atoms = &
-            no_of_atoms_of_images(first_image_no - 1 + image_no)
+            no_of_atoms = no_of_atoms_of_images(image_no)
         end if
         allocate(unraveled_real_forces(image_no)%atomic_forces(&
         no_of_atoms, 3))
@@ -610,20 +606,12 @@
  
  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-      subroutine unravel_fingerprints(first_image_no, no_proc_images)
-      
-      integer:: first_image_no, no_proc_images
+      subroutine unravel_fingerprints()
 
       k = 0
-      if (first_image_no .GT. 1) then
-        do image_no = 1, first_image_no - 1
-            no_of_atoms = no_of_atoms_of_images(image_no)
-            k = k + no_of_atoms
-        end do
-      end if
-      do image_no = 1, no_proc_images
+      do image_no = 1, no_of_images
         no_of_atoms = &
-        no_of_atoms_of_images(first_image_no - 1 + image_no)
+        no_of_atoms_of_images(image_no)
         allocate(unraveled_fingerprints_of_images(&
         image_no)%onedarray(no_of_atoms))
         do index = 1, no_of_atoms
@@ -650,11 +638,9 @@
       
  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-      subroutine scale_fingerprints(no_proc_images)
-      
-      integer:: no_proc_images
+      subroutine scale_fingerprints()
 
-      do image_no = 1, no_proc_images
+      do image_no = 1, no_of_images
         do index = 1, size(unraveled_fingerprints_of_images(&
         image_no)%onedarray)
             do element = 1, no_of_elements
@@ -685,26 +671,15 @@
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-      subroutine unravel_der_fingerprints(first_image_no, &
-      no_proc_images)
+      subroutine unravel_der_fingerprints()
 
-      integer:: first_image_no, no_proc_images
       integer:: no_of_neighbors
 
       k = 0
       m = 0
-      if (first_image_no .GT. 1) then
-        do image_no = 1, first_image_no - 1
-            no_of_atoms = no_of_atoms_of_images(image_no)
-            do index = 1, no_of_atoms
-                m = m + list_of_no_of_neighbors(k + index)
-            end do
-            k = k + no_of_atoms
-         end do
-      end if
-      do image_no = 1, no_proc_images
+      do image_no = 1, no_of_images
         no_of_atoms = &
-        no_of_atoms_of_images(first_image_no - 1 + image_no)
+        no_of_atoms_of_images(image_no)
         allocate(unraveled_der_fingerprints_of_images(&
         image_no)%onedarray(no_of_atoms))
         do self_index = 1, no_of_atoms
@@ -750,11 +725,9 @@
 
  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-      subroutine scale_der_fingerprints(no_proc_images)
-      
-      integer:: no_proc_images
+      subroutine scale_der_fingerprints()
 
-      do image_no = 1, no_proc_images
+      do image_no = 1, no_of_images
         do self_index = 1, size(unraveled_der_fingerprints_of_images(&
         image_no)%onedarray)
             allocate(n_self_indices(size(&

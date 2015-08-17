@@ -254,13 +254,13 @@ def make_symmetry_functions(elements):
     for element0 in elements:
         _G = []
         # Radial symmetry functions.
-        etas = [0.05, 2., 4., 8., 20., 40., 80.]
+        etas = [0.05, 4., 20., 80.]
         for eta in etas:
             for element in elements:
                 _G.append({'type': 'G2', 'element': element, 'eta': eta})
         # Angular symmetry functions.
         etas = [0.005]
-        zetas = [1., 2., 4.]
+        zetas = [1., 4.]
         gammas = [+1., -1.]
         for eta in etas:
             for zeta in zetas:
