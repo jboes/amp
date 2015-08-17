@@ -63,7 +63,7 @@ scalings = OrderedDict([('intercept', 3.), ('slope', 2.)])
 
 
 ###############################################################################
-# Testing pure-python and fortran versions of behler-neural on different
+# Testing pure-python and fortran versions of non-neural on different
 # number of processes and different number of images
 
 def test():
@@ -74,7 +74,7 @@ def test():
     for fortran in [False, True]:
         for cores in range(1, 7):
 
-            label = 'Fortran%s-%i' % (fortran, cores)
+            label = 'None-Fortran%s-%i' % (fortran, cores)
 
             calc = AMP(fingerprint=None,
                        regression=NeuralNetwork(hiddenlayers=(2, 1),
