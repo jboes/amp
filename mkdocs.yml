@@ -1,0 +1,5 @@
+site_name: Neural, Machine Learning for Atomistics
+pages:
+- [index.md, Home]
+theme: readthedocs
+google_analytics: ['UA-54480782-1', 'auto']
