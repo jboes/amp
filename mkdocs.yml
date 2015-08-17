@@ -1,4 +1,4 @@
-site_name: Neural, Machine Learning for Atomistics
+site_name: Amp, Atomistic Machine-learning Potentials
 pages:
 - [index.md, Home]
 theme: readthedocs
