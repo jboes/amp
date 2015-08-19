@@ -1,1 +1,4 @@
 *.pyc
+fmodules.so
+regression.mod
+regression/neuralnetwork.o
