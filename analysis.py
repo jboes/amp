@@ -13,8 +13,12 @@ This can be imported or run directly as a module as
 import numpy as np
 import os
 from ase import io
+from ase.parallel import paropen
+import json
 from amp import AMP
+from amp.utilities import hash_image
 from matplotlib import rcParams
+from matplotlib import pyplot
 rcParams.update({'figure.autolayout': True})
 
 ###############################################################################
@@ -25,7 +29,7 @@ class ConvergencePlot:
     """
     Creates plot analyzing the convergence behavior.
     Only works on BPNeural log files at the moment.
-    
+
     :param logfile: Write function at which log data exists.
     :type log: Logger object
 
@@ -33,7 +37,6 @@ class ConvergencePlot:
     ###########################################################################
 
     def __init__(self, logfile):
-
 
         f = open(logfile, 'r')
         lines = f.read().splitlines()
@@ -157,7 +160,7 @@ class ConvergencePlot:
     def getfig(self):
         """
         Returns the figure object.
-        
+
         """
 
         return self._fig
@@ -197,7 +200,8 @@ def plot_parity(load,
                 images,
                 plot_forces=True,
                 plotfile='parityplot.pdf',
-                color='b.',):
+                color='b.',
+                overwrite=False):
     """
     Makes a parity plot of AMP energies and forces versus real energies and
     forces.
@@ -217,8 +221,30 @@ def plot_parity(load,
     :type plotfile: Object
     :param color: Plot color.
     :type color: str
+    :param overwrite: If a plot or an script containing values found overwrite
+                      it.
+    :type overwrite: bool
 
     """
+
+    base_filename = os.path.splitext(plotfile)[0]
+    energyscript = os.path.join('energy-' + base_filename + '.json')
+
+    if (not overwrite) and os.path.exists(plotfile):
+        raise IOError('File exists: %s.\nIf you want to overwrite,'
+                      ' set overwrite=True or manually delete.'
+                      % plotfile)
+    if (not overwrite) and os.path.exists(energyscript):
+        raise IOError('File exists: %s.\nIf you want to overwrite,'
+                      ' set overwrite=True or manually delete.'
+                      % energyscript)
+
+    if plot_forces is not None:
+        forcescript = os.path.join('force-' + base_filename + '.json')
+        if (not overwrite) and os.path.exists(forcescript):
+            raise IOError('File exists: %s.\nIf you want to overwrite,'
+                          ' set overwrite=True or manually delete.'
+                          % forcescript)
 
     calc = AMP(load=load)
 
@@ -229,55 +255,133 @@ def plot_parity(load,
         elif extension == '.db':
             images = io.read(images)
 
-    # Make plots.
+    # Images is converted to dictionary form; key is hash of image.
+    dict_images = {}
+    for image in images:
+        key = hash_image(image)
+        dict_images[key] = image
+    images = dict_images.copy()
+    del dict_images
+    hashes = sorted(images.keys())
 
-    from matplotlib import pyplot
+    energy_data = {}
+    # Reading energy script
+    try:
+        fp = paropen(energyscript, 'rb')
+        data = json.load(fp)
+    except IOError:
+        pass
+    else:
+        for hash in data.keys():
+            energy_data[hash] = data[hash]
+
+    # calculating energies for images if json is not found
+    if len(energy_data.keys()) == 0:
+        for hash in hashes:
+            act_energy = \
+                images[hash].get_potential_energy(apply_constraint=False)
+            amp_energy = calc.get_potential_energy(images[hash])
+            energy_data[hash] = [act_energy, amp_energy]
+        # saving energy script
+        try:
+            json.dump(energy_data, energyscript)
+            energyscript.flush()
+            return
+        except AttributeError:
+            with paropen(energyscript, 'wb') as outfile:
+                json.dump(energy_data, outfile)
+
+    min_act_energy = min([energy_data[hash][0] for hash in hashes])
+    max_act_energy = max([energy_data[hash][0] for hash in hashes])
 
     if plot_forces is None:
-
         fig = pyplot.figure(figsize=(5., 5.))
-
-        # Plot I: Energy.
         ax = fig.add_subplot(111)
-        for image in images:
-            act_energy = image.get_potential_energy(apply_constraint=False)
-            pred_energy = calc.get_potential_energy(image)
-            ax.plot(act_energy, pred_energy, color)
-
-        ax.set_xlabel('actual energy, eV')
-        ax.set_ylabel('AMP energy, eV')
-        ax.set_title('Energies')
-
     else:
-
         fig = pyplot.figure(figsize=(5., 10.))
-
-        # Plot I: Energy.
         ax = fig.add_subplot(211)
-        for image in images:
-            act_energy = image.get_potential_energy(apply_constraint=False)
-            pred_energy = calc.get_potential_energy(image)
-            ax.plot(act_energy, pred_energy, color)
 
-        ax.set_xlabel('actual energy, eV')
-        ax.set_ylabel('AMP energy, eV')
-        ax.set_title('Energies')
+    # energy plot
+    for hash in hashes:
+        ax.plot(energy_data[hash][0], energy_data[hash][1], color)
+    # draw line
+    ax.plot([min_act_energy, max_act_energy],
+            [min_act_energy, max_act_energy],
+            'r-',
+            lw=0.3,)
+    ax.set_xlabel('actual energy, eV')
+    ax.set_ylabel('AMP energy')
+    ax.set_title('Energies')
+
+    if plot_forces:
+
+        force_data = {}
+        # Reading force script
+        try:
+            fp = paropen(forcescript, 'rb')
+            data = json.load(fp)
+        except IOError:
+            pass
+        else:
+            for hash in data.keys():
+                force_data[hash] = {}
+                for index in data[hash].keys():
+                    force_data[hash][int(index)] = {}
+                    for k in data[hash][index].keys():
+                        force_data[hash][int(index)][int(k)] = \
+                            data[hash][index][k]
+
+        # calculating forces for images if json is not found
+        if len(force_data.keys()) == 0:
+            for hash in hashes:
+                force_data[hash] = {}
+                act_force = images[hash].get_forces(apply_constraint=False)
+                images[hash].set_calculator(calc)
+                amp_force = calc.get_forces(images[hash])
+                for atom in images[hash]:
+                    index = atom.index
+                    force_data[hash][index] = {}
+                    for k in range(3):
+                        force_data[hash][index][k] = \
+                            [act_force[index][k], amp_force[index][k]]
+
+            # saving force script
+            try:
+                json.dump(force_data, forcescript)
+                forcescript.flush()
+                return
+            except AttributeError:
+                with paropen(forcescript, 'wb') as outfile:
+                    json.dump(force_data, outfile)
+
+        min_act_force = min([force_data[hash][atom.index][k][0]
+                             for hash in hashes
+                             for atom in images[hash]
+                             for k in range(3)])
+        max_act_force = max([force_data[hash][atom.index][k][0]
+                             for hash in hashes
+                             for atom in images[hash]
+                             for k in range(3)])
 
         #######################################################################
-
-        # Plot II: Forces.
+        # force plot
         ax = fig.add_subplot(212)
-        for image in images:
-            act_force = image.get_forces(apply_constraint=False)
-            image.set_calculator(calc)
-            amp_force = calc.get_forces(image)
-            for atom in image:
+
+        for hash in hashes:
+            for atom in images[hash]:
                 index = atom.index
                 for k in range(3):
-                    ax.plot(act_force[index][k], amp_force[index][k], color)
+                    ax.plot(force_data[hash][index][k][0],
+                            force_data[hash][index][k][1],
+                            color)
+        # draw line
+        ax.plot([min_act_force, max_act_force],
+                [min_act_force, max_act_force],
+                'r-',
+                lw=0.3,)
 
         ax.set_xlabel('actual force, eV/Ang')
-        ax.set_ylabel('AMP force, eV/Ang')
+        ax.set_ylabel('AMP force')
         ax.set_title('Forces')
 
         #######################################################################
@@ -292,8 +396,7 @@ def plot_error(load,
                plot_forces=True,
                plotfile='errorplot.pdf',
                color='b.',
-               energy_rmse=None,
-               force_rmse=None,):
+               overwrite=False):
     """
     Makes a plot of deviations in per atom energies and forces versus real
     energies and forces.
@@ -313,12 +416,30 @@ def plot_error(load,
     :type plotfile: Object
     :param color: Plot color.
     :type color: str
-    :param energy_rmse: Energy per atom RMSE.
-    :type energy_rmse: float
-    :param force_rmse: Force RMSE.
-    :type force_rmse: float
+    :param overwrite: If a plot or an script containing values found overwrite
+                      it.
+    :type overwrite: bool
 
     """
+
+    base_filename = os.path.splitext(plotfile)[0]
+    energyscript = os.path.join('energy-' + base_filename + '.json')
+
+    if (not overwrite) and os.path.exists(plotfile):
+        raise IOError('File exists: %s.\nIf you want to overwrite,'
+                      ' set overwrite=True or manually delete.'
+                      % plotfile)
+    if (not overwrite) and os.path.exists(energyscript):
+        raise IOError('File exists: %s.\nIf you want to overwrite,'
+                      ' set overwrite=True or manually delete.'
+                      % energyscript)
+
+    if plot_forces is not None:
+        forcescript = os.path.join('force-' + base_filename + '.json')
+        if (not overwrite) and os.path.exists(forcescript):
+            raise IOError('File exists: %s.\nIf you want to overwrite,'
+                          ' set overwrite=True or manually delete.'
+                          % forcescript)
 
     calc = AMP(load=load)
 
@@ -329,122 +450,166 @@ def plot_error(load,
         elif extension == '.db':
             images = io.read(images)
 
-    # Make plots.
+    # Images is converted to dictionary form; key is hash of image.
+    dict_images = {}
+    for image in images:
+        key = hash_image(image)
+        dict_images[key] = image
+    images = dict_images.copy()
+    del dict_images
+    hashes = sorted(images.keys())
 
-    from matplotlib import pyplot
+    energy_data = {}
+    # Reading energy script
+    try:
+        fp = paropen(energyscript, 'rb')
+        data = json.load(fp)
+    except IOError:
+        pass
+    else:
+        for hash in data.keys():
+            energy_data[hash] = data[hash]
+
+    # calculating errors for images if json is not found
+    if len(energy_data.keys()) == 0:
+        for hash in hashes:
+            act_energy = \
+                images[hash].get_potential_energy(apply_constraint=False)
+            amp_energy = calc.get_potential_energy(images[hash])
+            energy_error = abs(amp_energy - act_energy) / len(images[hash])
+            act_energy_per_atom = act_energy / len(images[hash])
+            energy_data[hash] = [act_energy_per_atom, energy_error]
+        # saving energy script
+        try:
+            json.dump(energy_data, energyscript)
+            energyscript.flush()
+            return
+        except AttributeError:
+            with paropen(energyscript, 'wb') as outfile:
+                json.dump(energy_data, outfile)
+
+    # calculating energy per atom rmse
+    energy_square_error = 0.
+    for hash in hashes:
+        energy_square_error += energy_data[hash][1] ** 2.
+
+    energy_per_atom_rmse = np.sqrt(energy_square_error / len(hashes))
+
+    min_act_energy = min([energy_data[hash][0] for hash in hashes])
+    max_act_energy = max([energy_data[hash][0] for hash in hashes])
 
     if plot_forces is None:
-
         fig = pyplot.figure(figsize=(5., 5.))
-
-        # Plot I: Energy.
         ax = fig.add_subplot(111)
-        for image in images:
-            act_energy = image.get_potential_energy(apply_constraint=False)
-            pred_energy = calc.get_potential_energy(image)
-            energy_error = abs(pred_energy - act_energy) / len(image)
-            act_energy_per_atom = act_energy / len(image)
-            ax.plot(act_energy_per_atom, energy_error, color)
-
-        if energy_rmse is not None:
-            min_act_energy = \
-                min([image.get_potential_energy(apply_constraint=False) /
-                     len(image) for image in images])
-            max_act_energy = \
-                max([image.get_potential_energy(apply_constraint=False) /
-                     len(image) for image in images])
-            # draw horizontal line for rmse
-            ax.plot([min_act_energy, max_act_energy],
-                    [energy_rmse, energy_rmse],
-                    'r-',
-                    lw=2,)
-            ax.text(max_act_energy,
-                    energy_rmse,
-                    'rmse = %6.5f' % energy_rmse,
-                    ha='right',
-                    va='bottom',
-                    color='red')
-
-        ax.set_xlabel('actual energy per atom, eV per atom')
-        ax.set_ylabel('|actual energy - AMP energy| / number of atoms, '
-                      'eV per atom')
-        ax.set_title('Energies')
-
     else:
-
         fig = pyplot.figure(figsize=(5., 10.))
-
-        # Plot I: Energy.
         ax = fig.add_subplot(211)
-        for image in images:
-            act_energy = image.get_potential_energy(apply_constraint=False)
-            pred_energy = calc.get_potential_energy(image)
-            energy_error = abs(pred_energy - act_energy) / len(image)
-            act_energy_per_atom = act_energy / len(image)
-            ax.plot(act_energy_per_atom, energy_error, color)
 
-        if energy_rmse is not None:
-            min_act_energy = \
-                min([image.get_potential_energy(apply_constraint=False) /
-                     len(image) for image in images])
-            max_act_energy = \
-                max([image.get_potential_energy(apply_constraint=False) /
-                     len(image) for image in images])
-            # draw horizontal line for rmse
-            ax.plot([min_act_energy, max_act_energy],
-                    [energy_rmse, energy_rmse],
-                    'r-',
-                    lw=2,)
-            ax.text(max_act_energy,
-                    energy_rmse,
-                    'rmse = %6.5f' % energy_rmse,
-                    ha='right',
-                    va='bottom',
-                    color='red')
+    # energy plot
+    for hash in hashes:
+        ax.plot(energy_data[hash][0], energy_data[hash][1], color)
+    # draw horizontal line for rmse
+    ax.plot([min_act_energy, max_act_energy],
+            [energy_per_atom_rmse, energy_per_atom_rmse], 'r-', lw=1,)
+    ax.text(max_act_energy,
+            energy_per_atom_rmse,
+            'rmse = %6.5f' % energy_per_atom_rmse,
+            ha='right',
+            va='bottom',
+            color='red')
+    ax.set_xlabel('actual energy per atom, eV per atom')
+    ax.set_ylabel('|actual energy - AMP energy| / number of atoms')
+    ax.set_title('Energies')
 
-        ax.set_xlabel('actual energy per atom, eV per atom')
-        ax.set_ylabel('|actual energy - AMP energy| / number of atoms, '
-                      'eV per atom')
-        ax.set_title('Energies')
+    if plot_forces:
 
-        #######################################################################
+        force_data = {}
+        # Reading force script
+        try:
+            fp = paropen(forcescript, 'rb')
+            data = json.load(fp)
+        except IOError:
+            pass
+        else:
+            for hash in data.keys():
+                force_data[hash] = {}
+                for index in data[hash].keys():
+                    force_data[hash][int(index)] = {}
+                    for k in data[hash][index].keys():
+                        force_data[hash][int(index)][int(k)] = \
+                            data[hash][index][k]
 
-        # Plot II: Forces.
-        ax = fig.add_subplot(212)
-        for image in images:
-            act_force = image.get_forces(apply_constraint=False)
-            image.set_calculator(calc)
-            amp_force = calc.get_forces(image)
-            for atom in image:
+        # calculating errors for images if json is not found
+        if len(force_data.keys()) == 0:
+            for hash in hashes:
+                force_data[hash] = {}
+                act_force = images[hash].get_forces(apply_constraint=False)
+                images[hash].set_calculator(calc)
+                amp_force = calc.get_forces(images[hash])
+                for atom in images[hash]:
+                    index = atom.index
+                    force_data[hash][index] = {}
+                    for k in range(3):
+                        force_data[hash][index][k] = \
+                            [act_force[index][k],
+                             abs(amp_force[index][k] - act_force[index][k])]
+
+            # saving force script
+            try:
+                json.dump(force_data, forcescript)
+                forcescript.flush()
+                return
+            except AttributeError:
+                with paropen(forcescript, 'wb') as outfile:
+                    json.dump(force_data, outfile)
+
+        # calculating force rmse
+        force_square_error = 0.
+        for hash in hashes:
+            atoms = images[hash]
+            for atom in atoms:
                 index = atom.index
                 for k in range(3):
-                    ax.plot(act_force[index][k],
-                            abs(amp_force[index][k] - act_force[index][k]),
-                            color)
+                    force_square_error += \
+                        ((1.0 / 3.0) * force_data[hash][index][k][1] ** 2.) / \
+                        len(atoms)
 
-        if force_rmse is not None:
-            min_act_force = \
-                min([min(np.array(
-                    image.get_forces(apply_constraint=False)).ravel())
-                    for image in images])
-            max_act_force = \
-                max([max(np.array(
-                    image.get_forces(apply_constraint=False)).ravel())
-                    for image in images])
-            # draw horizontal line for rmse
-            ax.plot([min_act_force, max_act_force],
-                    [force_rmse, force_rmse],
-                    'r-',
-                    lw=2,)
-            ax.text(max_act_force,
-                    force_rmse,
-                    'rmse = %5.4f' % force_rmse,
-                    ha='right',
-                    va='bottom',
-                    color='red',)
+        force_rmse = np.sqrt(force_square_error / len(hashes))
+
+        min_act_force = min([force_data[hash][atom.index][k][0]
+                             for hash in hashes
+                             for atom in images[hash]
+                             for k in range(3)])
+        max_act_force = max([force_data[hash][atom.index][k][0]
+                             for hash in hashes
+                             for atom in images[hash]
+                             for k in range(3)])
+
+        #######################################################################
+        # force plot
+        ax = fig.add_subplot(212)
+
+        for hash in hashes:
+            for atom in images[hash]:
+                index = atom.index
+                for k in range(3):
+                    ax.plot(force_data[hash][index][k][0],
+                            force_data[hash][index][k][1],
+                            color)
+        # draw horizontal line for rmse
+        ax.plot([min_act_force, max_act_force],
+                [force_rmse, force_rmse],
+                'r-',
+                lw=1,)
+        ax.text(max_act_force,
+                force_rmse,
+                'rmse = %5.4f' % force_rmse,
+                ha='right',
+                va='bottom',
+                color='red',)
 
         ax.set_xlabel('actual force, eV/Ang')
-        ax.set_ylabel('|actual force - AMP force|, eV/Ang')
+        ax.set_ylabel('|actual force - AMP force|')
         ax.set_title('Forces')
 
         #######################################################################
