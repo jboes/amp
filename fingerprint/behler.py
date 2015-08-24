@@ -7,7 +7,7 @@ Script that contains Behler-Parrinello local environment descriptions.
 import numpy as np
 from ase.data import atomic_numbers
 try:
-    from .. import fmodules  # version 1 of fmodules
+    from .. import fmodules
 except ImportError:
     fmodules = None
 
