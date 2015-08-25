@@ -200,7 +200,7 @@ class AMP(Calculator):
 
     def calculate(self, atoms, properties, system_changes):
         """Calculation of the energy of the system and forces of all atoms."""
-        Calculator.calculate(self, atoms, properties, system_changes)
+#        Calculator.calculate(self, atoms, properties, system_changes)
 
         self.atoms = atoms
         param = self.parameters
@@ -209,7 +209,7 @@ class AMP(Calculator):
                                 atoms=self.atoms)
         param = self.reg.ravel_variables()
 
-        if param.regression.variables is None:
+        if param.regression._variables is None:
             raise RuntimeError("Calculator not trained; can't return "
                                'properties.')
 
@@ -676,7 +676,7 @@ class AMP(Calculator):
         log.tic()
         converged = False
 
-        variables = param.regression.variables
+        variables = param.regression._variables
 
         try:
             optimizer(f=costfxn.f, x0=variables,
@@ -696,7 +696,7 @@ class AMP(Calculator):
                 toc=True)
             raise TrainingConvergenceError()
 
-        param.regression.variables = costfxn.param.regression.variables
+        param.regression._variables = costfxn.param.regression._variables
         self.reg.update_variables(param)
 
         log(' ...optimization completed successfully. Optimal '
@@ -1463,7 +1463,7 @@ class CostFxnandDer:
         """function to calculate the cost function"""
 
         log = self.log
-        self.param.regression.variables = variables
+        self.param.regression._variables = variables
 
         if self.fortran:
             task_args = (self.param,)
@@ -1576,7 +1576,7 @@ class CostFxnandDer:
 
         if self.steps == 0:
 
-            self.param.regression.variables = variables
+            self.param.regression._variables = variables
 
             if self.fortran:
                 task_args = (self.param,)
@@ -1735,7 +1735,7 @@ def _calculate_cost_function_fortran(param, queue):
     """wrapper function to be used in multiprocessing for calculating
     cost function and it's derivative with respect to variables"""
 
-    variables = param.regression.variables
+    variables = param.regression._variables
 
     (energy_square_error,
      force_square_error,

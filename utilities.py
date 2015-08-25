@@ -282,7 +282,7 @@ def save_parameters(filename, param):
                            'regression method under consideration.')
 
     variables = []
-    for _ in param.regression.variables:
+    for _ in param.regression._variables:
         variables.append(_)
     parameters['variables'] = variables
 

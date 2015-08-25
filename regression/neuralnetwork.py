@@ -62,9 +62,9 @@ class NeuralNetwork:
                  scalings=None, variables=None):
 
         self.hiddenlayers = hiddenlayers
-        self.weights = weights
-        self.scalings = scalings
-        self.variables = variables
+        self._weights = weights
+        self._scalings = scalings
+        self._variables = variables
 
         self.activation = activation
         # Checking that the activation function is given correctly:
@@ -118,24 +118,25 @@ class NeuralNetwork:
                     self.hiddensizes = [int(part) for part in structure]
 
                     if load is not None:
-                        self.weights, self.scalings = \
-                            self.ravel.to_dicts(self.variables)
+                        self._weights, self._scalings = \
+                            self.ravel.to_dicts(self._variables)
 
                     # Checking the compatibility of the forms of coordinates,
                     #  hiddenlayers and weights:
                     string1 = 'number of atoms and weights are not compatible.'
                     string2 = 'hiddenlayers and weights are not compatible.'
 
-                    if self.weights is not None:
-                        if np.shape(self.weights[1])[0] != \
+                    if self._weights is not None:
+                        if np.shape(self._weights[1])[0] != \
                                 3 * self.no_of_atoms + 1:
                             raise RuntimeError(string1)
-                        if np.shape(self.weights[1])[1] != self.hiddensizes[0]:
+                        if np.shape(self._weights[1])[1] != \
+                                self.hiddensizes[0]:
                             raise RuntimeError(string2)
                         for _ in range(2, len(self.hiddensizes) + 1):
-                            if np.shape(self.weights[_])[0] != \
+                            if np.shape(self._weights[_])[0] != \
                                     self.hiddensizes[_ - 2] + 1 or \
-                                    np.shape(self.weights[_])[1] != \
+                                    np.shape(self._weights[_])[1] != \
                                     self.hiddensizes[_ - 1]:
                                 raise RuntimeError(string2)
                     del string1
@@ -176,8 +177,8 @@ class NeuralNetwork:
                                              Gs=Gs)
 
                 if load is not None:
-                    self.weights, self.scalings = \
-                        self.ravel.to_dicts(self.variables)
+                    self._weights, self._scalings = \
+                        self.ravel.to_dicts(self._variables)
 
             # Checking the compatibility of the forms of Gs, hiddenlayers and
             # weights.
@@ -186,26 +187,26 @@ class NeuralNetwork:
             if isinstance(self.hiddenlayers, dict):
                 self.elements = sorted(self.hiddenlayers.keys())
                 for element in self.elements:
-                    if self.weights is not None:
+                    if self._weights is not None:
                         if Gs is not None:
-                            if np.shape(self.weights[element][1])[0] \
+                            if np.shape(self._weights[element][1])[0] \
                                     != len(Gs[element]) + 1:
                                 raise RuntimeError(string1)
                         if isinstance(self.hiddenlayers[element], int):
-                            if np.shape(self.weights[element][1])[1] \
+                            if np.shape(self._weights[element][1])[1] \
                                     != self.hiddenlayers[element]:
                                 raise RuntimeError(string2)
                         else:
-                            if np.shape(self.weights[element][1])[1] \
+                            if np.shape(self._weights[element][1])[1] \
                                     != self.hiddenlayers[element][0]:
                                 raise RuntimeError(string2)
                             for _ in range(2, len(self.hiddenlayers
                                                   [element]) + 1):
-                                if (np.shape(self.weights
+                                if (np.shape(self._weights
                                              [element][_])[0] !=
                                         self.hiddenlayers[
                                         element][_ - 2] + 1 or
-                                        np.shape(self.weights
+                                        np.shape(self._weights
                                                  [element][_])[1] !=
                                         self.hiddenlayers
                                         [element][_ - 1]):
@@ -218,9 +219,9 @@ class NeuralNetwork:
     def ravel_variables(self):
         """Wrapper function for raveling weights and scalings."""
 
-        if (self.param.regression.variables is None) and self.weights:
-            self.param.regression.variables = \
-                self.ravel.to_vector(self.weights, self.scalings)
+        if (self.param.regression._variables is None) and self._weights:
+            self.param.regression._variables = \
+                self.ravel.to_vector(self._weights, self._scalings)
 
         return self.param
 
@@ -246,19 +247,19 @@ class NeuralNetwork:
     def update_variables(self, param):
         """Updating variables."""
 
-        self.variables = param.regression.variables
-        self.weights, self.scalings = \
-            self.ravel.to_dicts(self.variables)
+        self._variables = param.regression._variables
+        self._weights, self._scalings = \
+            self.ravel.to_dicts(self._variables)
 
         self.W = {}
 
         if self.param.fingerprint is None:  # pure atomic-coordinates scheme
-            weight = self.weights
+            weight = self._weights
             for j in range(len(weight)):
                 self.W[j + 1] = np.delete(weight[j + 1], -1, 0)
         else:  # fingerprinting scheme
             for element in self.elements:
-                weight = self.weights[element]
+                weight = self._weights[element]
                 self.W[element] = {}
                 for j in range(len(weight)):
                     self.W[element][j + 1] = np.delete(weight[j + 1], -1, 0)
@@ -272,11 +273,11 @@ class NeuralNetwork:
         if self.param.fingerprint is None:  # pure atomic-coordinates scheme
             self.o = {}
             hiddensizes = self.hiddensizes
-            weight = self.weights
+            weight = self._weights
         else:  # fingerprinting scheme
             self.o[index] = {}
             hiddensizes = self.hiddensizes[symbol]
-            weight = self.weights[symbol]
+            weight = self._weights[symbol]
 
         o = {}  # node values
         layer = 1  # input layer
@@ -332,15 +333,15 @@ class NeuralNetwork:
 
         if self.param.fingerprint is None:  # pure atomic-coordinates scheme
 
-            amp_energy = self.scalings['slope'] * \
-                float(o[layer]) + self.scalings['intercept']
+            amp_energy = self._scalings['slope'] * \
+                float(o[layer]) + self._scalings['intercept']
             self.o = o
             self.o[0] = temp
             return amp_energy
 
         else:  # fingerprinting scheme
-            atomic_amp_energy = self.scalings[symbol]['slope'] * \
-                float(o[layer]) + self.scalings[symbol]['intercept']
+            atomic_amp_energy = self._scalings[symbol]['slope'] * \
+                float(o[layer]) + self._scalings[symbol]['intercept']
             self.o[index] = o
             self.o[index][0] = temp
             return atomic_amp_energy
@@ -353,11 +354,11 @@ class NeuralNetwork:
         if self.param.fingerprint is None:  # pure atomic-coordinates scheme
             o = self.o
             hiddensizes = self.hiddensizes
-            weight = self.weights
+            weight = self._weights
         else:  # fingerprinting scheme
             o = self.o[n_index]
             hiddensizes = self.hiddensizes[n_symbol]
-            weight = self.weights[n_symbol]
+            weight = self._weights[n_symbol]
 
         der_o = {}  # node values
         der_o[0] = der_indexfp
@@ -394,10 +395,10 @@ class NeuralNetwork:
 
         if self.param.fingerprint is None:  # pure atomic-coordinates scheme
             self.der_coordinates_o[i] = der_o
-            force = float(-(self.scalings['slope'] * der_o[layer][0]))
+            force = float(-(self._scalings['slope'] * der_o[layer][0]))
         else:  # fingerprinting scheme
             self.der_coordinates_o[(n_index, i)] = der_o
-            force = float(-(self.scalings[n_symbol]['slope'] *
+            force = float(-(self._scalings[n_symbol]['slope'] *
                             der_o[layer][0]))
 
         return force
@@ -453,7 +454,7 @@ class NeuralNetwork:
             partial_der_scalings_square_error['slope'] = float(o[N + 1])
             for k in range(1, N + 2):
                 partial_der_weights_square_error[k] = \
-                    float(self.scalings['slope']) * \
+                    float(self._scalings['slope']) * \
                     np.dot(np.matrix(ohat[k - 1]).T, np.matrix(delta[k]).T)
         else:  # fingerprinting scheme
             partial_der_scalings_square_error[symbol]['intercept'] = 1.
@@ -461,7 +462,7 @@ class NeuralNetwork:
                 float(o[N + 1])
             for k in range(1, N + 2):
                 partial_der_weights_square_error[symbol][k] = \
-                    float(self.scalings[symbol]['slope']) * \
+                    float(self._scalings[symbol]['slope']) * \
                     np.dot(np.matrix(ohat[k - 1]).T, np.matrix(delta[k]).T)
         partial_der_variables_square_error = \
             self.ravel.to_vector(partial_der_weights_square_error,
@@ -554,14 +555,14 @@ class NeuralNetwork:
         if self.param.fingerprint is None:  # pure atomic-coordinates scheme
             for k in range(1, N + 2):
                 partial_der_weights_square_error[k] = \
-                    float(self.scalings['slope']) * \
+                    float(self._scalings['slope']) * \
                     der_coordinates_weights_atomic_output[k]
             partial_der_scalings_square_error['slope'] = \
                 der_coordinates_o[N + 1][0]
         else:  # fingerprinting scheme
             for k in range(1, N + 2):
                 partial_der_weights_square_error[n_symbol][k] = \
-                    float(self.scalings[n_symbol]['slope']) * \
+                    float(self._scalings[n_symbol]['slope']) * \
                     der_coordinates_weights_atomic_output[k]
             partial_der_scalings_square_error[n_symbol]['slope'] = \
                 der_coordinates_o[N + 1][0]
@@ -634,38 +635,38 @@ class NeuralNetwork:
                 log(' %2s: %s' % item)
 
         # If weights are not given, generates random weights
-        if not (self.weights or self.variables):
+        if not (self._weights or self._variables):
             log('Initializing with random weights.')
             if param.fingerprint is None:  # pure atomic-coordinates scheme
-                self.weights = make_weight_matrices(self.hiddenlayers,
-                                                    self.activation,
-                                                    self.no_of_atoms)
+                self._weights = make_weight_matrices(self.hiddenlayers,
+                                                     self.activation,
+                                                     self.no_of_atoms)
             else:  # fingerprinting scheme
-                self.weights = make_weight_matrices(self.hiddenlayers,
-                                                    self.activation,
-                                                    None,
-                                                    param.fingerprint.Gs,
-                                                    self.elements,)
+                self._weights = make_weight_matrices(self.hiddenlayers,
+                                                     self.activation,
+                                                     None,
+                                                     param.fingerprint.Gs,
+                                                     self.elements,)
 
         else:
             log('Initial weights already present.')
         # If scalings are not given, generates random scalings
-        if not (self.scalings or self.variables):
+        if not (self._scalings or self._variables):
             log('Initializing with random scalings.')
 
             if param.fingerprint is None:  # pure atomic-coordinates scheme
-                self.scalings = make_scalings_matrices(images,
-                                                       self.activation,)
+                self._scalings = make_scalings_matrices(images,
+                                                        self.activation,)
             else:  # fingerprinting scheme
-                self.scalings = make_scalings_matrices(images,
-                                                       self.activation,
-                                                       self.elements,)
+                self._scalings = make_scalings_matrices(images,
+                                                        self.activation,
+                                                        self.elements,)
         else:
             log('Initial scalings already present.')
 
-        if self.variables is None:
-            param.regression.variables = \
-                self.ravel.to_vector(self.weights, self.scalings)
+        if self._variables is None:
+            param.regression._variables = \
+                self.ravel.to_vector(self._weights, self._scalings)
 
         return param
 
@@ -898,8 +899,8 @@ class _RavelVariables:
 
         self.no_of_atoms = no_of_atoms
         self.count = 0
-        self.weightskeys = []
-        self.scalingskeys = []
+        self._weightskeys = []
+        self._scalingskeys = []
 
         if self.no_of_atoms is None:  # fingerprinting scheme
 
@@ -921,17 +922,17 @@ class _RavelVariables:
                         shape = (
                             hiddensizes[layer - 2] + 1, hiddensizes[layer - 1])
                     size = shape[0] * shape[1]
-                    self.weightskeys.append({'key1': element,
-                                             'key2': layer,
-                                             'shape': shape,
-                                             'size': size})
+                    self._weightskeys.append({'key1': element,
+                                              'key2': layer,
+                                              'shape': shape,
+                                              'size': size})
                     self.count += size
 
             for element in elements:
-                self.scalingskeys.append({'key1': element,
-                                          'key2': 'intercept'})
-                self.scalingskeys.append({'key1': element,
-                                          'key2': 'slope'})
+                self._scalingskeys.append({'key1': element,
+                                           'key2': 'intercept'})
+                self._scalingskeys.append({'key1': element,
+                                           'key2': 'slope'})
                 self.count += 2
 
         else:  # pure atomic-coordinates scheme
@@ -953,13 +954,13 @@ class _RavelVariables:
                     shape = (
                         hiddensizes[layer - 2] + 1, hiddensizes[layer - 1])
                 size = shape[0] * shape[1]
-                self.weightskeys.append({'key': layer,
-                                         'shape': shape,
-                                         'size': size})
+                self._weightskeys.append({'key': layer,
+                                          'shape': shape,
+                                          'size': size})
                 self.count += size
 
-            self.scalingskeys.append({'key': 'intercept'})
-            self.scalingskeys.append({'key': 'slope'})
+            self._scalingskeys.append({'key': 'intercept'})
+            self._scalingskeys.append({'key': 'slope'})
             self.count += 2
 
     #########################################################################
@@ -971,14 +972,14 @@ class _RavelVariables:
 
         vector = np.zeros(self.count)
         count = 0
-        for k in sorted(self.weightskeys):
+        for k in sorted(self._weightskeys):
             if self.no_of_atoms is None:  # fingerprinting scheme
                 lweights = np.array(weights[k['key1']][k['key2']]).ravel()
             else:  # pure atomic-coordinates scheme
                 lweights = (np.array(weights[k['key']])).ravel()
             vector[count:(count + lweights.size)] = lweights
             count += lweights.size
-        for k in sorted(self.scalingskeys):
+        for k in sorted(self._scalingskeys):
             if self.no_of_atoms is None:  # fingerprinting scheme
                 vector[count] = scalings[k['key1']][k['key2']]
             else:  # pure atomic-coordinates scheme
@@ -997,7 +998,7 @@ class _RavelVariables:
         count = 0
         weights = OrderedDict()
         scalings = OrderedDict()
-        for k in sorted(self.weightskeys):
+        for k in sorted(self._weightskeys):
             if self.no_of_atoms is None:  # fingerprinting scheme
                 if k['key1'] not in weights.keys():
                     weights[k['key1']] = OrderedDict()
@@ -1009,7 +1010,7 @@ class _RavelVariables:
             else:  # pure atomic-coordinates scheme
                 weights[k['key']] = matrix
             count += k['size']
-        for k in sorted(self.scalingskeys):
+        for k in sorted(self._scalingskeys):
             if self.no_of_atoms is None:  # fingerprinting scheme
                 if k['key1'] not in scalings.keys():
                     scalings[k['key1']] = OrderedDict()
@@ -1028,7 +1029,7 @@ class _RavelVariables:
         count = 0
         weights_norm = 0.
         der_of_weights_norm = np.zeros(self.count)
-        for k in sorted(self.weightskeys):
+        for k in sorted(self._weightskeys):
             if self.no_of_atoms is None:  # fingerprinting scheme
                 weight = weights[k['key1']][k['key2']]
             else:  # pure atomic-coordinates scheme
@@ -1042,7 +1043,7 @@ class _RavelVariables:
             der_of_weights_norm[count:(count + lweights.size)] = \
                 2. * lweights
             count += lweights.size
-        for k in sorted(self.scalingskeys):
+        for k in sorted(self._scalingskeys):
             # there is no overfitting constraint on the values of scalings
             der_of_weights_norm[count] = 0.
             count += 1
