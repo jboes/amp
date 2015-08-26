@@ -477,7 +477,7 @@ class AMP(Calculator):
             energy_goal=0.001,
             force_goal=0.005,
             overfitting_constraint=0.,
-            force_coefficient=None,
+            force_coefficient=0.,
             cores=None,
             optimizer=optimizer,
             read_fingerprints=True,
@@ -534,12 +534,8 @@ class AMP(Calculator):
 
         if force_goal is None:
             train_forces = False
-            if not force_coefficient:
-                force_coefficient = 0.
         else:
             train_forces = True
-            if not force_coefficient:
-                force_coefficient = (energy_goal / force_goal)**2.
 
         log = Logger(make_filename(self.label, 'train-log.txt'))
 
@@ -874,8 +870,12 @@ class MultiProcess:
 
     ##########################################################################
 
-    def share_cost_function_task_between_cores(self, task, _args,
-                                               len_of_variables):
+    def share_cost_function_task_between_cores(self,
+                                               task,
+                                               _args,
+                                               len_of_variables,
+                                               energy_coefficient,
+                                               force_coefficient,):
         """Derivatives of the cost function with respect to variables are
         calculated in parallel"""
 
@@ -903,7 +903,9 @@ class MultiProcess:
         for x in range(self.no_procs):
             if self.fortran:
                 # data particular to each process is sent to fortran modules
-                self.send_data_to_fortran(x,)
+                self.send_data_to_fortran(x,
+                                          energy_coefficient,
+                                          force_coefficient,)
             processes[x].start()
 
         for x in range(self.no_procs):
@@ -942,8 +944,14 @@ class MultiProcess:
 
     ##########################################################################
 
-    def send_data_to_fortran(self, x,):
+    def send_data_to_fortran(self,
+                             x,
+                             energy_coefficient,
+                             force_coefficient,):
         """Function to send images data to fortran90 code"""
+
+        fmodules.images_props.energy_coefficient = energy_coefficient
+        fmodules.images_props.force_coefficient = force_coefficient
 
         fmodules.images_props.no_of_images = self.no_of_images[x]
         fmodules.images_props.real_energies = self.real_energies[x]
@@ -1413,7 +1421,7 @@ class CostFxnandDer:
         self.sfp = sfp
         self.snl = snl
         self.train_forces = train_forces
-        self.steps = 0
+        self.step = 0
         self._mp = _mp
         self.overfitting_constraint = overfitting_constraint
         self.force_coefficient = force_coefficient
@@ -1442,8 +1450,6 @@ class CostFxnandDer:
             send_data_to_fortran(self.sfp,
                                  self.reg.elements,
                                  self.train_forces,
-                                 self.energy_coefficient,
-                                 self.force_coefficient,
                                  param,)
             self._mp.ravel_images_data(param,
                                        self.sfp,
@@ -1465,6 +1471,9 @@ class CostFxnandDer:
         log = self.log
         self.param.regression._variables = variables
 
+        if self.train_forces and self.energy_convergence:
+            self.force_coefficient += 0.00005
+
         if self.fortran:
             task_args = (self.param,)
             (energy_square_error,
@@ -1472,7 +1481,10 @@ class CostFxnandDer:
              self.der_variables_square_error) = \
                 self._mp.share_cost_function_task_between_cores(
                 task=_calculate_cost_function_fortran,
-                _args=task_args, len_of_variables=len(variables))
+                _args=task_args,
+                len_of_variables=len(variables),
+                energy_coefficient=self.energy_coefficient,
+                force_coefficient=self.force_coefficient,)
         else:
             task_args = (self.reg, self.param, self.sfp, self.snl,
                          self.energy_coefficient, self.force_coefficient,
@@ -1482,7 +1494,10 @@ class CostFxnandDer:
              self.der_variables_square_error) = \
                 self._mp.share_cost_function_task_between_cores(
                 task=_calculate_cost_function_python,
-                _args=task_args, len_of_variables=len(variables))
+                _args=task_args,
+                len_of_variables=len(variables),
+                energy_coefficient=self.energy_coefficient,
+                force_coefficient=self.force_coefficient,)
 
         square_error = self.energy_coefficient * energy_square_error + \
             self.force_coefficient * force_square_error
@@ -1493,7 +1508,7 @@ class CostFxnandDer:
             np.sqrt(energy_square_error / self.no_of_images)
         self.force_rmse = np.sqrt(force_square_error / self.no_of_images)
 
-        if self.steps == 0:
+        if self.step == 0:
             if self.train_forces is True:
                 head1 = ('%5s  %19s  %9s  %9s  %9s')
                 log(head1 % ('', '', '',
@@ -1520,23 +1535,23 @@ class CostFxnandDer:
                 log(head3 %
                     ('=' * 5, '=' * 26, '=' * 9, '=' * 10))
 
-        self.steps += 1
+        self.step += 1
 
         if self.train_forces is True:
             line = ('%5s' '  %19s' '  %9.3e' '  %9.3e' '  %9.3e')
-            log(line % (self.steps - 1,
+            log(line % (self.step - 1,
                         now(),
                         self.cost_function,
                         self.energy_per_atom_rmse,
                         self.force_rmse))
         else:
             line = ('%5s' ' %26s' ' %10.3e' ' %12.3e')
-            log(line % (self.steps - 1,
+            log(line % (self.step - 1,
                         now(),
                         self.cost_function,
                         self.energy_per_atom_rmse))
 
-        if self.steps % 100 == 0:
+        if self.step % 100 == 0:
             log('Saving checkpoint data.')
             filename = make_filename(
                 self.label,
@@ -1574,7 +1589,7 @@ class CostFxnandDer:
     def fprime(self, variables):
         """function to calculate derivative of the cost function"""
 
-        if self.steps == 0:
+        if self.step == 0:
 
             self.param.regression._variables = variables
 
@@ -1585,7 +1600,10 @@ class CostFxnandDer:
                  self.der_variables_square_error) = \
                     self._mp.share_cost_function_task_between_cores(
                     task=_calculate_cost_function_fortran,
-                    _args=task_args, len_of_variables=len(variables))
+                    _args=task_args,
+                    len_of_variables=len(variables),
+                    energy_coefficient=self.energy_coefficient,
+                    force_coefficient=self.force_coefficient,)
             else:
                 task_args = (self.reg, self.param, self.sfp, self.snl,
                              self.energy_coefficient, self.force_coefficient,
@@ -1595,7 +1613,10 @@ class CostFxnandDer:
                  self.der_variables_square_error) = \
                     self._mp.share_cost_function_task_between_cores(
                     task=_calculate_cost_function_python,
-                    _args=task_args, len_of_variables=len(variables))
+                    _args=task_args,
+                    len_of_variables=len(variables),
+                    energy_coefficient=self.energy_coefficient,
+                    force_coefficient=self.force_coefficient,)
 
         der_cost_function = self.der_variables_square_error
 
@@ -2016,8 +2037,7 @@ def compare_train_test_fingerprints(fp, atoms, fingerprints_range, nl):
 ###############################################################################
 
 
-def send_data_to_fortran(sfp, elements, train_forces,
-                         energy_coefficient, force_coefficient, param):
+def send_data_to_fortran(sfp, elements, train_forces, param):
     """Function to send images data to fortran90 code"""
 
     if param.fingerprint is None:
@@ -2040,8 +2060,6 @@ def send_data_to_fortran(sfp, elements, train_forces,
     else:
         no_of_atoms_of_image = param.no_of_atoms
 
-    fmodules.images_props.energy_coefficient = energy_coefficient
-    fmodules.images_props.force_coefficient = force_coefficient
     fmodules.images_props.train_forces = train_forces
     fmodules.images_props.fingerprinting = fingerprinting
 
