@@ -227,10 +227,10 @@ class AMP(Calculator):
             # Update the neighborlist for making fingerprint. Used if atoms
             # position has changed.
             _nl = NeighborList(cutoffs=([self.cutoff / 2.] *
-                                         len(atoms)),
-                                self_interaction=False,
-                                bothways=True,
-                                skin=0.)
+                                        len(atoms)),
+                               self_interaction=False,
+                               bothways=True,
+                               skin=0.)
             _nl.update(atoms)
 
             self.fp.atoms = atoms
