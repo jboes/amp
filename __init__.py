@@ -223,10 +223,18 @@ class AMP(Calculator):
             # FIXME: What is the difference between the two updates on the top
             # and bottom? Is the one on the top necessary? Where is self.nl
             #  coming from?
-            self.update()
+
+            # Update the neighborlist for making fingerprint. Used if atoms
+            # position has changed.
+            _nl = NeighborList(cutoffs=([self.cutoff / 2.] *
+                                         len(atoms)),
+                                self_interaction=False,
+                                bothways=True,
+                                skin=0.)
+            _nl.update(atoms)
 
             self.fp.atoms = atoms
-            self.fp._nl = self._nl
+            self.fp._nl = _nl
 
             # If fingerprints_range is not available, it will raise an error.
             if param.fingerprints_range is None:
@@ -250,7 +258,7 @@ class AMP(Calculator):
                     calculate_fingerprints_range(self.fp,
                                                  self.reg.elements,
                                                  self.fp.atoms,
-                                                 self._nl)
+                                                 _nl)
             # Deciding on whether it is exptrapoling or interpolating is
             # possible only when fingerprints_range is provided by the user.
             elif self.extrapolate is False:
@@ -258,7 +266,7 @@ class AMP(Calculator):
                         self.fp,
                         self.fp.atoms,
                         param.fingerprints_range,
-                        self._nl) == 1:
+                        _nl) == 1:
                     raise ExtrapolateError('Trying to extrapolate, which'
                                            ' is not allowed. Change to '
                                            'extrapolate=True if this is'
@@ -281,7 +289,7 @@ class AMP(Calculator):
                 for atom in atoms:
                     index = atom.index
                     symbol = atom.symbol
-                    n_indices, n_offsets = self._nl.get_neighbors(index)
+                    n_indices, n_offsets = _nl.get_neighbors(index)
                     # for calculating fingerprints, summation runs over
                     # neighboring atoms of type I (either inside or outside
                     # the main cell)
@@ -344,7 +352,7 @@ class AMP(Calculator):
                 for self_atom in atoms:
                     self_index = self_atom.index
                     neighbor_indices, neighbor_offsets = \
-                        self._nl.get_neighbors(self_index)
+                        _nl.get_neighbors(self_index)
                     n_self_indices = np.append(self_index, neighbor_indices)
                     if len(neighbor_offsets) == 0:
                         _n_self_offsets = [[0, 0, 0]]
@@ -357,7 +365,7 @@ class AMP(Calculator):
                 for atom in atoms:
                     index = atom.index
                     symbol = atom.symbol
-                    n_indices, n_offsets = self._nl.get_neighbors(index)
+                    n_indices, n_offsets = _nl.get_neighbors(index)
                     # for calculating fingerprints, summation runs over
                     # neighboring atoms of type I (either inside or outside
                     # the main cell)
@@ -407,7 +415,7 @@ class AMP(Calculator):
                                     n_offset[2] == 0:
 
                                 neighbor_indices, neighbor_offsets = \
-                                    self._nl.get_neighbors(n_index)
+                                    _nl.get_neighbors(n_index)
                                 neighbor_symbols = \
                                     [atoms[_index].symbol
                                      for _index in neighbor_indices]
@@ -454,19 +462,6 @@ class AMP(Calculator):
                 n_self_symbols, _n_self_offsets, scaled_indexfp, indexfp
 
             self.results['forces'] = self.forces
-
-    #########################################################################
-
-    def update(self):
-        """Update the neighborlist for making fingerprint. Use if atoms
-        position has changed."""
-
-        self._nl = NeighborList(cutoffs=([self.cutoff / 2.] *
-                                         len(self.atoms)),
-                                self_interaction=False,
-                                bothways=True,
-                                skin=0.)
-        self._nl.update(self.atoms)
 
     #########################################################################
 
