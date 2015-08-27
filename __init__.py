@@ -202,11 +202,10 @@ class AMP(Calculator):
         """Calculation of the energy of the system and forces of all atoms."""
         Calculator.calculate(self, atoms, properties, system_changes)
 
-        self.atoms = atoms
         param = self.parameters
         if param.fingerprint is None:  # pure atomic-coordinates scheme
             self.reg.initialize(param=param,
-                                atoms=self.atoms)
+                                atoms=atoms)
         param = self.reg.ravel_variables()
 
         if param.regression._variables is None:
