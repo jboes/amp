@@ -7,10 +7,12 @@ different.
 
 ###############################################################################
 
-from neural.bp import BPNeural as Neural
 import numpy as np
 from ase import Atoms
 from collections import OrderedDict
+from amp import AMP
+from amp.fingerprint import Behler
+from amp.regression import NeuralNetwork
 
 ###############################################################################
 
@@ -77,9 +79,11 @@ def test():
 
     ###########################################################################
 
-    calc = Neural(cutoff=6.5, Gs=Gs, hiddenlayers=hiddenlayers,
-                  weights=weights, scalings=scalings,
-                  fingerprints_range=fingerprints_range,)
+    calc = AMP(fingerprint=Behler(cutoff=6.5, Gs=Gs,),
+               regression=NeuralNetwork(hiddenlayers=hiddenlayers,
+                                        weights=weights,
+                                        scalings=scalings,),
+               fingerprints_range=fingerprints_range,)
 
     atoms.set_calculator(calc)
 
