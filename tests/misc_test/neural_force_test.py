@@ -69,6 +69,17 @@ def test_none():
         energies2.append(calc2.get_potential_energy(atoms=image))
     assert energies1 == energies2
 
+    print('Verifying can move an atom and get new energy.')
+    image = all_images[0]
+    image.set_calculator(calc2)
+    e1 = image.get_potential_energy(apply_constraint=False)
+    f1 = image.get_forces(apply_constraint=False)
+    image[0].x += 0.5  # perturb
+    e2 = image.get_potential_energy(apply_constraint=False)
+    f2 = image.get_forces(apply_constraint=False)
+    assert e1 != e2
+    assert not (f1 == f2).all()
+
 ###############################################################################
 
 
@@ -97,6 +108,17 @@ def test_behler():
     for image in all_images:
         energies2.append(calc2.get_potential_energy(atoms=image))
     assert energies1 == energies2
+
+    print('Verifying can move an atom and get new energy.')
+    image = all_images[0]
+    image.set_calculator(calc2)
+    e1 = image.get_potential_energy(apply_constraint=False)
+    f1 = image.get_forces(apply_constraint=False)
+    image[0].x += 0.5  # perturb
+    e2 = image.get_potential_energy(apply_constraint=False)
+    f2 = image.get_forces(apply_constraint=False)
+    assert e1 != e2
+    assert not (f1 == f2).all()
 
 ###############################################################################
 
