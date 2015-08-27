@@ -200,7 +200,7 @@ class AMP(Calculator):
 
     def calculate(self, atoms, properties, system_changes):
         """Calculation of the energy of the system and forces of all atoms."""
-#        Calculator.calculate(self, atoms, properties, system_changes)
+        Calculator.calculate(self, atoms, properties, system_changes)
 
         self.atoms = atoms
         param = self.parameters
