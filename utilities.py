@@ -11,6 +11,8 @@ import os
 import json
 from ase import io
 from ase.parallel import paropen
+from ase.calculators.neighborlist import NeighborList
+from amp import AMP
 
 ###############################################################################
 
@@ -380,5 +382,78 @@ def make_filename(label, base_filename):
         filename = os.path.join(label + '-' + base_filename)
 
     return filename
+
+###############################################################################
+
+
+def interpolate_images(images, load, fortran=True):
+    """
+    Function to remove extrapolation images from the "images" set based on
+    load data.
+
+    :param images: List of ASE atoms objects with positions, symbols, energies,
+                   and forces in ASE format. This can also be the path to an
+                   ASE trajectory (.traj) or database (.db) file.
+    :type images: list or str
+    :param load: Path for loading an existing parameters of AMP calculator.
+    :type load: str
+    :param fortran: If True, will use fortran modules, if False, will not.
+    :type fortran: bool
+    """
+    if isinstance(images, str):
+        extension = os.path.splitext(images)[1]
+        if extension == '.traj':
+            images = io.Trajectory(images, 'r')
+        elif extension == '.db':
+            images = io.read(images)
+
+    # Images is converted to dictionary form; key is hash of image.
+    dict_images = {}
+    for image in images:
+        key = hash_image(image)
+        dict_images[key] = image
+    images = dict_images.copy()
+    del dict_images
+
+    amp = AMP(load=load, fortran=fortran)
+    param = amp.parameters
+    fp = param.fingerprint
+    fingerprints_range = param.fingerprints_range
+    # FIXME: this function should be extended to no fingerprints.
+    if fp is not None:  # fingerprinting scheme
+        cutoff = fp.cutoff
+
+    # Dictionary of interpolated images set is initialized
+    interpolated_images = {}
+    for hash, image in images.keys():
+        atoms = image
+        _nl = NeighborList(cutoffs=([cutoff / 2.] * len(atoms)),
+                           self_interaction=False,
+                           bothways=True,
+                           skin=0.)
+        _nl.update(atoms)
+        compare_train_test_fingerprints = 0
+        for atom in atoms:
+            index = atom.index
+            symbol = atom.symbol
+            n_indices, n_offsets = _nl.get_neighbors(index)
+            # for calculating fingerprints, summation runs over neighboring
+            # atoms of type I (either inside or outside the main cell)
+            n_symbols = [atoms[n_index].symbol for n_index in n_indices]
+            Rs = [atoms.positions[n_index] +
+                  np.dot(n_offset, atoms.get_cell())
+                  for n_index, n_offset in zip(n_indices, n_offsets)]
+            indexfp = fp.get_fingerprint(index, symbol, n_symbols, Rs)
+            for i in range(len(indexfp)):
+                if indexfp[i] < fingerprints_range[symbol][i][0] or \
+                        indexfp[i] > fingerprints_range[symbol][i][1]:
+                    compare_train_test_fingerprints = 1
+                    break
+        if compare_train_test_fingerprints == 0:
+            interpolated_images[hash] = image
+
+    del images
+
+    return interpolated_images
 
 ###############################################################################
