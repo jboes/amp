@@ -6,9 +6,7 @@ Andrew_Peterson@brown.edu
 Alireza_Khorshidi@brown.edu
 
 See the accompanying license file for details.
-
 """
-
 ###############################################################################
 
 from ase.calculators.calculator import Calculator
@@ -42,41 +40,44 @@ class AMP(Calculator):
 
     """
     Atomistic Machine-Learning Potential (AMP) ASE calculator
-    Inputs:
-        fingerprint: class representing local atomic environment. Can be only
-                     Behler for now. Input arguments for Behler are cutoff, Gs,
-                     and fingerprints_range; for more information see
-                     docstring for the class Behler.
-        regression: class representing the regression method. Can be only
-                    NeuralNetwork for now. Input arguments for NeuralNetwork
-                    are hiddenlayers, activation, weights, and scalings; for
+
+    :param fingerprint: Class representing local atomic environment. Can be
+                        only None and Behler for now. Input arguments for
+                        Behler are cutoff and Gs; for more information see
+                        docstring for the class Behler.
+    :type fingerprint: descriptor object
+    :param regression: Class representing the regression method. Can be only
+                       NeuralNetwork for now. Input arguments for NeuralNetwork
+                       are hiddenlayers, activation, weights, and scalings; for
                     more information see docstring for the class NeuralNetwork.
-        fingerprints_range: range of fingerprints of each chemical species.
-                            Should be fed as a dictionary of chemical species
-                            and a list of minimum and maximun, e.g.
-                            fingerprints_range={"Pd": [0.31, 0.59],
-                                "O":[0.56, 0.72]}
-        load: string
-            load an existing (trained) AMP calculator from this path.
-        label: string
-            default prefix / location used for all files.
-        dblabel: string
-            optional separate prefix (location) for database files,
-            including fingerprints, fingerprint derivatives, and
-            neighborlists. This file location can be shared between
-            calculator instances to avoid re-calculating redundant
-            information. If not supplied, just uses the value from
-            label.
-        extrapolate: boolean
-            If True, allows for extrapolation, if False, does not allow.
-        fortran: boolean
-            If True, will use the fortran subroutines, else will not.
-    Output:
-        energy: float
-        forces: matrix of floats
+    :type regression: descriptor object
+    :param fingerprints_range: Range of fingerprints of each chemical species.
+                               Should be fed as a dictionary of chemical
+                               species and a list of minimum and maximun, e.g:
 
+                               >>> fingerprints_range={"Pd": [0.31, 0.59], "O":[0.56, 0.72]}
+
+    :type fingerprints_range: dict
+    :param load: Path for loading an existing parameters of AMP calculator.
+    :type load: str
+    :param label: Default prefix/location used for all files.
+    :type label: str
+    :param dblabel: Optional separate prefix/location for database files,
+                    including fingerprints, fingerprint derivatives, and
+                    neighborlists. This file location can be shared between
+                    calculator instances to avoid re-calculating redundant
+                    information. If not supplied, just uses the value from
+                    label.
+    :type dblabel: str
+    :param extrapolate: If True, allows for extrapolation, if False, does not
+                        allow.
+    :type extrapolate: bool
+    :param fortran: If True, allows for extrapolation, if False, does not
+                    allow.
+    :type fortran: bool
+
+    :raises: RuntimeError
     """
-
     implemented_properties = ['energy', 'forces']
 
     default_parameters = {
@@ -166,7 +167,9 @@ class AMP(Calculator):
     #########################################################################
 
     def set(self, **kwargs):
-        """Function to set parameters."""
+        """
+        Function to set parameters.
+        """
         changed_parameters = Calculator.set(self, **kwargs)
         # FIXME. Decide whether to call reset. Decide if this is
         # meaningful in our implementation!
@@ -176,8 +179,12 @@ class AMP(Calculator):
     #########################################################################
 
     def set_label(self, label):
-        """Sets label, ensuring that any needed directories are made."""
+        """
+        Sets label, ensuring that any needed directories are made.
 
+        :param label: Default prefix/location used for all files.
+        :type label: str
+        """
         Calculator.set_label(self, label)
 
         # Create directories for output structure if needed.
@@ -189,6 +196,10 @@ class AMP(Calculator):
     #########################################################################
 
     def initialize(self, atoms):
+        """
+        :param atoms: ASE atoms object.
+        :type atoms: ASE dict
+        """
         self.par = {}
         self.rc = 0.0
         self.numbers = atoms.get_atomic_numbers()
@@ -199,7 +210,9 @@ class AMP(Calculator):
     #########################################################################
 
     def calculate(self, atoms, properties, system_changes):
-        """Calculation of the energy of the system and forces of all atoms."""
+        """
+        Calculation of the energy of system and forces of all atoms.
+        """
         Calculator.calculate(self, atoms, properties, system_changes)
 
         param = self.parameters
@@ -476,46 +489,38 @@ class AMP(Calculator):
             optimizer=optimizer,
             read_fingerprints=True,
             overwrite=False,):
-        """Fits a variable set to the data, by default using the "fmin_bfgs"
+        """
+        Fits a variable set to the data, by default using the "fmin_bfgs"
         optimizer. The optimizer takes as input a cost function to reduce and
         an initial guess of variables and returns an optimized variable set.
-        Inputs:
-            images: list of ASE atoms objects
-                    List of objects with positions, symbols, energies, and
-                    forces in ASE format. This is the training set of data.
-                    This can also be the path to an ASE trajectory (.traj)
-                    or database (.db) file.  Energies can be obtained from
-                    any reference, e.g. DFT calculations.
-            energy_goal: threshold rms(energy per atom) error at which
-                    simulation is converged.
-                    The default value is in unit of eV.
-            force_goal: threshold rmse per atom for forces at which simulation
-                    is converged.  The default value is in unit of eV/Ang. If
-                    'force_goal = None', forces will not be trained.
-            overfitting_constraint: the constant to suppress overfitting.
-                    A proper value for this constant is subtle and depends on
-                    the train data set; a small value may not cure the
-                    over-fitting issue, whereas a large value may cause
-                    over-smoothness.
-            force_coefficient: multiplier of force square error in
-                    constructing the cost function. This controls how
-                    significant force-fit is as compared to energy fit in
-                    approaching convergence. It depends on force and energy
-                    units. If not specified, guesses the value such that
-                    energy and force contribute equally to the cost
-                    function when they hit their converged values.
-            cores: (int) number of cores to parallelize over
-                    If not specified, attempts to determine from environment.
-            optimizer: function
-                    The optimization object. The default is to use scipy's
-                    fmin_bfgs, but any optimizer that behaves in the same
-                    way will do.
-            read_fingerprints: (bool)
-                    Determines whether or not the code should read fingerprints
-                    already calculated and saved in the script directory.
-            overwrite: (bool)
-                    If a trained output file with the same name exists,
-                    overwrite it.
+
+        :param images: List of ASE atoms objects with positions, symbols,
+                       energies, and forces in ASE format. This is the training
+                       set of data. This can also be the path to an ASE
+                       trajectory (.traj) or database (.db) file. Energies can
+                       be obtained from any reference, e.g. DFT calculations.
+        :type images: list or str
+        :param energy_goal: Threshold energy per atom rmse at which simulation
+                            is converged.
+        :type energy_goal: float
+        :param force_goal: Threshold force rmse at which simulation is
+                           converged. The default value is in unit of eV/Ang.
+                           If 'force_goal = None', forces will not be trained.
+        :type force_goal: float
+        :param cores: Number of cores to parallelize over. If not specified,
+                      attempts to determine from environment.
+        :type cores: int
+        :param optimizer: The optimization object. The default is to use
+                          scipy's fmin_bfgs, but any optimizer that behaves in
+                          the same way will do.
+        :type optimizer: object
+        :param read_fingerprints: Determines whether or not the code should
+                                  read fingerprints already calculated and
+                                  saved in the script directory.
+        :type read_fingerprints: bool
+        :param overwrite: If a trained output file with the same name exists,
+                          overwrite it.
+        :type overwrite: bool
         """
         param = self.parameters
         filename = make_filename(self.label, 'trained-parameters.json')
@@ -710,13 +715,17 @@ class AMP(Calculator):
 
 class MultiProcess:
 
-    """Class to do parallel processing, using multiprocessing module which
-    works on Python versions 2.6 and above.
-    Inputs:
-            fortran: boolean
-                If True, will use the fortran subroutines, else won't.
-            no_procs: number of processors
-            """
+    """
+    Class to do parallel processing, using multiprocessing package which works
+    on Python versions 2.6 and above.
+
+    :param fortran: If True, allows for extrapolation, if False, does not
+                    allow.
+    :type fortran: bool
+    :param no_procs: Number of processors.
+    :type no_procs: int
+    """
+    #########################################################################
 
     def __init__(self, fortran, no_procs):
 
@@ -726,11 +735,17 @@ class MultiProcess:
     ##########################################################################
 
     def make_list_of_sub_images(self, hash_keys, images):
-        """Two lists are made each with one entry per core. The entry of the
-        first list contains list of hashes to be calculated by that core,
-        and the entry of the second list contains dictionary of images to be
-        calculated by that core."""
+        """
+        Two lists are made each with one entry per core. The entry of the first
+        list contains list of hashes to be calculated by that core, and the
+        entry of the second list contains dictionary of images to be calculated
+        by that core.
 
+        :param hash_keys: Unique keys, one key per image.
+        :type hash_keys: list
+        :param images: List of ASE atoms objects (the training set).
+        :type images: list
+        """
         quotient = int(len(hash_keys) / self.no_procs)
         remainder = len(hash_keys) - self.no_procs * quotient
         list_sub_hashes = [None] * self.no_procs
@@ -764,8 +779,14 @@ class MultiProcess:
     ##########################################################################
 
     def share_fingerprints_task_between_cores(self, task, _args):
-        """Fingerprints tasks are sent to cores for parallel processing"""
+        """
+        Fingerprints tasks are sent to cores for parallel processing.
 
+        :param task: Function to be called on each process.
+        :type task: function
+        :param _args: Arguments to be fed to the function on each process.
+        :type _args: function
+        """
         args = {}
         for x in range(self.no_procs):
             sub_hash_keys = self.list_sub_hashes[x]
@@ -795,7 +816,24 @@ class MultiProcess:
                           elements,
                           train_forces,
                           log,):
+        """
+        Reshape data of images into lists.
 
+        :param param: ASE dictionary object.
+        :type param: dict
+        :param sfp: SaveFingerprints object.
+        :type sfp: object
+        :param snl: SaveNeighborLists object.
+        :type snl: object
+        :param elements: List if elements in images.
+        :type elements: list
+        :param train_forces: Determining whether forces are also trained or
+                             not.
+        :type train_forces: bool
+        :param log: Write function at which to log data. Note this must be a
+                    callable function.
+                :type log: Logger object
+        """
         log('Re-shaping images data to send to fortran90...')
         log.tic()
 
@@ -870,9 +908,17 @@ class MultiProcess:
 
     def share_cost_function_task_between_cores(self, task, _args,
                                                len_of_variables):
-        """Derivatives of the cost function with respect to variables are
-        calculated in parallel"""
+        """
+        Cost function and its derivatives of with respect to variables are
+        calculated in parallel.
 
+        :param task: Function to be called on each process.
+        :type task: function
+        :param _args: Arguments to be fed to the function on each process.
+        :type _args: function
+        :param len_of_variables: Number of variables.
+        :type len_of_variables: int
+        """
         queues = {}
         for x in range(self.no_procs):
             queues[x] = mp.Queue()
@@ -910,8 +956,8 @@ class MultiProcess:
         sub_force_square_error = []
         sub_der_variables_square_error = []
 
-#       Construct total square_error and derivative with respect to variables
-#       from subprocesses
+        # Construct total square_error and derivative with respect to variables
+        # from subprocesses
         results = {}
         for x in range(self.no_procs):
             results[x] = queues[x].get()
@@ -937,8 +983,12 @@ class MultiProcess:
     ##########################################################################
 
     def send_data_to_fortran(self, x,):
-        """Function to send images data to fortran90 code"""
+        """
+        Function to send images data to fortran90 code.
 
+        :param x: The number of process.
+        :type x: int
+        """
         fmodules.images_props.no_of_images = self.no_of_images[x]
         fmodules.images_props.real_energies = self.real_energies[x]
 
@@ -973,7 +1023,8 @@ class MultiProcess:
 
 class SaveNeighborLists:
 
-    """Neighborlists for all images with the given cutoff value are calculated
+    """
+    Neighborlists for all images with the given cutoff value are calculated
     and saved. As well as neighboring atomic indices, neighboring atomic
     offsets from the main cell are also saved. Offsets become important when
     dealing with periodic systems. Neighborlists are generally of two types:
@@ -981,26 +1032,24 @@ class SaveNeighborLists:
     main cell or in the adjacent cells, and Type II which consists of atoms in
     the main cell only and within the cutoff distance.
 
-        cutoff: cutoff radius, in Angstroms, around each atom
-
-        hash_keys: unique keys for each of "images"
-
-        images: list of ASE atoms objects (the training set)
-
-        label: name used for all files.
-
-        log: write function at which to log data. Note this must be a
-           callable function
-
-        train_forces:  boolean to representing whether forces are also trained
-                        or not
-
-        read_fingerprints: boolean to determines whether or not the code should
-                            read fingerprints already calculated and saved in
-                            the script directory.
-
+    :param cutoff: Cutoff radius, in Angstroms, around each atom.
+    :type cutoff: float
+    :param hash_keys: Unique keys, one key per image.
+    :type hash_keys: list
+    :param images: List of ASE atoms objects (the training set).
+    :type images: list
+    :param label: Prefix name used for all files.
+    :type label: str
+    :param log: Write function at which to log data. Note this must be a
+                callable function.
+    :type log: Logger object
+    :param train_forces: Determining whether forces are also trained or not.
+    :type train_forces: bool
+    :param read_fingerprints: Determines whether or not the code should read
+                              fingerprints already calculated and saved in the
+                              script directory.
+    :type read_fingerprints: bool
     """
-
     ##########################################################################
 
     def __init__(self, cutoff, hash_keys, images, label, log, train_forces,
@@ -1088,35 +1137,34 @@ class SaveNeighborLists:
 
 class SaveFingerprints:
 
-    """Memory class to not recalculate fingerprints and their derivatives if
+    """
+    Memory class to not recalculate fingerprints and their derivatives if
     not necessary. This could cause runaway memory usage; use with caution.
 
-        fp: fingerprint object
-
-        elements: list if elements in images
-
-        hash_keys: unique keys, one key per image
-
-        images: list of ASE atoms objects (the training set)
-
-        label: name used for all files
-
-        train_forces:  boolean representing whether forces are also trained or
-                        not
-
-        read_fingerprints: boolean to determines whether or not the code should
-                            read fingerprints already calculated and saved in
-                            the script directory.
-
-        snl: object of the class SaveNeighborLists
-
-        log: write function at which to log data. Note this must be a
-           callable function.
-
-        _mp: "MultiProcess" object
-
+    :param fp: Fingerprint object.
+    :type fp: object
+    :param elements: List if elements in images.
+    :type elements: list
+    :param hash_keys: Unique keys, one key per image.
+    :type hash_keys: list
+    :param images: List of ASE atoms objects (the training set).
+    :type images: list
+    :param label: Prefix name used for all files.
+    :type label: str
+    :param train_forces: Determining whether forces are also trained or not.
+    :type train_forces: bool
+    :param read_fingerprints: Determines whether or not the code should read
+                              fingerprints already calculated and saved in the
+                              script directory.
+    :type read_fingerprints: bool
+    :param snl: SaveNeighborLists object.
+    :type snl: object
+    :param log: Write function at which to log data. Note this must be a
+                callable function.
+    :type log: Logger object
+    :param _mp: MultiProcess object.
+    :type _mp: object
     """
-
     ##########################################################################
 
     def __init__(self,
@@ -1349,47 +1397,46 @@ class SaveFingerprints:
 
 class CostFxnandDer:
 
-    """Cost function and its derivative based on squared difference in energy,
-    to be optimized in setting variables.
+    """
+    Cost function and its derivative based on sum of squared deviations in
+    energies and forces to be optimized by setting variables.
 
-        reg: regression object
-
-        param: dictionary that contains cutoff and variables
-
-        hash_keys: unique keys, one key per image
-
-        images: list of ASE atoms objects (the training set)
-
-        label: name used for all files
-
-        log: write function at which to log data. Note this must be a
-           callable function.
-
-        energy_goal: threshold rms(error per atom) at which simulation is
-        converged
-
-        force_goal: threshold rmse/atom at which simulation is converged
-
-        train_forces:  boolean representing whether forces are also trained or
-        not
-
-        _mp: object of "MultiProcess" class
-
-        overfitting_constraint: the constant to constraint overfitting
-
-        force_coefficient: multiplier of force RMSE in constructing the cost
-        function. This controls how tight force-fit is as compared to
-        energy fit. It also depends on force and energy units. Working with
-        eV and Angstrom, 0.04 seems to be a reasonable value.
-
-        fortran: boolean
-            If True, will use the fortran subroutines, else will not.
-
-        sfp: object of the class SaveFingerprints, which contains all
-           fingerprints
-
-        snl: object of the class SaveNeighborLists
-
+    :param reg: Regression object.
+    :type reg: object
+    :param param: ASE dictionary that contains cutoff and variables.
+    :type param: dict
+    :param hash_keys: Unique keys, one key per image.
+    :type hash_keys: list
+    :param images: ASE atoms objects (the train set).
+    :type images: dict
+    :param label: Prefix used for all files.
+    :type label: str
+    :param log: Write function at which to log data. Note this must be a
+                callable function.
+    :type log: Logger object
+    :param energy_goal: Threshold energy per atom rmse at which simulation is
+                        converged.
+    :type energy_goal: float
+    :param force_goal: Threshold force rmse at which simulation is converged.
+    :type force_goal: float
+    :param train_forces: Determines whether or not forces should be trained.
+    :type train_forces: bool
+    :param _mp: Multiprocess object.
+    :type _mp: object
+    :param overfitting_constraint: The constant to constraint overfitting.
+    :type overfitting_constraint: float
+    :param force_coefficient: Multiplier of force RMSE in constructing the cost
+                              function. This controls how tight force-fit is as
+                              compared to energy fit. It also depends on force
+                              and energy units. Working with eV and Angstrom,
+                              0.04 seems to be a reasonable value.
+    :type force_coefficient: float
+    :param fortran: If True, will use the fortran subroutines, else will not.
+    :type fortran: bool
+    :param sfp: SaveFingerprints object.
+    :type sfp: object
+    :param snl: SaveNeighborLists object.
+    :type snl: object
     """
     #########################################################################
 
@@ -1454,8 +1501,12 @@ class CostFxnandDer:
     #########################################################################
 
     def f(self, variables):
-        """function to calculate the cost function"""
+        """
+        Function to calculate cost function.
 
+        :param variables: Calibrating variables.
+        :type variables: list
+        """
         log = self.log
         self.param.regression._variables = variables
 
@@ -1566,8 +1617,12 @@ class CostFxnandDer:
     #########################################################################
 
     def fprime(self, variables):
-        """function to calculate derivative of the cost function"""
+        """
+        Function to calculate derivative of cost function.
 
+        :param variables: Calibrating variables.
+        :type variables: list
+        """
         if self.steps == 0:
 
             self.param.regression._variables = variables
@@ -1604,7 +1659,9 @@ class CostFxnandDer:
 
 class ConvergenceOccurred(Exception):
 
-    """Kludge to decide when scipy's optimizers are complete."""
+    """
+    Kludge to decide when scipy's optimizers are complete.
+    """
     pass
 
 ###############################################################################
@@ -1614,7 +1671,9 @@ class ConvergenceOccurred(Exception):
 
 class TrainingConvergenceError(Exception):
 
-    """Error to be raise if training does not converge."""
+    """
+    Error to be raise if training does not converge.
+    """
     pass
 
 ###############################################################################
@@ -1624,7 +1683,9 @@ class TrainingConvergenceError(Exception):
 
 class ExtrapolateError(Exception):
 
-    """Error class in the case of extrapolation."""
+    """
+    Error class in the case of extrapolation.
+    """
     pass
 
 ###############################################################################
@@ -1632,15 +1693,24 @@ class ExtrapolateError(Exception):
 ###############################################################################
 
 
-def _calculate_fingerprints(proc_no,
-                            hashes,
-                            images,
-                            fp,
-                            label,
-                            childfiles):
-    """wrapper function to be used in multiprocessing for calculating
-    fingerprints."""
+def _calculate_fingerprints(proc_no, hashes, images, fp, label, childfiles):
+    """
+    Function to be called on all processes simultaneously for calculating
+    fingerprints.
 
+    :param proc_no: Number of the process.
+    :type proc_no: int
+    :param hashes: Unique keys, one key per image.
+    :type hashes: list
+    :param images: List of ASE atoms objects (the training set).
+    :type images: list
+    :param fp: Fingerprint object.
+    :type fp: object
+    :param label: Prefix name used for all files.
+    :type label: str
+    :param childfiles: Temporary files
+    :type childfiles: file
+    """
     fingerprints = {}
     for hash_key in hashes:
         fingerprints[hash_key] = {}
@@ -1673,9 +1743,23 @@ def _calculate_fingerprints(proc_no,
 
 def _calculate_der_fingerprints(proc_no, hashes, images, fp,
                                 snl, label, childfiles):
-    """wrapper function to be used in multiprocessing for calculating
-    derivatives of fingerprints."""
+    """
+    Function to be called on all processes simultaneously for calculating
+    derivatives of fingerprints.
 
+    :param proc_no: Number of the process.
+    :type proc_no: int
+    :param hashes: Unique keys, one key per image.
+    :type hashes: list
+    :param images: List of ASE atoms objects (the training set).
+    :type images: list
+    :param fp: Fingerprint object.
+    :type fp: object
+    :param label: Prefix name used for all files.
+    :type label: str
+    :param childfiles: Temporary files
+    :type childfiles: file
+    """
     data = {}
     for hash_key in hashes:
         data[hash_key] = {}
@@ -1726,9 +1810,15 @@ def _calculate_der_fingerprints(proc_no, hashes, images, fp,
 
 
 def _calculate_cost_function_fortran(param, queue):
-    """wrapper function to be used in multiprocessing for calculating
-    cost function and it's derivative with respect to variables"""
+    """
+    Function to be called on all processes simultaneously for calculating cost
+    function and its derivative with respect to variables in fortran.
 
+    :param param: ASE dictionary.
+    :type param: dict
+    :param queue: multiprocessing queue.
+    :type queue: object
+    """
     variables = param.regression._variables
 
     (energy_square_error,
@@ -1749,9 +1839,35 @@ def _calculate_cost_function_python(hashes, images, reg, param, sfp,
                                     snl, energy_coefficient,
                                     force_coefficient, train_forces,
                                     len_of_variables, queue):
-    """wrapper function to be used in multiprocessing for calculating
-    cost function and it's derivative with respect to variables."""
+    """
+    Function to be called on all processes simultaneously for calculating cost
+    function and its derivative with respect to variables in python.
 
+    :param hashes: Unique keys, one key per image.
+    :type hashes: list
+    :param images: ASE atoms objects (the train set).
+    :type images: dict
+    :param reg: Regression object.
+    :type reg: object
+    :param param: ASE dictionary that contains cutoff and variables.
+    :type param: dict
+    :param sfp: SaveFingerprints object.
+    :type sfp: object
+    :param snl: SaveNeighborLists object.
+    :type snl: object
+    :param energy_coefficient: Multiplier of energy per atom RMSE in
+                               constructing the cost function.
+    :type energy_coefficient: float
+    :param force_coefficient: Multiplier of force RMSE in constructing the cost
+                              function.
+    :type force_coefficient: float
+    :param train_forces: Determines whether or not forces should be trained.
+    :type train_forces: bool
+    :param len_of_variables: Number of calibrating variables.
+    :type len_of_variables: int
+    :param queue: multiprocessing queue.
+    :type queue: object
+    """
     der_variables_square_error = np.zeros(len_of_variables)
 
     energy_square_error = 0.
@@ -1927,15 +2043,20 @@ def _calculate_cost_function_python(hashes, images, reg, param, sfp,
 
 
 def calculate_fingerprints_range(fp, elements, atoms, nl):
-    """function to calculate fingerprints range.
-    inputs:
-        fp: object of fingerprint class
-        elements: list if all elements of atoms
-        atoms: ASE atom object
-        nl: ASE NeighborList object
-    output:
-        fingerprints_range: range of fingerprints of atoms"""
+    """
+    Function to calculate fingerprints range.
 
+    :param fp: Fingerprint object.
+    :type fp: object
+    :param elements: List of atom symbols.
+    :type elements: list of str
+    :param atoms: ASE atoms object.
+    :type atoms: ASE dict
+    :param nl: ASE NeighborList object.
+    :type nl: object
+
+    :returns: Range of fingerprints of elements.
+    """
     fingerprint_values = {}
     for element in elements:
         fingerprint_values[element] = {}
@@ -1976,17 +2097,21 @@ def calculate_fingerprints_range(fp, elements, atoms, nl):
 
 
 def compare_train_test_fingerprints(fp, atoms, fingerprints_range, nl):
-    """function to compare train images with the test image and decide whether
+    """
+    Function to compare train images with the test image and decide whether
     the prediction is interpolation or extrapolation.
-    inputs:
-        fp: object of CalculateFingerprints class
-        atoms: ASE atom object
-        fingerprints_range: range of fingerprints of the train images
-        nl: ASE NeighborList object
-    output:
-        compare_train_test_fingerprints:
-        integer: zero for interpolation, and one for extrapolation"""
 
+    :param fp: Fingerprint object.
+    :type fp: object
+    :param atoms: ASE atoms object.
+    :type atoms: ASE dict
+    :param fingerprints_range: Range of fingerprints of each chemical species.
+    :type fingerprints_range: dict
+    :param nl: ASE NeighborList object.
+    :type nl: object
+
+    :returns: Zero for interpolation, and one for extrapolation.
+    """
     compare_train_test_fingerprints = 0
 
     for atom in atoms:
@@ -2012,8 +2137,24 @@ def compare_train_test_fingerprints(fp, atoms, fingerprints_range, nl):
 
 def send_data_to_fortran(sfp, elements, train_forces,
                          energy_coefficient, force_coefficient, param):
-    """Function to send images data to fortran90 code"""
+    """
+    Function to send images data to fortran code. Is used just once.
 
+    :param sfp: SaveFingerprints object.
+    :type sfp: object
+    :param elements: List of atom symbols.
+    :type elements: list of str
+    :param train_forces: Determines whether or not forces should be trained.
+    :type train_forces: bool
+    :param energy_coefficient: Multiplier of energy per atom RMSE in
+                               constructing the cost function.
+    :type energy_coefficient: float
+    :param force_coefficient: Multiplier of force RMSE in constructing the cost
+                              function.
+    :type force_coefficient: float
+    :param param: ASE dictionary that contains cutoff and variables.
+    :type param: dict
+    """
     if param.fingerprint is None:
         fingerprinting = False
     else:
@@ -2053,8 +2194,16 @@ def send_data_to_fortran(sfp, elements, train_forces,
 
 
 def ravel_fingerprints_of_images(hash_keys, images, sfp):
-    """Reshape fingerprints of all images into a matrix"""
+    """
+    Reshape fingerprints of all images into a matrix.
 
+    :param hash_keys: Unique keys, one key per image.
+    :type hash_keys: list
+    :param images: ASE atoms objects (the train set).
+    :type images: dict
+    :param sfp: SaveFingerprints object.
+    :type sfp: object
+    """
     keys = [(hash_key, index) for hash_key in hash_keys
             for index in range(len(images[hash_key]))]
 
@@ -2069,9 +2218,19 @@ def ravel_fingerprints_of_images(hash_keys, images, sfp):
 
 def ravel_neighborlists_and_der_fingerprints_of_images(hash_keys,
                                                        images, sfp, snl):
-    """Reshape neighborlists and derivatives of fingerprints of all images into
-    a matrix"""
+    """
+    Reshape neighborlists and derivatives of fingerprints of all images into a
+    matrix.
 
+    :param hash_keys: Unique keys, one key per image.
+    :type hash_keys: list
+    :param images: ASE atoms objects (the train set).
+    :type images: dict
+    :param sfp: SaveFingerprints object.
+    :type sfp: object
+    :param snl: SaveNeighborLists object.
+    :type snl: object
+    """
     # Only neighboring atoms of type II (within the main cell) needs to be sent
     # to fortran for force training
     list_of_no_of_neighbors = []
@@ -2114,7 +2273,9 @@ def ravel_neighborlists_and_der_fingerprints_of_images(hash_keys,
 
 
 def now():
-    """Return string of current time."""
+    """
+    :returns: String of current time.
+    """
     return datetime.now().isoformat().split('.')[0]
 
 ###############################################################################

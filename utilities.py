@@ -16,10 +16,18 @@ from ase.parallel import paropen
 
 
 def randomize_images(images, fraction=0.8):
-    """Randomly assigns 'fraction' of the images to a training set and
+    """
+    Randomly assigns 'fraction' of the images to a training set and
     (1 - 'fraction') to a test set. Returns two lists of ASE images.
-    'images' can either be a list of ASE images or a path to an ASE
-    trajectory.
+
+    :param images: List of ASE atoms objects in ASE format. This can also be
+                   the path to an ASE trajectory (.traj) or database (.db)
+                   file.
+    :type images: list or str
+    :param fraction: Portion of train_images to all images.
+    :type fraction: float
+
+    :returns: Lists of train and test images.
     """
     file_opened = False
     if type(images) == str:
@@ -45,22 +53,34 @@ def randomize_images(images, fraction=0.8):
 
 
 class ExtrapolateError(Exception):
+    """
+    Error class in the case of extrapolation.
+    """
     pass
 
 ###############################################################################
 
 
 class UntrainedError(Exception):
+    """
+    Error class in the case of unsuccessful training.
+    """
     pass
 
 ###############################################################################
 
 
 def hash_image(atoms):
-    """Creates a unique signature for a particular ASE atoms object.
+    """
+    Creates a unique signature for a particular ASE atoms object.
     This is used to check whether an image has been seen before.
     This is just an md5 hash of a string representation of the atoms
     object.
+
+    :param atoms: ASE atoms object.
+    :type atoms: ASE dict
+
+    :returns: Hash key of 'atoms'.
     """
     string = str(atoms.pbc)
     for number in atoms.cell.flatten():
@@ -78,26 +98,44 @@ def hash_image(atoms):
 
 class Logger:
 
-    """Logger that can also deliver timing information.
-    Initialize with the path to the file to write to.
     """
+    Logger that can also deliver timing information.
+
+    :param filename: File object or path to the file to write to.
+    :type filename: str
+    """
+    #########################################################################
 
     def __init__(self, filename):
         self._f = paropen(filename, 'a')
         self._tics = {}
 
+    #########################################################################
+
     def tic(self, label=None):
-        """Start a timer. Optionally supply a label if you need to manage
-        multiple timers."""
+        """
+        Start a timer.
+
+        :param label: Label for managing multiple timers.
+        :type label: str
+        """
         if label:
             self._tics[label] = time.time()
         else:
             self._tic = time.time()
 
+    #########################################################################
+
     def __call__(self, message, toc=None):
-        """Writes <message> to the log file. <tic> is used to start a
-        timer.  If you supply toc=True or toc=<label>, it will append
-        timing information in minutes to the timer."""
+        """
+        Writes message to the log file.
+
+        :param message: Message to be written.
+        :type message: str
+        :param toc: tic is used to start a timer. If toc=True or toc=label, it
+                    will append timing information in minutes to the timer.
+        :type toc: bool or str
+        """
         dt = ''
         if toc:
             if toc is True:
@@ -187,8 +225,14 @@ def names_of_allocated_nodes():
 
 
 def save_neighborlists(filename, neighborlists):
-    """Save neighborlists in json format."""
+    """
+    Save neighborlists in json format.
 
+    :param filename: Path to the file to write to.
+    :type filename: str
+    :param neighborlists: Data of neighbor lists.
+    :type neighborlists: dict
+    """
     new_dict = {}
     for key1 in neighborlists.keys():
         new_dict[key1] = {}
@@ -205,9 +249,14 @@ def save_neighborlists(filename, neighborlists):
 
 
 def save_fingerprints(f, fingerprints):
-    """Save fingerprints in json format. f is either a file object or a
-    path."""
+    """
+    Save fingerprints in json format.
 
+    :param f: Path to the file to write to.
+    :type f: str
+    :param fingerprints: Data of fingerprints.
+    :type fingerprints: dict
+    """
     new_dict = {}
     for key1 in fingerprints.keys():
         new_dict[key1] = {}
@@ -227,9 +276,14 @@ def save_fingerprints(f, fingerprints):
 
 
 def save_der_fingerprints(f, der_fingerprints):
-    """Save derivatives of fingerprints in json format. f is either a file
-    object or a path."""
+    """
+    Save derivatives of fingerprints in json format.
 
+    :param f: Path to the file to write to.
+    :type f: str
+    :param der_fingerprints: Data of derivative of fingerprints.
+    :type der_fingerprints: dict
+    """
     new_dict = {}
     for key1 in der_fingerprints.keys():
         new_dict[key1] = {}
@@ -250,8 +304,14 @@ def save_der_fingerprints(f, der_fingerprints):
 
 
 def save_parameters(filename, param):
-    """Save parameters in json format."""
+    """
+    Save parameters in json format.
 
+    :param filename: Path to the file to write to.
+    :type filename: str
+    :param param: ASE dictionary object of parameters.
+    :type param: dict
+    """
     parameters = {}
     for key in param.keys():
         if (key != 'regression') and (key != 'fingerprint'):
@@ -296,7 +356,6 @@ def save_parameters(filename, param):
 
 
 def load_parameters(json_file):
-    """Reads parameters from JSON file."""
 
     parameters = json.load(json_file)
 
@@ -306,9 +365,15 @@ def load_parameters(json_file):
 
 
 def make_filename(label, base_filename):
-    """Creates a filename from the label and the base_filename which should be
-    a string"""
+    """
+    Creates a filename from the label and the base_filename which should be
+    a string.
 
+    :param label: Prefix.
+    :type label: str
+    :param base_filename: Basic name of the file.
+    :type base_filename: str
+    """
     if not label:
         filename = base_filename
     else:

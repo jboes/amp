@@ -1,9 +1,7 @@
 #!/usr/bin/env python
 """
 Script that contains Behler-Parrinello local environment descriptions.
-
 """
-
 import numpy as np
 from ase.data import atomic_numbers
 try:
@@ -17,23 +15,32 @@ except ImportError:
 class Behler:
 
     """
-    Class that calculates Behler-Parrinello fingerprints.
-        Inputs:
-        cutoff: float (default 6.5 Angstroms)
-                  Radius above which neighbor interactions are ignored.
-        Gs: dictionary of symbols and lists of dictionaries for making
-            symmetry functions. Either auto-genetrated, or given
-            in the following form:
-                    Gs = {"O": [..., ...], "Au": [..., ...]} where
-                    ... = {"type":"G2", "element":"O", "eta":0.0009} or
-                    ... = {"type":"G4", "elements":["O", "Au"], "eta":0.0001,
-                           "gamma":0.1, "zeta":1.0}
-        fingerprints_tag (internal): a tag for identifying the functional form
-                                     of fingerprints used in the code
-        fortran: boolean
-                If True, will use the fortran subroutines, else will not.
+    Class that calculates Behler fingerprints.
 
+    :param cutoff: Radius above which neighbor interactions are ignored.
+                   Default is 6.5 Angstroms.
+    :type cutoff: float
+    :param Gs: Dictionary of symbols and lists of dictionaries for making
+               symmetry functions. Either auto-genetrated, or given in the
+               following form, for example:
+
+               >>> Gs = {"O": [{"type":"G2", "element":"O", "eta":10.},
+               ...             {"type":"G4", "elements":["O", "Au"],
+               ...              "eta":5., "gamma":1., "zeta":1.0}],
+               ...       "Au": [{"type":"G2", "element":"O", "eta":2.},
+               ...              {"type":"G4", "elements":["O", "Au"],
+               ...               "eta":2., "gamma":1., "zeta":5.0}]}
+
+    :type Gs: dict
+    :param fingerprints_tag: An internal tag for identifying the functional
+                             form of fingerprints used in the code.
+    :type fingerprints_tag: int
+    :param fortran: If True, will use the fortran subroutines, else will not.
+    :type fortran: bool
+
+    :raises: FingerprintsError, NotImplementedError
     """
+    #########################################################################
 
     def __init__(self, cutoff=6.5, Gs=None, fingerprints_tag=1, fortran=True,):
 
@@ -53,23 +60,34 @@ class Behler:
 
     def initialize(self, atoms):
         """
-        Inputs:
-        atoms: ASE atoms object
-                The initial atoms object on which the fingerprints will be
-                generated.
+        Initializing atoms object.
 
+        :param atoms: ASE atoms object.
+        :type atoms: ASE dict
         """
-
         self.atoms = atoms
 
     #########################################################################
 
     def get_fingerprint(self, index, symbol, n_symbols, Rs):
-        """Returns the fingerprint of symmetry function values for atom
+        """
+        Returns the fingerprint of symmetry function values for atom
         specified by its index and symbol. n_symbols and Rs are lists of
         neighbors' symbols and Cartesian positions, respectively. Will
         automaticallyupdate if atom positions has changed; you don't need to
         call update() unless you are specifying a new atoms object.
+
+        :param index: Index of the center atom.
+        :type index: int
+        :param symbol: Symbol of the center atom.
+        :type symbol: str
+        :param n_symbols: List of neighbors' symbols.
+        :type n_symbols: list of str
+        :param Rs: List of Cartesian atomic positions.
+        :type Rs: list of list of float
+
+        :returns: list of float -- the symmetry function values for atom
+                                   specified by its index and symbol.
         """
         home = self.atoms[index].position
 
@@ -95,11 +113,32 @@ class Behler:
 
     def get_der_fingerprint(self, index, symbol, n_indices, n_symbols, Rs,
                             m, i):
-        """Returns the value of the derivative of G for atom with index and
+        """
+        Returns the value of the derivative of G for atom with index and
         symbol with respect to coordinate x_{i} of atom index m. n_indices,
         n_symbols and Rs are lists of neighbors' indices, symbols and Cartesian
-        positions, respectively."""
+        positions, respectively.
 
+        :param index: Index of the center atom.
+        :type index: int
+        :param symbol: Symbol of the center atom.
+        :type symbol: str
+        :param n_indices: List of neighbors' indices.
+        :type n_indices: list of int
+        :param n_symbols: List of neighbors' symbols.
+        :type n_symbols: list of str
+        :param Rs: List of Cartesian atomic positions.
+        :type Rs: list of list of float
+        :param m: Index of the pair atom.
+        :type m: int
+        :param i: Direction of the derivative; is an integer from 0 to 2.
+        :type i: int
+
+        :returns: list of float -- the value of the derivative of the
+                                   fingerprints for atom with index and symbol
+                                   with respect to coordinate x_{i} of atom
+                                   index m.
+        """
         Rindex = self.atoms.positions[index]
         der_fingerprint = [None] * len(self.Gs[symbol])
         count = 0
@@ -143,8 +182,20 @@ class Behler:
     #########################################################################
 
     def log(self, log, param, elements):
-        """Generates symmetry functions if do not exist."""
+        """
+        Generates symmetry functions if do not exist, and prints out in the log
+        file.
 
+        :param log: Write function at which to log data. Note this must be a
+                    callable function.
+        :type log: Logger object
+        :param param: Object containing descriptor properties.
+        :type param: ASE calculator's Parameters class
+        :param elements: List of atom symbols.
+        :type elements: list of str
+
+        :returns: Object containing descriptor properties.
+        """
         # If Gs is not given, generates symmetry functions
         if not param.fingerprint.Gs:
             param.fingerprint.Gs = make_symmetry_functions(elements)
@@ -161,8 +212,9 @@ class Behler:
 
 class FingerprintsError(Exception):
 
-    """Error class in case the functional form of fingerprints has
-    changed"""
+    """
+    Error class in case the functional form of fingerprints has changed.
+    """
     pass
 
 ###############################################################################
@@ -171,10 +223,28 @@ class FingerprintsError(Exception):
 
 
 def calculate_G2(symbols, Rs, G_element, eta, cutoff, home, fortran):
-    """Calculate G2 symmetry function. Ideally this will not be used but
+    """
+    Calculate G2 symmetry function. Ideally this will not be used but
     will be a template for how to build the fortran version (and serves as
-    a slow backup if the fortran one goes uncompiled)."""
+    a slow backup if the fortran one goes uncompiled).
 
+    :param symbols: List of symbols of all atoms.
+    :type symbols: list of str
+    :param Rs: List of Cartesian atomic positions.
+    :type Rs: list of list of float
+    :param G_element: Symmetry functions of the center atom.
+    :type G_element: dict
+    :param eta: Parameter of Behler symmetry functions.
+    :type eta: float
+    :param cutoff: Radius above which neighbor interactions are ignored.
+    :type cutoff: float
+    :param home: Index of the center atom.
+    :type home: int
+    :param fortran: If True, will use the fortran subroutines, else will not.
+    :type fortran: bool
+
+    :returns: float -- G2 fingerprint.
+    """
     if fortran:  # fortran version; faster
         G_number = [atomic_numbers[G_element]]
         numbers = [atomic_numbers[symbol] for symbol in symbols]
@@ -199,9 +269,32 @@ def calculate_G2(symbols, Rs, G_element, eta, cutoff, home, fortran):
 
 def calculate_G4(symbols, Rs, G_elements, gamma, zeta, eta, cutoff, home,
                  fortran):
-    """Calculate G4 symmetry function. Ideally this will not be used but
+    """
+    Calculate G4 symmetry function. Ideally this will not be used but
     will be a template for how to build the fortran version (and serves as
-    a slow backup if the fortran one goes uncompiled)."""
+    a slow backup if the fortran one goes uncompiled).
+
+    :param symbols: List of symbols of neighboring atoms.
+    :type symbols: list of str
+    :param Rs: List of Cartesian atomic positions of neighboring atoms.
+    :type Rs: list of list of float
+    :param G_elements: Symmetry functions of the center atom.
+    :type G_elements: dict
+    :param gamma: Parameter of Behler symmetry functions.
+    :type gamma: float
+    :param zeta: Parameter of Behler symmetry functions.
+    :type zeta: float
+    :param eta: Parameter of Behler symmetry functions.
+    :type eta: float
+    :param cutoff: Radius above which neighbor interactions are ignored.
+    :type cutoff: float
+    :param home: Index of the center atom.
+    :type home: int
+    :param fortran: If True, will use the fortran subroutines, else will not.
+    :type fortran: bool
+
+    :returns: float -- G4 fingerprint.
+    """
 
     if fortran:  # fortran version; faster
         G_numbers = sorted([atomic_numbers[el] for el in G_elements])
@@ -242,14 +335,20 @@ def calculate_G4(symbols, Rs, G_elements, gamma, zeta, eta, cutoff, home,
 
 
 def make_symmetry_functions(elements):
-    """Makes symmetry functions as in Nano Letters function by Artrith.
+    """
+    Makes symmetry functions as in Nano Letters function by Artrith.
     Elements is a list of the elements, as in ["C", "O", "H", "Cu"].
     G[0] = {"type":"G2", "element": "O", "eta": 0.0009}
     G[40] = {"type":"G4", "elements": ["O", "Au"], "eta": 0.0001,
              "gamma": 1.0, "zeta": 1.0}
     If G (a list) is fed in, this will add to it and return an expanded
-    version. If not, it will create a new one."""
+    version. If not, it will create a new one.
 
+    :param elements: List of symbols of all atoms.
+    :type elements: list of str
+
+    :returns: dict of lists -- symmetry functions if not given by the user.
+    """
     G = {}
     for element0 in elements:
         _G = []
@@ -280,8 +379,16 @@ def make_symmetry_functions(elements):
 
 
 def cutoff_fxn(Rij, Rc):
-    """Cosine cutoff function in Parinello-Behler method."""
+    """
+    Cosine cutoff function in Parinello-Behler method.
 
+    :param Rc: Radius above which neighbor interactions are ignored.
+    :type Rc: float
+    :param Rij: Distance between pair atoms.
+    :type Rij: float
+
+    :returns: float -- the vaule of the cutoff function.
+    """
     if Rij > Rc:
         return 0.
     else:
@@ -291,8 +398,16 @@ def cutoff_fxn(Rij, Rc):
 
 
 def der_cutoff_fxn(Rij, Rc):
-    """Derivative of the Cosine cutoff function."""
+    """
+    Derivative of the Cosine cutoff function.
 
+    :param Rc: Radius above which neighbor interactions are ignored.
+    :type Rc: float
+    :param Rij: Distance between pair atoms.
+    :type Rij: float
+
+    :returns: float -- the vaule of derivative of the cutoff function.
+    """
     if Rij > Rc:
         return 0.
     else:
@@ -302,8 +417,16 @@ def der_cutoff_fxn(Rij, Rc):
 
 
 def Kronecker_delta(i, j):
-    """Kronecker delta function."""
+    """
+    Kronecker delta function.
 
+    :param i: First index of Kronecker delta.
+    :type i: int
+    :param j: Second index of Kronecker delta.
+    :type j: int
+
+    :returns: int -- the value of the Kronecker delta.
+    """
     if i == j:
         return 1.
     else:
@@ -313,8 +436,22 @@ def Kronecker_delta(i, j):
 
 
 def der_position_vector(a, b, m, i):
-    """Returns the derivative of the position vector R_{ab} with respect to
-        x_{i} of atomic index m."""
+    """
+    Returns the derivative of the position vector R_{ab} with respect to
+        x_{i} of atomic index m.
+
+    :param a: Index of the first atom.
+    :type a: int
+    :param b: Index of the second atom.
+    :type b: int
+    :param m: Index of the atom force is acting on.
+    :type m: int
+    :param i: Direction of force.
+    :type i: int
+
+    :returns: list of float -- the derivative of the position vector R_{ab}
+                               with respect to x_{i} of atomic index m.
+    """
     der_position_vector = [None, None, None]
     der_position_vector[0] = (Kronecker_delta(m, a) - Kronecker_delta(m, b)) \
         * Kronecker_delta(0, i)
@@ -329,9 +466,26 @@ def der_position_vector(a, b, m, i):
 
 
 def der_position(m, n, Rm, Rn, l, i):
-    """Returns the derivative of the norm of position vector R_{mn} with
-        respect to x_{i} of atomic index l."""
+    """
+    Returns the derivative of the norm of position vector R_{mn} with
+        respect to x_{i} of atomic index l.
 
+    :param m: Index of the first atom.
+    :type m: int
+    :param n: Index of the second atom.
+    :type n: int
+    :param Rm: Position of the first atom.
+    :type Rm: float
+    :param Rn: Position of the second atom.
+    :type Rn: float
+    :param l: Index of the atom force is acting on.
+    :type l: int
+    :param i: Direction of force.
+    :type i: int
+
+    :returns: list of float -- the derivative of the norm of position vector
+                               R_{mn} with respect to x_{i} of atomic index l.
+    """
     Rmn = np.linalg.norm(Rm - Rn)
     # mm != nn is necessary for periodic systems
     if l == m and m != n:
@@ -346,9 +500,30 @@ def der_position(m, n, Rm, Rn, l, i):
 
 
 def der_cos_theta(a, j, k, Ra, Rj, Rk, m, i):
-    """Returns the derivative of Cos(theta_{ajk}) with respect to
-        x_{i} of atomic index m."""
+    """
+    Returns the derivative of Cos(theta_{ajk}) with respect to
+        x_{i} of atomic index m.
 
+    :param a: Index of the center atom.
+    :type a: int
+    :param j: Index of the first atom.
+    :type j: int
+    :param k: Index of the second atom.
+    :type k: int
+    :param Ra: Position of the center atom.
+    :type Ra: float
+    :param Rj: Position of the first atom.
+    :type Rj: float
+    :param Rk: Position of the second atom.
+    :type Rk: float
+    :param m: Index of the atom force is acting on.
+    :type m: int
+    :param i: Direction of force.
+    :type i: int
+
+    :returns: float -- derivative of Cos(theta_{ajk}) with respect to x_{i}
+                       of atomic index m.
+    """
     Raj_ = Ra - Rj
     Raj = np.linalg.norm(Raj_)
     Rak_ = Ra - Rk
@@ -370,10 +545,38 @@ def der_cos_theta(a, j, k, Ra, Rj, Rk, m, i):
 
 def calculate_der_G2(n_indices, symbols, Rs, G_element, eta, cutoff, a, Ra,
                      m, i, fortran):
-    """Calculate coordinate derivative of G2 symmetry function for atom at
+    """
+    Calculates coordinate derivative of G2 symmetry function for atom at
     index a and position Ra with respect to coordinate x_{i} of atom index
-    m."""
+    m.
 
+    :param n_indices: List of int of neighboring atoms.
+    :type n_indices: list of int
+    :param symbols: List of symbols of neighboring atoms.
+    :type symbols: list of str
+    :param Rs: List of Cartesian atomic positions of neighboring atoms.
+    :type Rs: list of list of float
+    :param G_element: Symmetry functions of the center atom.
+    :type G_element: dict
+    :param eta: Parameter of Behler symmetry functions.
+    :type eta: float
+    :param cutoff: Radius above which neighbor interactions are ignored.
+    :type cutoff: float
+    :param a: Index of the center atom.
+    :type a: int
+    :param Ra: Position of the center atom.
+    :type Ra: float
+    :param m: Index of the atom force is acting on.
+    :type m: int
+    :param i: Direction of force.
+    :type i: int
+    :param fortran: If True, will use the fortran subroutines, else will not.
+    :type fortran: bool
+
+    :returns: float -- coordinate derivative of G2 symmetry function for atom
+                       at index a and position Ra with respect to coordinate
+                       x_{i} of atom index m.
+    """
     if fortran:  # fortran version; faster
         G_number = [atomic_numbers[G_element]]
         numbers = [atomic_numbers[symbol] for symbol in symbols]
@@ -405,10 +608,41 @@ def calculate_der_G2(n_indices, symbols, Rs, G_element, eta, cutoff, a, Ra,
 
 def calculate_der_G4(n_indices, symbols, Rs, G_elements, gamma, zeta, eta,
                      cutoff, a, Ra, m, i, fortran):
-    """Calculate coordinate derivative of G4 symmetry function for atom at
-    index a and position Ra with respect to coordinate x_{i} of atom index
-    m."""
+    """
+    Calculates coordinate derivative of G4 symmetry function for atom at
+    index a and position Ra with respect to coordinate x_{i} of atom index m.
 
+    :param n_indices: List of int of neighboring atoms.
+    :type n_indices: list of int
+    :param symbols: List of symbols of neighboring atoms.
+    :type symbols: list of str
+    :param Rs: List of Cartesian atomic positions of neighboring atoms.
+    :type Rs: list of list of float
+    :param G_elements: Symmetry functions of the center atom.
+    :type G_elements: dict
+    :param gamma: Parameter of Behler symmetry functions.
+    :type gamma: float
+    :param zeta: Parameter of Behler symmetry functions.
+    :type zeta: float
+    :param eta: Parameter of Behler symmetry functions.
+    :type eta: float
+    :param cutoff: Radius above which neighbor interactions are ignored.
+    :type cutoff: float
+    :param a: Index of the center atom.
+    :type a: int
+    :param Ra: Position of the center atom.
+    :type Ra: float
+    :param m: Index of the atom force is acting on.
+    :type m: int
+    :param i: Direction of force.
+    :type i: int
+    :param fortran: If True, will use the fortran subroutines, else will not.
+    :type fortran: bool
+
+    :returns: float -- coordinate derivative of G4 symmetry function for atom
+                       at index a and position Ra with respect to coordinate
+                       x_{i} of atom index m.
+    """
     if fortran:  # fortran version; faster
         G_numbers = sorted([atomic_numbers[el] for el in G_elements])
         numbers = [atomic_numbers[symbol] for symbol in symbols]

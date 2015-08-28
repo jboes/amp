@@ -28,11 +28,9 @@ class ConvergencePlot:
 
     """
     Creates plot analyzing the convergence behavior.
-    Only works on BPNeural log files at the moment.
 
     :param logfile: Write function at which log data exists.
     :type log: Logger object
-
     """
     ###########################################################################
 
@@ -160,9 +158,7 @@ class ConvergencePlot:
     def getfig(self):
         """
         Returns the figure object.
-
         """
-
         return self._fig
 
     ###########################################################################
@@ -171,8 +167,9 @@ class ConvergencePlot:
         """
         Saves the figure object to filename.
 
+        :param plotfile: Name or path to the plot file.
+        :type plotfile: str
         """
-
         self._fig.savefig(plotfile)
 
 ###############################################################################
@@ -185,11 +182,9 @@ def plot_convergence(logfile, plotfile='convergence.pdf'):
 
     :param logfile: Write function at which log data exists.
     :type log: Logger object
-    :param plotfile: File for plots.
-    :type plotfile: Object
-
+    :param plotfile: Name or path to the plot file.
+    :type plotfile: str
     """
-
     plot = ConvergencePlot(logfile)
     plot.savefig(plotfile)
 
@@ -224,9 +219,7 @@ def plot_parity(load,
     :param overwrite: If a plot or an script containing values found overwrite
                       it.
     :type overwrite: bool
-
     """
-
     base_filename = os.path.splitext(plotfile)[0]
     energyscript = os.path.join('energy-' + base_filename + '.json')
 
@@ -419,9 +412,7 @@ def plot_error(load,
     :param overwrite: If a plot or an script containing values found overwrite
                       it.
     :type overwrite: bool
-
     """
-
     base_filename = os.path.splitext(plotfile)[0]
     energyscript = os.path.join('energy-' + base_filename + '.json')
 

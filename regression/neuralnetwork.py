@@ -1,9 +1,7 @@
 #!/usr/bin/env python
 """
 Script that contains neural network regression method.
-
 """
-
 import numpy as np
 from collections import OrderedDict
 try:
@@ -18,44 +16,61 @@ class NeuralNetwork:
 
     """
     Class that implements a basic feed-forward neural network.
-    Parameters:
-        hiddenlayers: dictionary of chemical element symbols and architectures
-                    of their corresponding hidden layers of the conventional
-                    neural network. Note that for each atom, number of nodes in
-                    the input layer is always equal to the number of symmetry
-                    functions (G), and the number of nodes in the output
-                    layer is always one. For example,
-                    hiddenlayers = {"O":(3,5), "Au":(5,6)} means that for "O"
-                    we have two hidden layers, the first one with three nodes
-                    and the second one having five nodes.
-        activation: string to assign the type of activation funtion. "linear"
-                    refers to linear function, "tanh" refers to tanh function,
-                    and "sigmoid" refers to sigmoid function.
-        weights: dictionary of symbols and dictionaries of arrays of weights;
-                   each symbol and related dictionary corresponds to one
-                   element and one conventional neural network.  The weights
-                   dictionary for the above example has dimensions
-                   weights = {"O": {1: np.array(149,3), 2: np.array(4,5),
-                   3: np.array(6,1)}, "Au": {1: np.array(148,5),
-                   2: np.array(6,6), 3: np.array(7,1)}. The arrays are set up
-                   to connect node i in the previous layer with node j in the
-                   current layer with indices w[i,j]. There are n+1 rows
-                   (i values), with the last row being the bias, and m columns
-                   (j values). If weights is not given, the arrays will be
-                   randomly generated from values between -0.5 and 0.5.
-        scalings: dictionary of variables for slope and intercept for each
-                    element. They are used in order to remove the final value
-                    from the range that the activation function would
-                    otherwise be locked in. For example,
-                      scalings={"Pd":{"slope":2, "intercept":1},
-                                "O":{"slope":3, "intercept":4}}
-        variables (internal): list of variables. weights and scalings can be
-                              fed in the form of a list
 
-    **NOTE: The dimensions of the weight matrix should be consistent with
-            hiddenlayers.**
+    :param hiddenlayers: Dictionary of chemical element symbols and
+                         architectures of their corresponding hidden layers of
+                         the conventional neural network. Number of nodes of
+                         last layer is always one corresponding to energy.
+                         However, number of nodes of first layer is equal to
+                         three times number of atoms in the system in the case
+                         of no fingerprinting scheme, and is equal to lengh of
+                         symmetry functions in the fingerprinting scheme. Can
+                         be fed as:
+
+                         >>> hiddenlayers = (3, 2,)
+
+                         for example, in which a neural network with two hidden
+                         layers, the first one having three nodes and the
+                         second one having two nodes is assigned (to the whole
+                         atomic system in the no fingerprinting scheme, and to
+                         each chemical element in the fingerprinting scheme).
+                         In the fingerprinting scheme, neural network for each
+                         species can be assigned seperately, as:
+
+                         >>> hiddenlayers = {"O":(3,5), "Au":(5,6)}
+
+                         for example.
+    :type hiddenlayers: dict
+    :param activation: Assigns the type of activation funtion. "linear" refers
+                       to linear function, "tanh" refers to tanh function, and
+                       "sigmoid" refers to sigmoid function.
+    :type activation: str
+    :param weights: In the no fingerprinting scheme, keys correspond to layers
+                    and values are two dimensional arrays of network weight.
+                    In the fingerprinting scheme, keys correspond to chemical
+                    elements and values are dictionaries with layer keys and
+                    network weight two dimensional arrays as values. Arrays are
+                    set up to connect node i in the previous layer with node j
+                    in the current layer with indices w[i,j]. The last value
+                    for index i corresponds to bias. If weights is not given,
+                    arrays will be randomly generated.
+    :type weights: dict
+    :param scalings: In the no fingerprinting scheme, keys are "intercept" and
+                     "slope" and values are real numbers. In the fingerprinting
+                     scheme, keys correspond to chemical elements and values
+                     are dictionaries with "intercept" and "slope" keys and
+                     real number values. If scalings is not given, it will be
+                     randomly generated.
+    :type scalings: dict
+    :param variables: Weights and scalings can be fed in the form of a list
+                      also.
+    :type variables: list
+
+    .. note:: Dimensions of weight two dimensional arrays should be consistent
+              with hiddenlayers.
+
+    :raises: RuntimeError, NotImplementedError
     """
-
     #########################################################################
 
     def __init__(self, hiddenlayers=(5, 5), activation='tanh', weights=None,
@@ -82,10 +97,17 @@ class NeuralNetwork:
 
     def initialize(self, param, load=None, atoms=None):
         """
-        Checks compatibility between fingerprint output dimension and
-        regression input dimension.
-        """
+        Loads parameters if fed by a json file. Also checks compatibility
+        between dimensions of first layer and hidden layers with weights.
 
+        :param param: Object containing symmetry function's (if any) and
+                      regression's properties.
+        :type param: ASE calculator's Parameters class
+        :param load: Path for loading an existing AMP calculator.
+        :type load: str
+        :param atoms: Only used for no fingerprinting scheme.
+        :type atoms: ASE atoms object.
+        """
         self.param = param
 
         if self.param.fingerprint is None:  # pure atomic-coordinates scheme
@@ -217,8 +239,11 @@ class NeuralNetwork:
     #########################################################################
 
     def ravel_variables(self):
-        """Wrapper function for raveling weights and scalings."""
+        """
+        Wrapper function for raveling weights and scalings into a list.
 
+        :returns: param: Object containing regression's properties.
+        """
         if (self.param.regression._variables is None) and self._weights:
             self.param.regression._variables = \
                 self.ravel.to_vector(self._weights, self._scalings)
@@ -228,8 +253,9 @@ class NeuralNetwork:
     #########################################################################
 
     def reset_energy(self):
-        """Resets local variables corresponding to energy."""
-
+        """
+        Resets local variables corresponding to energy.
+        """
         self.o = {}
         self.D = {}
         self.delta = {}
@@ -238,15 +264,20 @@ class NeuralNetwork:
     #########################################################################
 
     def reset_forces(self):
-        """Resets local variables corresponding to forces."""
-
+        """
+        Resets local variables corresponding to forces.
+        """
         self.der_coordinates_o = {}
 
     #########################################################################
 
     def update_variables(self, param):
-        """Updating variables."""
+        """
+        Updates variables.
 
+        :param param: Object containing regression's properties.
+        :type param: ASE calculator's Parameters class
+        """
         self._variables = param.regression._variables
         self._weights, self._scalings = \
             self.ravel.to_dicts(self._variables)
@@ -267,9 +298,19 @@ class NeuralNetwork:
     #########################################################################
 
     def get_energy(self, input, index=None, symbol=None,):
-        """Given fingerprints of the indexed atom and its symbol, outputs of
-        the neural network are calculated."""
+        """
+        Given input to the neural network, output (which corresponds to energy)
+        is calculated.
 
+        :param index: Index of the atom for which atomic energy is calculated
+                      (only used in the fingerprinting scheme)
+        :type index: int
+        :param symbol: Index of the atom for which atomic energy is calculated
+                       (only used in the fingerprinting scheme)
+        :type symbol: str
+
+        :returns: float -- energy
+        """
         if self.param.fingerprint is None:  # pure atomic-coordinates scheme
             self.o = {}
             hiddensizes = self.hiddensizes
@@ -349,8 +390,23 @@ class NeuralNetwork:
     #########################################################################
 
     def get_force(self, i, der_indexfp, n_index=None, n_symbol=None,):
-        """Feed-forward for calculating forces."""
+        """
+        Given derivative of input to the neural network, derivative of output
+        (which corresponds to forces) is calculated.
 
+        :param i: Direction of force.
+        :type i: int
+        :param der_indexfp: List of derivatives of inputs
+        :type der_indexfp: list
+        :param n_index: Index of the neighbor atom which force is acting at.
+                        (only used in the fingerprinting scheme)
+        :type n_index: int
+        :param n_symbol: Symbol of the neighbor atom which force is acting at.
+                         (only used in the fingerprinting scheme)
+        :type n_symbol: str
+
+        :returns: float -- force
+        """
         if self.param.fingerprint is None:  # pure atomic-coordinates scheme
             o = self.o
             hiddensizes = self.hiddensizes
@@ -406,9 +462,20 @@ class NeuralNetwork:
     #########################################################################
 
     def get_variable_der_of_energy(self, index=None, symbol=None):
-        """Returns the derivative of energy square error with respect to
-        variables."""
+        """
+        Returns the derivative of energy square error with respect to
+        variables.
 
+        :param index: Index of the atom for which atomic energy is calculated
+                      (only used in the fingerprinting scheme)
+        :type index: int
+        :param symbol: Index of the atom for which atomic energy is calculated
+                       (only used in the fingerprinting scheme)
+        :type symbol: str
+
+        :returns: list of float -- the value of the derivative of energy square
+                                   error with respect to variables.
+        """
         partial_der_variables_square_error = np.zeros(self.ravel.count)
 
         partial_der_weights_square_error, partial_der_scalings_square_error = \
@@ -483,9 +550,23 @@ class NeuralNetwork:
 
     def get_variable_der_of_forces(self, self_index, i,
                                    n_index=None, n_symbol=None,):
-        """Returns the derivative of force square error with respect to
-        variables."""
+        """
+        Returns the derivative of force square error with respect to variables.
 
+        :param self_index: Index of the center atom.
+        :type self_index: int
+        :param i: Direction of force.
+        :type i: int
+        :param n_index: Index of the neighbor atom which force is acting at.
+                        (only used in the fingerprinting scheme)
+        :type n_index: int
+        :param n_symbol: Symbol of the neighbor atom which force is acting at.
+                         (only used in the fingerprinting scheme)
+        :type n_symbol: str
+
+        :returns: list of float -- the value of the derivative of force square
+                                   error with respect to variables.
+        """
         partial_der_variables_square_error = np.zeros(self.ravel.count)
 
         partial_der_weights_square_error, partial_der_scalings_square_error = \
@@ -575,8 +656,22 @@ class NeuralNetwork:
     #########################################################################
 
     def log(self, log, param, elements, images):
-        """Logs and makes variables if not already exist."""
+        """
+        Prints out in the log file and generates variables if do not already
+        exist.
 
+        :param log: Write function at which to log data. Note this must be a
+                    callable function.
+        :type log: Logger object
+        :param param: Object containing regression's properties.
+        :type param: ASE calculator's Parameters class
+        :param elements: List of atom symbols.
+        :type elements: list of str
+        :param images: ASE atoms objects (the training set).
+        :type images: dict
+
+        :returns: Object containing regression's properties.
+        """
         self.elements = elements
 
         if param.fingerprint is None:  # pure atomic-coordinates scheme
@@ -673,8 +768,13 @@ class NeuralNetwork:
     #########################################################################
 
     def send_data_to_fortran(self, param):
-        """Sends regression data to fortran."""
+        """
+        Sends regression data to fortran.
 
+        :param param: Object containing symmetry function's (if any) and
+                      regression's properties.
+        :type param: ASE calculator's Parameters class
+        """
         if param.fingerprint is None:
             fingerprinting = False
         else:
@@ -735,8 +835,59 @@ class NeuralNetwork:
 
 def make_weight_matrices(hiddenlayers, activation, no_of_atoms=None, Gs=None,
                          elements=None):
-    """Makes random weight matrices from variables."""
+    """
+    Generates random weight arrays from variables.
 
+    :param hiddenlayers: Dictionary of chemical element symbols and
+                         architectures of their corresponding hidden layers of
+                         the conventional neural network. Number of nodes of
+                         last layer is always one corresponding to energy.
+                         However, number of nodes of first layer is equal to
+                         three times number of atoms in the system in the case
+                         of no fingerprinting scheme, and is equal to lengh of
+                         symmetry functions in the fingerprinting scheme. Can
+                         be fed as:
+
+                         >>> hiddenlayers = (3, 2,)
+
+                         for example, in which a neural network with two hidden
+                         layers, the first one having three nodes and the
+                         second one having two nodes is assigned (to the whole
+                         atomic system in the no fingerprinting scheme, and to
+                         each chemical element in the fingerprinting scheme).
+                         In the fingerprinting scheme, neural network for each
+                         species can be assigned seperately, as:
+
+                         >>> hiddenlayers = {"O":(3,5), "Au":(5,6)}
+
+                         for example.
+    :type hiddenlayers: dict
+    :param activation: Assigns the type of activation funtion. "linear" refers
+                       to linear function, "tanh" refers to tanh function, and
+                       "sigmoid" refers to sigmoid function.
+    :type activation: str
+    :param no_of_atoms: Number of atoms in atomic systems; used only in the no
+                        fingerprinting scheme.
+    :type no_of_atoms: int
+    :param Gs: Dictionary of symbols and lists of dictionaries for making
+               symmetry functions. Either auto-genetrated, or given in the
+               following form, for example:
+
+               >>> Gs = {"O": [{"type":"G2", "element":"O", "eta":10.},
+               ...             {"type":"G4", "elements":["O", "Au"],
+               ...              "eta":5., "gamma":1., "zeta":1.0}],
+               ...       "Au": [{"type":"G2", "element":"O", "eta":2.},
+               ...              {"type":"G4", "elements":["O", "Au"],
+               ...               "eta":2., "gamma":1., "zeta":5.0}]}
+
+               Used in the fingerprinting scheme only.
+    :type Gs: dict
+    :param elements: List of atom symbols; used in the fingerprinting scheme
+                     only.
+    :type elements: list of str
+
+    :returns: weights
+    """
     if activation == 'linear':
         weight_range = 0.3
     else:
@@ -815,9 +966,22 @@ def make_weight_matrices(hiddenlayers, activation, no_of_atoms=None, Gs=None,
 
 
 def make_scalings_matrices(images, activation, elements=None):
-    """Makes initial scaling matrices, such that the range of activation
-    is scaled to the range of actual energies."""
+    """
+    Generates initial scaling matrices, such that the range of activation
+    is scaled to the range of actual energies.
 
+    :param images: ASE atoms objects (the training set).
+    :type images: dict
+    :param activation: Assigns the type of activation funtion. "linear" refers
+                       to linear function, "tanh" refers to tanh function, and
+                       "sigmoid" refers to sigmoid function.
+    :type activation: str
+    :param elements: List of atom symbols; used in the fingerprinting scheme
+                     only.
+    :type elements: list of str
+
+    :returns: scalings
+    """
     max_act_energy = max(image.get_potential_energy(apply_constraint=False)
                          for hash_key, image in images.items())
     min_act_energy = min(image.get_potential_energy(apply_constraint=False)
@@ -886,13 +1050,57 @@ def make_scalings_matrices(images, activation, elements=None):
 
 class _RavelVariables:
 
-    """Class to ravel and unravel variable values into a single vector.
+    """
+    Class to ravel and unravel weight and scaling values into a single vector.
     This is used for feeding into the optimizer. Feed in a list of
-    dictionaries to initialize the shape of the transformation. Note no
+    dictionaries to initialize the shape of the transformation. Note that no
     data is saved in the class; each time it is used it is passed either
     the dictionaries or vector.
-    """
 
+    :param hiddenlayers: Dictionary of chemical element symbols and
+                         architectures of their corresponding hidden layers of
+                         the conventional neural network. Number of nodes of
+                         last layer is always one corresponding to energy.
+                         However, number of nodes of first layer is equal to
+                         three times number of atoms in the system in the case
+                         of no fingerprinting scheme, and is equal to lengh of
+                         symmetry functions in the fingerprinting scheme. Can
+                         be fed as:
+
+                         >>> hiddenlayers = (3, 2,)
+
+                         for example, in which a neural network with two hidden
+                         layers, the first one having three nodes and the
+                         second one having two nodes is assigned (to the whole
+                         atomic system in the no fingerprinting scheme, and to
+                         each chemical element in the fingerprinting scheme).
+                         In the fingerprinting scheme, neural network for each
+                         species can be assigned seperately, as:
+
+                         >>> hiddenlayers = {"O":(3,5), "Au":(5,6)}
+
+                         for example.
+    :type hiddenlayers: dict
+    :param elements: List of atom symbols; used in the fingerprinting scheme
+                     only.
+    :type elements: list of str
+    :param Gs: Dictionary of symbols and lists of dictionaries for making
+               symmetry functions. Either auto-genetrated, or given in the
+               following form, for example:
+
+               >>> Gs = {"O": [{"type":"G2", "element":"O", "eta":10.},
+               ...             {"type":"G4", "elements":["O", "Au"],
+               ...              "eta":5., "gamma":1., "zeta":1.0}],
+               ...       "Au": [{"type":"G2", "element":"O", "eta":2.},
+               ...              {"type":"G4", "elements":["O", "Au"],
+               ...               "eta":2., "gamma":1., "zeta":5.0}]}
+
+               Used in the fingerprinting scheme only.
+    :type Gs: dict
+    :param no_of_atoms: Number of atoms in atomic systems; used only in the no
+                        fingerprinting scheme.
+    :type no_of_atoms: int
+    """
     ##########################################################################
 
     def __init__(self, hiddenlayers, elements=None, Gs=None, no_of_atoms=None):
@@ -966,10 +1174,32 @@ class _RavelVariables:
     #########################################################################
 
     def to_vector(self, weights, scalings):
-        """Puts the weights and scalings embedded dictionaries into a single
+        """
+        Puts the weights and scalings embedded dictionaries into a single
         vector and returns it. The dictionaries need to have the identical
-        structure to those it was initialized with."""
+        structure to those it was initialized with.
 
+        :param weights: In the no fingerprinting scheme, keys correspond to
+                        layers and values are two dimensional arrays of network
+                        weight. In the fingerprinting scheme, keys correspond
+                        to chemical elements and values are dictionaries with
+                        layer keys and network weight two dimensional arrays as
+                        values. Arrays are set up to connect node i in the
+                        previous layer with node j in the current layer with
+                        indices w[i,j]. The last value for index i corresponds
+                        to bias. If weights is not given, arrays will be
+                        randomly generated.
+        :type weights: dict
+        :param scalings: In the no fingerprinting scheme, keys are "intercept"
+                         and "slope" and values are real numbers. In the
+                         fingerprinting scheme, keys correspond to chemical
+                         elements and values are dictionaries with "intercept"
+                         and "slope" keys and real number values. If scalings
+                         is not given, it will be randomly generated.
+        :type scalings: dict
+
+        :returns: List of variables
+        """
         vector = np.zeros(self.count)
         count = 0
         for k in sorted(self._weightskeys):
@@ -990,10 +1220,16 @@ class _RavelVariables:
     #########################################################################
 
     def to_dicts(self, vector):
-        """Puts the vector back into weights and scalings dictionaries of the
+        """
+        Puts the vector back into weights and scalings dictionaries of the
         form initialized. vector must have same length as the output of
-        unravel."""
+        unravel.
 
+        :param vector: List of variables.
+        :type vector: list
+
+        :returns: weights and scalings
+        """
         assert len(vector) == self.count
         count = 0
         weights = OrderedDict()
@@ -1023,9 +1259,25 @@ class _RavelVariables:
     #########################################################################
 
     def calculate_weights_norm_and_der(self, weights):
-        """Calculates the norm of weights as well as the vector of its
-        derivative to constratint overfitting."""
+        """
+        Calculates norm of weights as well as the vector of its derivative
+        for the use of constratinting overfitting.
 
+        :param weights: In the no fingerprinting scheme, keys correspond to
+                        layers and values are two dimensional arrays of network
+                        weight. In the fingerprinting scheme, keys correspond
+                        to chemical elements and values are dictionaries with
+                        layer keys and network weight two dimensional arrays as
+                        values. Arrays are set up to connect node i in the
+                        previous layer with node j in the current layer with
+                        indices w[i,j]. The last value for index i corresponds
+                        to bias. If weights is not given, arrays will be
+                        randomly generated.
+        :type weights: dict
+
+        :returns: norm of weights (float) and variable derivative of norm of
+                  of weights (list of float).
+        """
         count = 0
         weights_norm = 0.
         der_of_weights_norm = np.zeros(self.count)
