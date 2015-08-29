@@ -4,7 +4,7 @@ plot of convergence.
 
 This can be imported or run directly as a module as
 
-    python -m neural.analysis <file-to-analyze>
+    python -m amp.analysis <file-to-analyze>
 
 """
 
