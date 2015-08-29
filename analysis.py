@@ -227,17 +227,6 @@ def plot_parity(load,
         raise IOError('File exists: %s.\nIf you want to overwrite,'
                       ' set overwrite=True or manually delete.'
                       % plotfile)
-    if (not overwrite) and os.path.exists(energyscript):
-        raise IOError('File exists: %s.\nIf you want to overwrite,'
-                      ' set overwrite=True or manually delete.'
-                      % energyscript)
-
-    if plot_forces is not None:
-        forcescript = os.path.join('force-' + base_filename + '.json')
-        if (not overwrite) and os.path.exists(forcescript):
-            raise IOError('File exists: %s.\nIf you want to overwrite,'
-                          ' set overwrite=True or manually delete.'
-                          % forcescript)
 
     calc = AMP(load=load)
 
@@ -303,7 +292,7 @@ def plot_parity(load,
             'r-',
             lw=0.3,)
     ax.set_xlabel('actual energy, eV')
-    ax.set_ylabel('AMP energy')
+    ax.set_ylabel('Amp energy')
     ax.set_title('Energies')
 
     if plot_forces:
@@ -374,7 +363,7 @@ def plot_parity(load,
                 lw=0.3,)
 
         ax.set_xlabel('actual force, eV/Ang')
-        ax.set_ylabel('AMP force')
+        ax.set_ylabel('Amp force')
         ax.set_title('Forces')
 
         #######################################################################
@@ -420,17 +409,6 @@ def plot_error(load,
         raise IOError('File exists: %s.\nIf you want to overwrite,'
                       ' set overwrite=True or manually delete.'
                       % plotfile)
-    if (not overwrite) and os.path.exists(energyscript):
-        raise IOError('File exists: %s.\nIf you want to overwrite,'
-                      ' set overwrite=True or manually delete.'
-                      % energyscript)
-
-    if plot_forces is not None:
-        forcescript = os.path.join('force-' + base_filename + '.json')
-        if (not overwrite) and os.path.exists(forcescript):
-            raise IOError('File exists: %s.\nIf you want to overwrite,'
-                          ' set overwrite=True or manually delete.'
-                          % forcescript)
 
     calc = AMP(load=load)
 
@@ -509,7 +487,7 @@ def plot_error(load,
             va='bottom',
             color='red')
     ax.set_xlabel('actual energy per atom, eV per atom')
-    ax.set_ylabel('|actual energy - AMP energy| / number of atoms')
+    ax.set_ylabel('|actual energy - Amp energy| / number of atoms')
     ax.set_title('Energies')
 
     if plot_forces:
@@ -600,7 +578,7 @@ def plot_error(load,
                 color='red',)
 
         ax.set_xlabel('actual force, eV/Ang')
-        ax.set_ylabel('|actual force - AMP force|')
+        ax.set_ylabel('|actual force - Amp force|')
         ax.set_title('Forces')
 
         #######################################################################
