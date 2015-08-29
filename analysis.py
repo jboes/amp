@@ -228,6 +228,9 @@ def plot_parity(load,
                       ' set overwrite=True or manually delete.'
                       % plotfile)
 
+    if plot_forces is not None:
+        forcescript = os.path.join('force-' + base_filename + '.json')
+
     calc = AMP(load=load)
 
     if isinstance(images, str):
@@ -409,6 +412,9 @@ def plot_error(load,
         raise IOError('File exists: %s.\nIf you want to overwrite,'
                       ' set overwrite=True or manually delete.'
                       % plotfile)
+
+    if plot_forces is not None:
+        forcescript = os.path.join('force-' + base_filename + '.json')
 
     calc = AMP(load=load)
 
