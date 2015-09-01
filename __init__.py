@@ -49,7 +49,8 @@ class AMP(Calculator):
     :param regression: Class representing the regression method. Can be only
                        NeuralNetwork for now. Input arguments for NeuralNetwork
                        are hiddenlayers, activation, weights, and scalings; for
-                    more information see docstring for the class NeuralNetwork.
+                       more information see docstring for the class
+                       NeuralNetwork.
     :type regression: descriptor object
     :param fingerprints_range: Range of fingerprints of each chemical species.
                                Should be fed as a dictionary of chemical
@@ -831,7 +832,7 @@ class MultiProcess:
         :type train_forces: bool
         :param log: Write function at which to log data. Note this must be a
                     callable function.
-                :type log: Logger object
+        :type log: Logger object
         """
         log('Re-shaping images data to send to fortran90...')
         log.tic()

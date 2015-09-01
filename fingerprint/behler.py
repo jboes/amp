@@ -340,7 +340,8 @@ def make_symmetry_functions(elements):
     Elements is a list of the elements, as in ["C", "O", "H", "Cu"].
     G[0] = {"type":"G2", "element": "O", "eta": 0.0009}
     G[40] = {"type":"G4", "elements": ["O", "Au"], "eta": 0.0001,
-             "gamma": 1.0, "zeta": 1.0}
+    "gamma": 1.0, "zeta": 1.0}
+
     If G (a list) is fed in, this will add to it and return an expanded
     version. If not, it will create a new one.
 

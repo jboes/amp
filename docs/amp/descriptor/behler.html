@@ -1,0 +1,553 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Behler &mdash; AMP 1 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="AMP 1 documentation" href="../../index.html" />
+    <link rel="next" title="Main" href="../main.html" />
+    <link rel="prev" title="Analysis" href="../analysis.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../main.html" title="Main"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="../analysis.html" title="Analysis"
+             accesskey="P">previous</a> |</li>
+        <li><a href="../../index.html">AMP 1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="behler">
+<span id="id1"></span><h1>Behler<a class="headerlink" href="#behler" title="Permalink to this headline">¶</a></h1>
+<dl class="class">
+<dt id="amp.fingerprint.behler.Behler">
+<em class="property">class </em><tt class="descclassname">amp.fingerprint.behler.</tt><tt class="descname">Behler</tt><big>(</big><em>cutoff=6.5</em>, <em>Gs=None</em>, <em>fingerprints_tag=1</em>, <em>fortran=True</em><big>)</big><a class="reference internal" href="../../_modules/amp/fingerprint/behler.html#Behler"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#amp.fingerprint.behler.Behler" title="Permalink to this definition">¶</a></dt>
+<dd><p>Class that calculates Behler fingerprints.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>cutoff</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#float" title="(in Python v2.7)"><em>float</em></a>) &#8211; Radius above which neighbor interactions are ignored.
+Default is 6.5 Angstroms.</li>
+<li><strong>Gs</strong> (<a class="reference external" href="http://docs.python.org/library/stdtypes.html#dict" title="(in Python v2.7)"><em>dict</em></a>) &#8211; <p>Dictionary of symbols and lists of dictionaries for making
+symmetry functions. Either auto-genetrated, or given in the
+following form, for example:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">Gs</span> <span class="o">=</span> <span class="p">{</span><span class="s">&quot;O&quot;</span><span class="p">:</span> <span class="p">[{</span><span class="s">&quot;type&quot;</span><span class="p">:</span><span class="s">&quot;G2&quot;</span><span class="p">,</span> <span class="s">&quot;element&quot;</span><span class="p">:</span><span class="s">&quot;O&quot;</span><span class="p">,</span> <span class="s">&quot;eta&quot;</span><span class="p">:</span><span class="mf">10.</span><span class="p">},</span>
+<span class="gp">... </span>            <span class="p">{</span><span class="s">&quot;type&quot;</span><span class="p">:</span><span class="s">&quot;G4&quot;</span><span class="p">,</span> <span class="s">&quot;elements&quot;</span><span class="p">:[</span><span class="s">&quot;O&quot;</span><span class="p">,</span> <span class="s">&quot;Au&quot;</span><span class="p">],</span>
+<span class="gp">... </span>             <span class="s">&quot;eta&quot;</span><span class="p">:</span><span class="mf">5.</span><span class="p">,</span> <span class="s">&quot;gamma&quot;</span><span class="p">:</span><span class="mf">1.</span><span class="p">,</span> <span class="s">&quot;zeta&quot;</span><span class="p">:</span><span class="mf">1.0</span><span class="p">}],</span>
+<span class="gp">... </span>      <span class="s">&quot;Au&quot;</span><span class="p">:</span> <span class="p">[{</span><span class="s">&quot;type&quot;</span><span class="p">:</span><span class="s">&quot;G2&quot;</span><span class="p">,</span> <span class="s">&quot;element&quot;</span><span class="p">:</span><span class="s">&quot;O&quot;</span><span class="p">,</span> <span class="s">&quot;eta&quot;</span><span class="p">:</span><span class="mf">2.</span><span class="p">},</span>
+<span class="gp">... </span>             <span class="p">{</span><span class="s">&quot;type&quot;</span><span class="p">:</span><span class="s">&quot;G4&quot;</span><span class="p">,</span> <span class="s">&quot;elements&quot;</span><span class="p">:[</span><span class="s">&quot;O&quot;</span><span class="p">,</span> <span class="s">&quot;Au&quot;</span><span class="p">],</span>
+<span class="gp">... </span>              <span class="s">&quot;eta&quot;</span><span class="p">:</span><span class="mf">2.</span><span class="p">,</span> <span class="s">&quot;gamma&quot;</span><span class="p">:</span><span class="mf">1.</span><span class="p">,</span> <span class="s">&quot;zeta&quot;</span><span class="p">:</span><span class="mf">5.0</span><span class="p">}]}</span>
+</pre></div>
+</div>
+</li>
+<li><strong>fingerprints_tag</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#int" title="(in Python v2.7)"><em>int</em></a>) &#8211; An internal tag for identifying the functional
+form of fingerprints used in the code.</li>
+<li><strong>fortran</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#bool" title="(in Python v2.7)"><em>bool</em></a>) &#8211; If True, will use the fortran subroutines, else will not.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Raises:</th><td class="field-body"><p class="first last">FingerprintsError, NotImplementedError</p>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="amp.fingerprint.behler.Behler.get_der_fingerprint">
+<tt class="descname">get_der_fingerprint</tt><big>(</big><em>index</em>, <em>symbol</em>, <em>n_indices</em>, <em>n_symbols</em>, <em>Rs</em>, <em>m</em>, <em>i</em><big>)</big><a class="reference internal" href="../../_modules/amp/fingerprint/behler.html#Behler.get_der_fingerprint"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#amp.fingerprint.behler.Behler.get_der_fingerprint" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the value of the derivative of G for atom with index and
+symbol with respect to coordinate x_{i} of atom index m. n_indices,
+n_symbols and Rs are lists of neighbors&#8217; indices, symbols and Cartesian
+positions, respectively.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>index</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#int" title="(in Python v2.7)"><em>int</em></a>) &#8211; Index of the center atom.</li>
+<li><strong>symbol</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) &#8211; Symbol of the center atom.</li>
+<li><strong>n_indices</strong> (<em>list of int</em>) &#8211; List of neighbors&#8217; indices.</li>
+<li><strong>n_symbols</strong> (<em>list of str</em>) &#8211; List of neighbors&#8217; symbols.</li>
+<li><strong>Rs</strong> (<em>list of list of float</em>) &#8211; List of Cartesian atomic positions.</li>
+<li><strong>m</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#int" title="(in Python v2.7)"><em>int</em></a>) &#8211; Index of the pair atom.</li>
+<li><strong>i</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#int" title="(in Python v2.7)"><em>int</em></a>) &#8211; Direction of the derivative; is an integer from 0 to 2.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">list of float &#8211; the value of the derivative of the
+fingerprints for atom with index and symbol
+with respect to coordinate x_{i} of atom
+index m.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="amp.fingerprint.behler.Behler.get_fingerprint">
+<tt class="descname">get_fingerprint</tt><big>(</big><em>index</em>, <em>symbol</em>, <em>n_symbols</em>, <em>Rs</em><big>)</big><a class="reference internal" href="../../_modules/amp/fingerprint/behler.html#Behler.get_fingerprint"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#amp.fingerprint.behler.Behler.get_fingerprint" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the fingerprint of symmetry function values for atom
+specified by its index and symbol. n_symbols and Rs are lists of
+neighbors&#8217; symbols and Cartesian positions, respectively. Will
+automaticallyupdate if atom positions has changed; you don&#8217;t need to
+call update() unless you are specifying a new atoms object.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>index</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#int" title="(in Python v2.7)"><em>int</em></a>) &#8211; Index of the center atom.</li>
+<li><strong>symbol</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) &#8211; Symbol of the center atom.</li>
+<li><strong>n_symbols</strong> (<em>list of str</em>) &#8211; List of neighbors&#8217; symbols.</li>
+<li><strong>Rs</strong> (<em>list of list of float</em>) &#8211; List of Cartesian atomic positions.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">list of float &#8211; the symmetry function values for atom
+specified by its index and symbol.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="amp.fingerprint.behler.Behler.initialize">
+<tt class="descname">initialize</tt><big>(</big><em>atoms</em><big>)</big><a class="reference internal" href="../../_modules/amp/fingerprint/behler.html#Behler.initialize"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#amp.fingerprint.behler.Behler.initialize" title="Permalink to this definition">¶</a></dt>
+<dd><p>Initializing atoms object.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>atoms</strong> (<em>ASE dict</em>) &#8211; ASE atoms object.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="amp.fingerprint.behler.Behler.log">
+<tt class="descname">log</tt><big>(</big><em>log</em>, <em>param</em>, <em>elements</em><big>)</big><a class="reference internal" href="../../_modules/amp/fingerprint/behler.html#Behler.log"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#amp.fingerprint.behler.Behler.log" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generates symmetry functions if do not exist, and prints out in the log
+file.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>log</strong> (<em>Logger object</em>) &#8211; Write function at which to log data. Note this must be a
+callable function.</li>
+<li><strong>param</strong> (<em>ASE calculator&#8217;s Parameters class</em>) &#8211; Object containing descriptor properties.</li>
+<li><strong>elements</strong> (<em>list of str</em>) &#8211; List of atom symbols.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">Object containing descriptor properties.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="exception">
+<dt id="amp.fingerprint.behler.FingerprintsError">
+<em class="property">exception </em><tt class="descclassname">amp.fingerprint.behler.</tt><tt class="descname">FingerprintsError</tt><a class="reference internal" href="../../_modules/amp/fingerprint/behler.html#FingerprintsError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#amp.fingerprint.behler.FingerprintsError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Error class in case the functional form of fingerprints has changed.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="amp.fingerprint.behler.calculate_G2">
+<tt class="descclassname">amp.fingerprint.behler.</tt><tt class="descname">calculate_G2</tt><big>(</big><em>symbols</em>, <em>Rs</em>, <em>G_element</em>, <em>eta</em>, <em>cutoff</em>, <em>home</em>, <em>fortran</em><big>)</big><a class="reference internal" href="../../_modules/amp/fingerprint/behler.html#calculate_G2"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#amp.fingerprint.behler.calculate_G2" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate G2 symmetry function. Ideally this will not be used but
+will be a template for how to build the fortran version (and serves as
+a slow backup if the fortran one goes uncompiled).</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>symbols</strong> (<em>list of str</em>) &#8211; List of symbols of all atoms.</li>
+<li><strong>Rs</strong> (<em>list of list of float</em>) &#8211; List of Cartesian atomic positions.</li>
+<li><strong>G_element</strong> (<a class="reference external" href="http://docs.python.org/library/stdtypes.html#dict" title="(in Python v2.7)"><em>dict</em></a>) &#8211; Symmetry functions of the center atom.</li>
+<li><strong>eta</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#float" title="(in Python v2.7)"><em>float</em></a>) &#8211; Parameter of Behler symmetry functions.</li>
+<li><strong>cutoff</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#float" title="(in Python v2.7)"><em>float</em></a>) &#8211; Radius above which neighbor interactions are ignored.</li>
+<li><strong>home</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#int" title="(in Python v2.7)"><em>int</em></a>) &#8211; Index of the center atom.</li>
+<li><strong>fortran</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#bool" title="(in Python v2.7)"><em>bool</em></a>) &#8211; If True, will use the fortran subroutines, else will not.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">float &#8211; G2 fingerprint.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="amp.fingerprint.behler.calculate_G4">
+<tt class="descclassname">amp.fingerprint.behler.</tt><tt class="descname">calculate_G4</tt><big>(</big><em>symbols</em>, <em>Rs</em>, <em>G_elements</em>, <em>gamma</em>, <em>zeta</em>, <em>eta</em>, <em>cutoff</em>, <em>home</em>, <em>fortran</em><big>)</big><a class="reference internal" href="../../_modules/amp/fingerprint/behler.html#calculate_G4"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#amp.fingerprint.behler.calculate_G4" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate G4 symmetry function. Ideally this will not be used but
+will be a template for how to build the fortran version (and serves as
+a slow backup if the fortran one goes uncompiled).</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>symbols</strong> (<em>list of str</em>) &#8211; List of symbols of neighboring atoms.</li>
+<li><strong>Rs</strong> (<em>list of list of float</em>) &#8211; List of Cartesian atomic positions of neighboring atoms.</li>
+<li><strong>G_elements</strong> (<a class="reference external" href="http://docs.python.org/library/stdtypes.html#dict" title="(in Python v2.7)"><em>dict</em></a>) &#8211; Symmetry functions of the center atom.</li>
+<li><strong>gamma</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#float" title="(in Python v2.7)"><em>float</em></a>) &#8211; Parameter of Behler symmetry functions.</li>
+<li><strong>zeta</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#float" title="(in Python v2.7)"><em>float</em></a>) &#8211; Parameter of Behler symmetry functions.</li>
+<li><strong>eta</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#float" title="(in Python v2.7)"><em>float</em></a>) &#8211; Parameter of Behler symmetry functions.</li>
+<li><strong>cutoff</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#float" title="(in Python v2.7)"><em>float</em></a>) &#8211; Radius above which neighbor interactions are ignored.</li>
+<li><strong>home</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#int" title="(in Python v2.7)"><em>int</em></a>) &#8211; Index of the center atom.</li>
+<li><strong>fortran</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#bool" title="(in Python v2.7)"><em>bool</em></a>) &#8211; If True, will use the fortran subroutines, else will not.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">float &#8211; G4 fingerprint.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="amp.fingerprint.behler.make_symmetry_functions">
+<tt class="descclassname">amp.fingerprint.behler.</tt><tt class="descname">make_symmetry_functions</tt><big>(</big><em>elements</em><big>)</big><a class="reference internal" href="../../_modules/amp/fingerprint/behler.html#make_symmetry_functions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#amp.fingerprint.behler.make_symmetry_functions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Makes symmetry functions as in Nano Letters function by Artrith.
+Elements is a list of the elements, as in [&#8220;C&#8221;, &#8220;O&#8221;, &#8220;H&#8221;, &#8220;Cu&#8221;].
+G[0] = {&#8220;type&#8221;:&#8221;G2&#8221;, &#8220;element&#8221;: &#8220;O&#8221;, &#8220;eta&#8221;: 0.0009}
+G[40] = {&#8220;type&#8221;:&#8221;G4&#8221;, &#8220;elements&#8221;: [&#8220;O&#8221;, &#8220;Au&#8221;], &#8220;eta&#8221;: 0.0001,
+&#8220;gamma&#8221;: 1.0, &#8220;zeta&#8221;: 1.0}</p>
+<p>If G (a list) is fed in, this will add to it and return an expanded
+version. If not, it will create a new one.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>elements</strong> (<em>list of str</em>) &#8211; List of symbols of all atoms.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">dict of lists &#8211; symmetry functions if not given by the user.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="amp.fingerprint.behler.cutoff_fxn">
+<tt class="descclassname">amp.fingerprint.behler.</tt><tt class="descname">cutoff_fxn</tt><big>(</big><em>Rij</em>, <em>Rc</em><big>)</big><a class="reference internal" href="../../_modules/amp/fingerprint/behler.html#cutoff_fxn"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#amp.fingerprint.behler.cutoff_fxn" title="Permalink to this definition">¶</a></dt>
+<dd><p>Cosine cutoff function in Parinello-Behler method.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>Rc</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#float" title="(in Python v2.7)"><em>float</em></a>) &#8211; Radius above which neighbor interactions are ignored.</li>
+<li><strong>Rij</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#float" title="(in Python v2.7)"><em>float</em></a>) &#8211; Distance between pair atoms.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">float &#8211; the vaule of the cutoff function.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="amp.fingerprint.behler.der_cutoff_fxn">
+<tt class="descclassname">amp.fingerprint.behler.</tt><tt class="descname">der_cutoff_fxn</tt><big>(</big><em>Rij</em>, <em>Rc</em><big>)</big><a class="reference internal" href="../../_modules/amp/fingerprint/behler.html#der_cutoff_fxn"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#amp.fingerprint.behler.der_cutoff_fxn" title="Permalink to this definition">¶</a></dt>
+<dd><p>Derivative of the Cosine cutoff function.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>Rc</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#float" title="(in Python v2.7)"><em>float</em></a>) &#8211; Radius above which neighbor interactions are ignored.</li>
+<li><strong>Rij</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#float" title="(in Python v2.7)"><em>float</em></a>) &#8211; Distance between pair atoms.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">float &#8211; the vaule of derivative of the cutoff function.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="amp.fingerprint.behler.Kronecker_delta">
+<tt class="descclassname">amp.fingerprint.behler.</tt><tt class="descname">Kronecker_delta</tt><big>(</big><em>i</em>, <em>j</em><big>)</big><a class="reference internal" href="../../_modules/amp/fingerprint/behler.html#Kronecker_delta"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#amp.fingerprint.behler.Kronecker_delta" title="Permalink to this definition">¶</a></dt>
+<dd><p>Kronecker delta function.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>i</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#int" title="(in Python v2.7)"><em>int</em></a>) &#8211; First index of Kronecker delta.</li>
+<li><strong>j</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#int" title="(in Python v2.7)"><em>int</em></a>) &#8211; Second index of Kronecker delta.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">int &#8211; the value of the Kronecker delta.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="amp.fingerprint.behler.der_position_vector">
+<tt class="descclassname">amp.fingerprint.behler.</tt><tt class="descname">der_position_vector</tt><big>(</big><em>a</em>, <em>b</em>, <em>m</em>, <em>i</em><big>)</big><a class="reference internal" href="../../_modules/amp/fingerprint/behler.html#der_position_vector"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#amp.fingerprint.behler.der_position_vector" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="docutils">
+<dt>Returns the derivative of the position vector R_{ab} with respect to</dt>
+<dd>x_{i} of atomic index m.</dd>
+</dl>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>a</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#int" title="(in Python v2.7)"><em>int</em></a>) &#8211; Index of the first atom.</li>
+<li><strong>b</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#int" title="(in Python v2.7)"><em>int</em></a>) &#8211; Index of the second atom.</li>
+<li><strong>m</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#int" title="(in Python v2.7)"><em>int</em></a>) &#8211; Index of the atom force is acting on.</li>
+<li><strong>i</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#int" title="(in Python v2.7)"><em>int</em></a>) &#8211; Direction of force.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">list of float &#8211; the derivative of the position vector R_{ab}
+with respect to x_{i} of atomic index m.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="amp.fingerprint.behler.der_position">
+<tt class="descclassname">amp.fingerprint.behler.</tt><tt class="descname">der_position</tt><big>(</big><em>m</em>, <em>n</em>, <em>Rm</em>, <em>Rn</em>, <em>l</em>, <em>i</em><big>)</big><a class="reference internal" href="../../_modules/amp/fingerprint/behler.html#der_position"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#amp.fingerprint.behler.der_position" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="docutils">
+<dt>Returns the derivative of the norm of position vector R_{mn} with</dt>
+<dd>respect to x_{i} of atomic index l.</dd>
+</dl>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>m</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#int" title="(in Python v2.7)"><em>int</em></a>) &#8211; Index of the first atom.</li>
+<li><strong>n</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#int" title="(in Python v2.7)"><em>int</em></a>) &#8211; Index of the second atom.</li>
+<li><strong>Rm</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#float" title="(in Python v2.7)"><em>float</em></a>) &#8211; Position of the first atom.</li>
+<li><strong>Rn</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#float" title="(in Python v2.7)"><em>float</em></a>) &#8211; Position of the second atom.</li>
+<li><strong>l</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#int" title="(in Python v2.7)"><em>int</em></a>) &#8211; Index of the atom force is acting on.</li>
+<li><strong>i</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#int" title="(in Python v2.7)"><em>int</em></a>) &#8211; Direction of force.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">list of float &#8211; the derivative of the norm of position vector
+R_{mn} with respect to x_{i} of atomic index l.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="amp.fingerprint.behler.der_cos_theta">
+<tt class="descclassname">amp.fingerprint.behler.</tt><tt class="descname">der_cos_theta</tt><big>(</big><em>a</em>, <em>j</em>, <em>k</em>, <em>Ra</em>, <em>Rj</em>, <em>Rk</em>, <em>m</em>, <em>i</em><big>)</big><a class="reference internal" href="../../_modules/amp/fingerprint/behler.html#der_cos_theta"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#amp.fingerprint.behler.der_cos_theta" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="docutils">
+<dt>Returns the derivative of Cos(theta_{ajk}) with respect to</dt>
+<dd>x_{i} of atomic index m.</dd>
+</dl>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>a</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#int" title="(in Python v2.7)"><em>int</em></a>) &#8211; Index of the center atom.</li>
+<li><strong>j</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#int" title="(in Python v2.7)"><em>int</em></a>) &#8211; Index of the first atom.</li>
+<li><strong>k</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#int" title="(in Python v2.7)"><em>int</em></a>) &#8211; Index of the second atom.</li>
+<li><strong>Ra</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#float" title="(in Python v2.7)"><em>float</em></a>) &#8211; Position of the center atom.</li>
+<li><strong>Rj</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#float" title="(in Python v2.7)"><em>float</em></a>) &#8211; Position of the first atom.</li>
+<li><strong>Rk</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#float" title="(in Python v2.7)"><em>float</em></a>) &#8211; Position of the second atom.</li>
+<li><strong>m</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#int" title="(in Python v2.7)"><em>int</em></a>) &#8211; Index of the atom force is acting on.</li>
+<li><strong>i</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#int" title="(in Python v2.7)"><em>int</em></a>) &#8211; Direction of force.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">float &#8211; derivative of Cos(theta_{ajk}) with respect to x_{i}
+of atomic index m.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="amp.fingerprint.behler.calculate_der_G2">
+<tt class="descclassname">amp.fingerprint.behler.</tt><tt class="descname">calculate_der_G2</tt><big>(</big><em>n_indices</em>, <em>symbols</em>, <em>Rs</em>, <em>G_element</em>, <em>eta</em>, <em>cutoff</em>, <em>a</em>, <em>Ra</em>, <em>m</em>, <em>i</em>, <em>fortran</em><big>)</big><a class="reference internal" href="../../_modules/amp/fingerprint/behler.html#calculate_der_G2"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#amp.fingerprint.behler.calculate_der_G2" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates coordinate derivative of G2 symmetry function for atom at
+index a and position Ra with respect to coordinate x_{i} of atom index
+m.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>n_indices</strong> (<em>list of int</em>) &#8211; List of int of neighboring atoms.</li>
+<li><strong>symbols</strong> (<em>list of str</em>) &#8211; List of symbols of neighboring atoms.</li>
+<li><strong>Rs</strong> (<em>list of list of float</em>) &#8211; List of Cartesian atomic positions of neighboring atoms.</li>
+<li><strong>G_element</strong> (<a class="reference external" href="http://docs.python.org/library/stdtypes.html#dict" title="(in Python v2.7)"><em>dict</em></a>) &#8211; Symmetry functions of the center atom.</li>
+<li><strong>eta</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#float" title="(in Python v2.7)"><em>float</em></a>) &#8211; Parameter of Behler symmetry functions.</li>
+<li><strong>cutoff</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#float" title="(in Python v2.7)"><em>float</em></a>) &#8211; Radius above which neighbor interactions are ignored.</li>
+<li><strong>a</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#int" title="(in Python v2.7)"><em>int</em></a>) &#8211; Index of the center atom.</li>
+<li><strong>Ra</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#float" title="(in Python v2.7)"><em>float</em></a>) &#8211; Position of the center atom.</li>
+<li><strong>m</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#int" title="(in Python v2.7)"><em>int</em></a>) &#8211; Index of the atom force is acting on.</li>
+<li><strong>i</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#int" title="(in Python v2.7)"><em>int</em></a>) &#8211; Direction of force.</li>
+<li><strong>fortran</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#bool" title="(in Python v2.7)"><em>bool</em></a>) &#8211; If True, will use the fortran subroutines, else will not.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">float &#8211; coordinate derivative of G2 symmetry function for atom
+at index a and position Ra with respect to coordinate
+x_{i} of atom index m.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="amp.fingerprint.behler.calculate_der_G4">
+<tt class="descclassname">amp.fingerprint.behler.</tt><tt class="descname">calculate_der_G4</tt><big>(</big><em>n_indices</em>, <em>symbols</em>, <em>Rs</em>, <em>G_elements</em>, <em>gamma</em>, <em>zeta</em>, <em>eta</em>, <em>cutoff</em>, <em>a</em>, <em>Ra</em>, <em>m</em>, <em>i</em>, <em>fortran</em><big>)</big><a class="reference internal" href="../../_modules/amp/fingerprint/behler.html#calculate_der_G4"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#amp.fingerprint.behler.calculate_der_G4" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates coordinate derivative of G4 symmetry function for atom at
+index a and position Ra with respect to coordinate x_{i} of atom index m.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>n_indices</strong> (<em>list of int</em>) &#8211; List of int of neighboring atoms.</li>
+<li><strong>symbols</strong> (<em>list of str</em>) &#8211; List of symbols of neighboring atoms.</li>
+<li><strong>Rs</strong> (<em>list of list of float</em>) &#8211; List of Cartesian atomic positions of neighboring atoms.</li>
+<li><strong>G_elements</strong> (<a class="reference external" href="http://docs.python.org/library/stdtypes.html#dict" title="(in Python v2.7)"><em>dict</em></a>) &#8211; Symmetry functions of the center atom.</li>
+<li><strong>gamma</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#float" title="(in Python v2.7)"><em>float</em></a>) &#8211; Parameter of Behler symmetry functions.</li>
+<li><strong>zeta</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#float" title="(in Python v2.7)"><em>float</em></a>) &#8211; Parameter of Behler symmetry functions.</li>
+<li><strong>eta</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#float" title="(in Python v2.7)"><em>float</em></a>) &#8211; Parameter of Behler symmetry functions.</li>
+<li><strong>cutoff</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#float" title="(in Python v2.7)"><em>float</em></a>) &#8211; Radius above which neighbor interactions are ignored.</li>
+<li><strong>a</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#int" title="(in Python v2.7)"><em>int</em></a>) &#8211; Index of the center atom.</li>
+<li><strong>Ra</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#float" title="(in Python v2.7)"><em>float</em></a>) &#8211; Position of the center atom.</li>
+<li><strong>m</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#int" title="(in Python v2.7)"><em>int</em></a>) &#8211; Index of the atom force is acting on.</li>
+<li><strong>i</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#int" title="(in Python v2.7)"><em>int</em></a>) &#8211; Direction of force.</li>
+<li><strong>fortran</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#bool" title="(in Python v2.7)"><em>bool</em></a>) &#8211; If True, will use the fortran subroutines, else will not.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">float &#8211; coordinate derivative of G4 symmetry function for atom
+at index a and position Ra with respect to coordinate
+x_{i} of atom index m.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="../../index.html">
+              <img class="logo" src="../../_static/amp.png" alt="Logo"/>
+            </a></p>
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="../analysis.html"
+                        title="previous chapter">Analysis</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="../main.html"
+                        title="next chapter">Main</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../../_sources/amp/descriptor/behler.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../main.html" title="Main"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="../analysis.html" title="Analysis"
+             >previous</a> |</li>
+        <li><a href="../../index.html">AMP 1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Andrew A. Peterson, Alireza Khorshidi.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

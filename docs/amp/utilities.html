@@ -1,0 +1,301 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Utilities &mdash; AMP 1 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="AMP 1 documentation" href="../index.html" />
+    <link rel="prev" title="Neural Network" href="regression/neuralnetwork.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="regression/neuralnetwork.html" title="Neural Network"
+             accesskey="P">previous</a> |</li>
+        <li><a href="../index.html">AMP 1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="utilities">
+<span id="id1"></span><h1>Utilities<a class="headerlink" href="#utilities" title="Permalink to this headline">¶</a></h1>
+<dl class="function">
+<dt id="amp.utilities.randomize_images">
+<tt class="descclassname">amp.utilities.</tt><tt class="descname">randomize_images</tt><big>(</big><em>images</em>, <em>fraction=0.8</em><big>)</big><a class="reference internal" href="../_modules/amp/utilities.html#randomize_images"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#amp.utilities.randomize_images" title="Permalink to this definition">¶</a></dt>
+<dd><p>Randomly assigns &#8216;fraction&#8217; of the images to a training set and
+(1 - &#8216;fraction&#8217;) to a test set. Returns two lists of ASE images.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>images</strong> (<em>list or str</em>) &#8211; List of ASE atoms objects in ASE format. This can also be
+the path to an ASE trajectory (.traj) or database (.db)
+file.</li>
+<li><strong>fraction</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#float" title="(in Python v2.7)"><em>float</em></a>) &#8211; Portion of train_images to all images.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">Lists of train and test images.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="exception">
+<dt id="amp.utilities.ExtrapolateError">
+<em class="property">exception </em><tt class="descclassname">amp.utilities.</tt><tt class="descname">ExtrapolateError</tt><a class="reference internal" href="../_modules/amp/utilities.html#ExtrapolateError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#amp.utilities.ExtrapolateError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Error class in the case of extrapolation.</p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="amp.utilities.UntrainedError">
+<em class="property">exception </em><tt class="descclassname">amp.utilities.</tt><tt class="descname">UntrainedError</tt><a class="reference internal" href="../_modules/amp/utilities.html#UntrainedError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#amp.utilities.UntrainedError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Error class in the case of unsuccessful training.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="amp.utilities.hash_image">
+<tt class="descclassname">amp.utilities.</tt><tt class="descname">hash_image</tt><big>(</big><em>atoms</em><big>)</big><a class="reference internal" href="../_modules/amp/utilities.html#hash_image"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#amp.utilities.hash_image" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates a unique signature for a particular ASE atoms object.
+This is used to check whether an image has been seen before.
+This is just an md5 hash of a string representation of the atoms
+object.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>atoms</strong> (<em>ASE dict</em>) &#8211; ASE atoms object.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">Hash key of &#8216;atoms&#8217;.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="class">
+<dt id="amp.utilities.Logger">
+<em class="property">class </em><tt class="descclassname">amp.utilities.</tt><tt class="descname">Logger</tt><big>(</big><em>filename</em><big>)</big><a class="reference internal" href="../_modules/amp/utilities.html#Logger"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#amp.utilities.Logger" title="Permalink to this definition">¶</a></dt>
+<dd><p>Logger that can also deliver timing information.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>filename</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) &#8211; File object or path to the file to write to.</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="amp.utilities.Logger.tic">
+<tt class="descname">tic</tt><big>(</big><em>label=None</em><big>)</big><a class="reference internal" href="../_modules/amp/utilities.html#Logger.tic"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#amp.utilities.Logger.tic" title="Permalink to this definition">¶</a></dt>
+<dd><p>Start a timer.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>label</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) &#8211; Label for managing multiple timers.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="amp.utilities.count_allocated_cpus">
+<tt class="descclassname">amp.utilities.</tt><tt class="descname">count_allocated_cpus</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/amp/utilities.html#count_allocated_cpus"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#amp.utilities.count_allocated_cpus" title="Permalink to this definition">¶</a></dt>
+<dd><p>This function accesses the file provided by the batch management system to
+count the number of cores allocated to the current job. It is currently
+fully implemented and tested for PBS, while SLURM, SGE and LoadLeveler are
+not fully tested.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="amp.utilities.names_of_allocated_nodes">
+<tt class="descclassname">amp.utilities.</tt><tt class="descname">names_of_allocated_nodes</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/amp/utilities.html#names_of_allocated_nodes"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#amp.utilities.names_of_allocated_nodes" title="Permalink to this definition">¶</a></dt>
+<dd><p>This function accesses the file provided by the batch management system to
+count the number of allocated to the current job, as well as to provide
+their names. It is currently fully implemented and tested for PBS, while
+SLURM, SGE and LoadLeveler are not fully tested.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="amp.utilities.save_neighborlists">
+<tt class="descclassname">amp.utilities.</tt><tt class="descname">save_neighborlists</tt><big>(</big><em>filename</em>, <em>neighborlists</em><big>)</big><a class="reference internal" href="../_modules/amp/utilities.html#save_neighborlists"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#amp.utilities.save_neighborlists" title="Permalink to this definition">¶</a></dt>
+<dd><p>Save neighborlists in json format.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>filename</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) &#8211; Path to the file to write to.</li>
+<li><strong>neighborlists</strong> (<a class="reference external" href="http://docs.python.org/library/stdtypes.html#dict" title="(in Python v2.7)"><em>dict</em></a>) &#8211; Data of neighbor lists.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="amp.utilities.save_fingerprints">
+<tt class="descclassname">amp.utilities.</tt><tt class="descname">save_fingerprints</tt><big>(</big><em>f</em>, <em>fingerprints</em><big>)</big><a class="reference internal" href="../_modules/amp/utilities.html#save_fingerprints"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#amp.utilities.save_fingerprints" title="Permalink to this definition">¶</a></dt>
+<dd><p>Save fingerprints in json format.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>f</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) &#8211; Path to the file to write to.</li>
+<li><strong>fingerprints</strong> (<a class="reference external" href="http://docs.python.org/library/stdtypes.html#dict" title="(in Python v2.7)"><em>dict</em></a>) &#8211; Data of fingerprints.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="amp.utilities.save_der_fingerprints">
+<tt class="descclassname">amp.utilities.</tt><tt class="descname">save_der_fingerprints</tt><big>(</big><em>f</em>, <em>der_fingerprints</em><big>)</big><a class="reference internal" href="../_modules/amp/utilities.html#save_der_fingerprints"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#amp.utilities.save_der_fingerprints" title="Permalink to this definition">¶</a></dt>
+<dd><p>Save derivatives of fingerprints in json format.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>f</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) &#8211; Path to the file to write to.</li>
+<li><strong>der_fingerprints</strong> (<a class="reference external" href="http://docs.python.org/library/stdtypes.html#dict" title="(in Python v2.7)"><em>dict</em></a>) &#8211; Data of derivative of fingerprints.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="amp.utilities.save_parameters">
+<tt class="descclassname">amp.utilities.</tt><tt class="descname">save_parameters</tt><big>(</big><em>filename</em>, <em>param</em><big>)</big><a class="reference internal" href="../_modules/amp/utilities.html#save_parameters"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#amp.utilities.save_parameters" title="Permalink to this definition">¶</a></dt>
+<dd><p>Save parameters in json format.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>filename</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) &#8211; Path to the file to write to.</li>
+<li><strong>param</strong> (<a class="reference external" href="http://docs.python.org/library/stdtypes.html#dict" title="(in Python v2.7)"><em>dict</em></a>) &#8211; ASE dictionary object of parameters.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="amp.utilities.load_parameters">
+<tt class="descclassname">amp.utilities.</tt><tt class="descname">load_parameters</tt><big>(</big><em>json_file</em><big>)</big><a class="reference internal" href="../_modules/amp/utilities.html#load_parameters"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#amp.utilities.load_parameters" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="amp.utilities.make_filename">
+<tt class="descclassname">amp.utilities.</tt><tt class="descname">make_filename</tt><big>(</big><em>label</em>, <em>base_filename</em><big>)</big><a class="reference internal" href="../_modules/amp/utilities.html#make_filename"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#amp.utilities.make_filename" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates a filename from the label and the base_filename which should be
+a string.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>label</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) &#8211; Prefix.</li>
+<li><strong>base_filename</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) &#8211; Basic name of the file.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="../index.html">
+              <img class="logo" src="../_static/amp.png" alt="Logo"/>
+            </a></p>
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="regression/neuralnetwork.html"
+                        title="previous chapter">Neural Network</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../_sources/amp/utilities.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="regression/neuralnetwork.html" title="Neural Network"
+             >previous</a> |</li>
+        <li><a href="../index.html">AMP 1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Andrew A. Peterson, Alireza Khorshidi.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

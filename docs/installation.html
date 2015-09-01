@@ -1,0 +1,210 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Installation &mdash; AMP 1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="AMP 1 documentation" href="index.html" />
+    <link rel="next" title="How to use Amp?" href="useamp.html" />
+    <link rel="prev" title="Introduction" href="introduction.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="useamp.html" title="How to use Amp?"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="introduction.html" title="Introduction"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">AMP 1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="installation">
+<span id="install"></span><h1>Installation<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h1>
+<p>AMP is python-based and is designed to integrate closely with the
+<a class="reference external" href="https://wiki.fysik.dtu.dk/ase/">Atomic Simulation Environment</a> (ASE).</p>
+<div class="section" id="install-ase">
+<h2>Install ASE<a class="headerlink" href="#install-ase" title="Permalink to this headline">¶</a></h2>
+<p>We always test against the latest version (svn checkout) of ASE, but slightly older versions (&gt;=3.9.0) are likely to work
+as well. Follow the instructions at the <a class="reference external" href="https://wiki.fysik.dtu.dk/ase/download.html">ASE</a> website. ASE itself depends
+upon python with the standard numeric and scientific packages. Verify that you have working versions of
+<a class="reference external" href="http://numpy.org">NumPy</a> and <a class="reference external" href="http://scipy.org">SciPy</a>. We also recommend <a class="reference external" href="http://matplotlib.org">matplotlib</a> in
+order to generate plots.</p>
+</div>
+<div class="section" id="check-out-the-code">
+<h2>Check out the code<a class="headerlink" href="#check-out-the-code" title="Permalink to this headline">¶</a></h2>
+<p>As a relatively new project, we do not yet have stable releases. However, we run daily unit tests to make sure that our
+development code works as intended. We recommend checking out the latest version of the code via <a class="reference external" href="https://bitbucket.org/andrewpeterson/amp/">the project&#8217;s bitbucket
+page</a>. If you use git, check out the code with:</p>
+<div class="highlight-python"><div class="highlight"><pre>$ cd ~/path/to/my/codes
+$ git clone git@bitbucket.org:andrewpeterson/amp.git
+</pre></div>
+</div>
+<p>where you should replace &#8216;~/path/to/my/codes&#8217; with wherever you would like the code to be located on your computer.
+If you do not use git, just download the code as a zip file from the project&#8217;s
+<a class="reference external" href="https://bitbucket.org/andrewpeterson/amp/downloads">download</a> page, and extract it into &#8216;~/path/to/my/codes&#8217;.</p>
+</div>
+<div class="section" id="set-the-environment">
+<h2>Set the environment<a class="headerlink" href="#set-the-environment" title="Permalink to this headline">¶</a></h2>
+<p>You need to let your python version know about the existence of the amp module. Add the following line to your &#8216;.bashrc&#8217;
+(or other appropriate spot), with the appropriate path substituted for &#8216;~/path/to/my/codes&#8217;:</p>
+<div class="highlight-python"><div class="highlight"><pre>$ export PYTHONPATH=~/path/to/my/codes:$PYTHONPATH
+</pre></div>
+</div>
+<p>You can check that this works by starting python and typing the below command, verifying that the location listed from
+the second command is where you expect:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">amp</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">print</span><span class="p">(</span><span class="n">amp</span><span class="o">.</span><span class="n">__file__</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="recommended-step-fortran-modules">
+<h2>Recommended step: Fortran modules<a class="headerlink" href="#recommended-step-fortran-modules" title="Permalink to this headline">¶</a></h2>
+<p>The code is designed to work in pure python, which makes it is easier to read, develop, and debug. However, it will be
+annoyingly slow unless you compile the associated fortran modules which speed up some crucial parts of the code. The
+compilation of Fortran codes and integration with the python parts is accomplished with the command &#8216;f2py&#8217;, which is
+part of NumPy. A Fortran compiler will also be necessary on your system; a reasonable open-source option is GNU Fortran,
+or gfortran. This complier will generate Fortran modules (.mod). gfortran will also be used by f2py to generate
+extension module &#8216;fmodules.so&#8217; on Linux or &#8216;fmodules.pyd&#8217; on Windows. In order to prepare the extension module take the
+following steps:</p>
+<ul>
+<li><p class="first">Compile regression Fortran subroutines inside the regression folder by:</p>
+<div class="highlight-python"><div class="highlight"><pre>$ cd ~/path/to/my/codes/regression/
+$ gfortran -c neuralnetwork.f90
+</pre></div>
+</div>
+</li>
+<li><p class="first">Move the module &#8216;regression.mod&#8217; created in the last step, to the parent directory by:</p>
+<div class="highlight-python"><div class="highlight"><pre>$ mv regression.mod ../regression.mod
+</pre></div>
+</div>
+</li>
+<li><p class="first">Compile the main Fortran subroutines in the parent directory in companian with the descriptor and regression subroutines
+by something like:</p>
+<div class="highlight-python"><div class="highlight"><pre>$ f2py -c -m fmodules main.f90 descriptor/behler.f90 regression/neuralnetwork.f90
+</pre></div>
+</div>
+</li>
+</ul>
+<p>or on a Windows machine by:</p>
+<div class="highlight-python"><div class="highlight"><pre>$ f2py -c -m fmodules main.f90 descriptor/behler.f90 regression/neuralnetwork.f90 --fcompiler=gnu95 --compiler=mingw32
+</pre></div>
+</div>
+<p>If you update the code and your fmodules extension is not updated, an exception will be raised, telling you
+to re-compile.</p>
+</div>
+<div class="section" id="recommended-step-run-the-tests">
+<h2>Recommended step: Run the tests<a class="headerlink" href="#recommended-step-run-the-tests" title="Permalink to this headline">¶</a></h2>
+<p>We include tests in the package to ensure that it still runs as intended as we continue our development; we run these
+tests on the latest build every night to try to keep bugs out. It is a good idea to run these tests after you install the
+package to see if your installation is working. The tests are in the folder <cite>tests</cite>; they are designed to run with
+<a class="reference external" href="https://nose.readthedocs.org/">nose</a>. If you have nose installed, run the commands below:</p>
+<div class="highlight-python"><div class="highlight"><pre>$ mkdir /tmp/amptests
+$ cd /tmp/amptests
+$ nosetests ~/path/to/my/codes/amp
+</pre></div>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="index.html">
+              <img class="logo" src="_static/amp.png" alt="Logo"/>
+            </a></p>
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Installation</a><ul>
+<li><a class="reference internal" href="#install-ase">Install ASE</a></li>
+<li><a class="reference internal" href="#check-out-the-code">Check out the code</a></li>
+<li><a class="reference internal" href="#set-the-environment">Set the environment</a></li>
+<li><a class="reference internal" href="#recommended-step-fortran-modules">Recommended step: Fortran modules</a></li>
+<li><a class="reference internal" href="#recommended-step-run-the-tests">Recommended step: Run the tests</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="introduction.html"
+                        title="previous chapter">Introduction</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="useamp.html"
+                        title="next chapter">How to use Amp?</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/installation.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="useamp.html" title="How to use Amp?"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="introduction.html" title="Introduction"
+             >previous</a> |</li>
+        <li><a href="index.html">AMP 1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Andrew A. Peterson, Alireza Khorshidi.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

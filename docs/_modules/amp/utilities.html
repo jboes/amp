@@ -1,0 +1,477 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>amp.utilities &mdash; AMP 1 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="AMP 1 documentation" href="../../index.html" />
+    <link rel="up" title="amp" href="../amp.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li><a href="../../index.html">AMP 1 documentation</a> &raquo;</li>
+          <li><a href="../index.html" >Module code</a> &raquo;</li>
+          <li><a href="../amp.html" accesskey="U">amp</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for amp.utilities</h1><div class="highlight"><pre>
+<span class="c">#!/usr/bin/env python</span>
+<span class="sd">&quot;&quot;&quot;This module contains utilities for use with various aspects of the</span>
+<span class="sd">AMP calculators.&quot;&quot;&quot;</span>
+
+<span class="c">###############################################################################</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">hashlib</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">from</span> <span class="nn">ase</span> <span class="kn">import</span> <span class="n">io</span>
+<span class="kn">from</span> <span class="nn">ase.parallel</span> <span class="kn">import</span> <span class="n">paropen</span>
+<span class="kn">from</span> <span class="nn">ase.calculators.neighborlist</span> <span class="kn">import</span> <span class="n">NeighborList</span>
+
+<span class="c">###############################################################################</span>
+
+
+<div class="viewcode-block" id="randomize_images"><a class="viewcode-back" href="../../amp/utilities.html#amp.utilities.randomize_images">[docs]</a><span class="k">def</span> <span class="nf">randomize_images</span><span class="p">(</span><span class="n">images</span><span class="p">,</span> <span class="n">fraction</span><span class="o">=</span><span class="mf">0.8</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Randomly assigns &#39;fraction&#39; of the images to a training set and</span>
+<span class="sd">    (1 - &#39;fraction&#39;) to a test set. Returns two lists of ASE images.</span>
+
+<span class="sd">    :param images: List of ASE atoms objects in ASE format. This can also be</span>
+<span class="sd">                   the path to an ASE trajectory (.traj) or database (.db)</span>
+<span class="sd">                   file.</span>
+<span class="sd">    :type images: list or str</span>
+<span class="sd">    :param fraction: Portion of train_images to all images.</span>
+<span class="sd">    :type fraction: float</span>
+
+<span class="sd">    :returns: Lists of train and test images.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">file_opened</span> <span class="o">=</span> <span class="bp">False</span>
+    <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">images</span><span class="p">)</span> <span class="o">==</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="n">images</span> <span class="o">=</span> <span class="n">io</span><span class="o">.</span><span class="n">Trajectory</span><span class="p">(</span><span class="n">images</span><span class="p">,</span> <span class="s">&#39;r&#39;</span><span class="p">)</span>
+        <span class="n">file_opened</span> <span class="o">=</span> <span class="bp">True</span>
+    <span class="n">trainingsize</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">fraction</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">images</span><span class="p">))</span>
+    <span class="n">testsize</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">images</span><span class="p">)</span> <span class="o">-</span> <span class="n">trainingsize</span>
+    <span class="n">testindices</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">while</span> <span class="nb">len</span><span class="p">(</span><span class="n">testindices</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">testsize</span><span class="p">:</span>
+        <span class="nb">next</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">images</span><span class="p">))</span>
+        <span class="k">if</span> <span class="nb">next</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">testindices</span><span class="p">:</span>
+            <span class="n">testindices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">next</span><span class="p">)</span>
+    <span class="n">testindices</span><span class="o">.</span><span class="n">sort</span><span class="p">()</span>
+    <span class="n">trainindices</span> <span class="o">=</span> <span class="p">[</span><span class="n">index</span> <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">images</span><span class="p">))</span> <span class="k">if</span> <span class="n">index</span> <span class="ow">not</span> <span class="ow">in</span>
+                    <span class="n">testindices</span><span class="p">]</span>
+    <span class="n">train_images</span> <span class="o">=</span> <span class="p">[</span><span class="n">images</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="n">trainindices</span><span class="p">]</span>
+    <span class="n">test_images</span> <span class="o">=</span> <span class="p">[</span><span class="n">images</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="n">testindices</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">file_opened</span><span class="p">:</span>
+        <span class="n">images</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">train_images</span><span class="p">,</span> <span class="n">test_images</span>
+
+<span class="c">###############################################################################</span>
+
+</div>
+<div class="viewcode-block" id="ExtrapolateError"><a class="viewcode-back" href="../../amp/utilities.html#amp.utilities.ExtrapolateError">[docs]</a><span class="k">class</span> <span class="nc">ExtrapolateError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Error class in the case of extrapolation.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">pass</span>
+
+<span class="c">###############################################################################</span>
+
+</div>
+<div class="viewcode-block" id="UntrainedError"><a class="viewcode-back" href="../../amp/utilities.html#amp.utilities.UntrainedError">[docs]</a><span class="k">class</span> <span class="nc">UntrainedError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Error class in the case of unsuccessful training.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">pass</span>
+
+<span class="c">###############################################################################</span>
+
+</div>
+<div class="viewcode-block" id="hash_image"><a class="viewcode-back" href="../../amp/utilities.html#amp.utilities.hash_image">[docs]</a><span class="k">def</span> <span class="nf">hash_image</span><span class="p">(</span><span class="n">atoms</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Creates a unique signature for a particular ASE atoms object.</span>
+<span class="sd">    This is used to check whether an image has been seen before.</span>
+<span class="sd">    This is just an md5 hash of a string representation of the atoms</span>
+<span class="sd">    object.</span>
+
+<span class="sd">    :param atoms: ASE atoms object.</span>
+<span class="sd">    :type atoms: ASE dict</span>
+
+<span class="sd">    :returns: Hash key of &#39;atoms&#39;.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">string</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">atoms</span><span class="o">.</span><span class="n">pbc</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">number</span> <span class="ow">in</span> <span class="n">atoms</span><span class="o">.</span><span class="n">cell</span><span class="o">.</span><span class="n">flatten</span><span class="p">():</span>
+        <span class="n">string</span> <span class="o">+=</span> <span class="s">&#39;</span><span class="si">%.15f</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">number</span>
+    <span class="n">string</span> <span class="o">+=</span> <span class="nb">str</span><span class="p">(</span><span class="n">atoms</span><span class="o">.</span><span class="n">get_atomic_numbers</span><span class="p">())</span>
+    <span class="k">for</span> <span class="n">number</span> <span class="ow">in</span> <span class="n">atoms</span><span class="o">.</span><span class="n">get_positions</span><span class="p">()</span><span class="o">.</span><span class="n">flatten</span><span class="p">():</span>
+        <span class="n">string</span> <span class="o">+=</span> <span class="s">&#39;</span><span class="si">%.15f</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">number</span>
+
+    <span class="n">md5</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">md5</span><span class="p">(</span><span class="n">string</span><span class="p">)</span>
+    <span class="nb">hash</span> <span class="o">=</span> <span class="n">md5</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span>
+    <span class="k">return</span> <span class="nb">hash</span>
+
+<span class="c">###############################################################################</span>
+
+</div>
+<div class="viewcode-block" id="Logger"><a class="viewcode-back" href="../../amp/utilities.html#amp.utilities.Logger">[docs]</a><span class="k">class</span> <span class="nc">Logger</span><span class="p">:</span>
+
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Logger that can also deliver timing information.</span>
+
+<span class="sd">    :param filename: File object or path to the file to write to.</span>
+<span class="sd">    :type filename: str</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c">#########################################################################</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_f</span> <span class="o">=</span> <span class="n">paropen</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s">&#39;a&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_tics</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="c">#########################################################################</span>
+
+<div class="viewcode-block" id="Logger.tic"><a class="viewcode-back" href="../../amp/utilities.html#amp.utilities.Logger.tic">[docs]</a>    <span class="k">def</span> <span class="nf">tic</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Start a timer.</span>
+
+<span class="sd">        :param label: Label for managing multiple timers.</span>
+<span class="sd">        :type label: str</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">label</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_tics</span><span class="p">[</span><span class="n">label</span><span class="p">]</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_tic</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+
+    <span class="c">#########################################################################</span>
+</div>
+    <span class="k">def</span> <span class="nf">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">,</span> <span class="n">toc</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Writes message to the log file.</span>
+
+<span class="sd">        :param message: Message to be written.</span>
+<span class="sd">        :type message: str</span>
+<span class="sd">        :param toc: tic is used to start a timer. If toc=True or toc=label, it</span>
+<span class="sd">                    will append timing information in minutes to the timer.</span>
+<span class="sd">        :type toc: bool or str</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">dt</span> <span class="o">=</span> <span class="s">&#39;&#39;</span>
+        <span class="k">if</span> <span class="n">toc</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">toc</span> <span class="ow">is</span> <span class="bp">True</span><span class="p">:</span>
+                <span class="n">tic</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tic</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">tic</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tics</span><span class="p">[</span><span class="n">toc</span><span class="p">]</span>
+            <span class="n">dt</span> <span class="o">=</span> <span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">tic</span><span class="p">)</span> <span class="o">/</span> <span class="mf">60.</span>
+            <span class="n">dt</span> <span class="o">=</span> <span class="s">&#39; </span><span class="si">%.1f</span><span class="s"> min.&#39;</span> <span class="o">%</span> <span class="n">dt</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">message</span> <span class="o">+</span> <span class="n">dt</span> <span class="o">+</span> <span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_f</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
+
+<span class="c">###############################################################################</span>
+
+</div>
+<div class="viewcode-block" id="count_allocated_cpus"><a class="viewcode-back" href="../../amp/utilities.html#amp.utilities.count_allocated_cpus">[docs]</a><span class="k">def</span> <span class="nf">count_allocated_cpus</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This function accesses the file provided by the batch management system to</span>
+<span class="sd">    count the number of cores allocated to the current job. It is currently</span>
+<span class="sd">    fully implemented and tested for PBS, while SLURM, SGE and LoadLeveler are</span>
+<span class="sd">    not fully tested.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="s">&#39;PBS_NODEFILE&#39;</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="n">ncores</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s">&#39;PBS_NODEFILE&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">readlines</span><span class="p">())</span>
+    <span class="k">elif</span> <span class="s">&#39;SLURM_JOB_NODELIST&#39;</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="k">raise</span> <span class="ne">Warning</span><span class="p">(</span><span class="s">&#39;Functionality for SLURM is untested and might not &#39;</span>
+                      <span class="s">&#39;work.&#39;</span><span class="p">)</span>
+        <span class="n">ncores</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s">&#39;SLURM_JOB_NODELIST&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">readlines</span><span class="p">())</span>
+    <span class="k">elif</span> <span class="s">&#39;LOADL_PROCESSOR_LIST&#39;</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="k">raise</span> <span class="ne">Warning</span><span class="p">(</span><span class="s">&#39;Functionality for LoadLeveler is untested and might &#39;</span>
+                      <span class="s">&#39;not work.&#39;</span><span class="p">)</span>
+        <span class="n">ncores</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s">&#39;LOADL_PROCESSOR_LIST&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">readlines</span><span class="p">())</span>
+    <span class="k">elif</span> <span class="s">&#39;PE_HOSTFILE&#39;</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="k">raise</span> <span class="ne">Warning</span><span class="p">(</span><span class="s">&#39;Functionality for SGE is untested and might not work.&#39;</span><span class="p">)</span>
+        <span class="n">ncores</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">MACHINEFILE</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s">&#39;PE_HOSTFILE&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">readlines</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">MACHINEFILE</span><span class="p">:</span>
+            <span class="n">fields</span> <span class="o">=</span> <span class="n">string</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
+            <span class="n">nprocs</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">fields</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+            <span class="n">ncores</span> <span class="o">+=</span> <span class="n">nprocs</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s">&#39;Unsupported batch management system. &#39;</span>
+                                  <span class="s">&#39;Currently only PBS, SLURM, LoadLeveler &#39;</span>
+                                  <span class="s">&#39;and SGE are supported.&#39;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">ncores</span>
+
+<span class="c">###############################################################################</span>
+
+</div>
+<div class="viewcode-block" id="names_of_allocated_nodes"><a class="viewcode-back" href="../../amp/utilities.html#amp.utilities.names_of_allocated_nodes">[docs]</a><span class="k">def</span> <span class="nf">names_of_allocated_nodes</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This function accesses the file provided by the batch management system to</span>
+<span class="sd">    count the number of allocated to the current job, as well as to provide</span>
+<span class="sd">    their names. It is currently fully implemented and tested for PBS, while</span>
+<span class="sd">    SLURM, SGE and LoadLeveler are not fully tested.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="s">&#39;PBS_NODEFILE&#39;</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="n">node_list</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s">&#39;PBS_NODEFILE&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">readlines</span><span class="p">())</span>
+    <span class="k">elif</span> <span class="s">&#39;SLURM_JOB_NODELIST&#39;</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="k">raise</span> <span class="ne">Warning</span><span class="p">(</span><span class="s">&#39;Support for SLURM is untested and might not work.&#39;</span><span class="p">)</span>
+        <span class="n">node_list</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s">&#39;SLURM_JOB_NODELIST&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">readlines</span><span class="p">())</span>
+    <span class="k">elif</span> <span class="s">&#39;LOADL_PROCESSOR_LIST&#39;</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="k">raise</span> <span class="ne">Warning</span><span class="p">(</span><span class="s">&#39;Support for LoadLeveler is untested and might not &#39;</span>
+                      <span class="s">&#39;work.&#39;</span><span class="p">)</span>
+        <span class="n">node_list</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s">&#39;LOADL_PROCESSOR_LIST&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">readlines</span><span class="p">())</span>
+    <span class="k">elif</span> <span class="s">&#39;PE_HOSTFILE&#39;</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="k">raise</span> <span class="ne">Warning</span><span class="p">(</span><span class="s">&#39;Support for SGE is untested and might not work.&#39;</span><span class="p">)</span>
+        <span class="n">nodes</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">MACHINEFILE</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s">&#39;PE_HOSTFILE&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">readlines</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">MACHINEFILE</span><span class="p">:</span>
+            <span class="c"># nodename = fields[0]</span>
+            <span class="c"># ncpus = fields[1]</span>
+            <span class="c"># queue = fields[2]</span>
+            <span class="c"># UNDEFINED = fields[3]</span>
+            <span class="n">fields</span> <span class="o">=</span> <span class="n">string</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
+            <span class="n">node</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">fields</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="n">nodes</span> <span class="o">+=</span> <span class="n">node</span>
+        <span class="n">node_list</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">nodes</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s">&#39;Unsupported batch management system. &#39;</span>
+                                  <span class="s">&#39;Currently only PBS and SLURM are &#39;</span>
+                                  <span class="s">&#39;supported.&#39;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">node_list</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">node_list</span><span class="p">)</span>
+
+<span class="c">###############################################################################</span>
+
+</div>
+<div class="viewcode-block" id="save_neighborlists"><a class="viewcode-back" href="../../amp/utilities.html#amp.utilities.save_neighborlists">[docs]</a><span class="k">def</span> <span class="nf">save_neighborlists</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">neighborlists</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Save neighborlists in json format.</span>
+
+<span class="sd">    :param filename: Path to the file to write to.</span>
+<span class="sd">    :type filename: str</span>
+<span class="sd">    :param neighborlists: Data of neighbor lists.</span>
+<span class="sd">    :type neighborlists: dict</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">new_dict</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">key1</span> <span class="ow">in</span> <span class="n">neighborlists</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="n">new_dict</span><span class="p">[</span><span class="n">key1</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">key2</span> <span class="ow">in</span> <span class="n">neighborlists</span><span class="p">[</span><span class="n">key1</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">nl_value</span> <span class="o">=</span> <span class="n">neighborlists</span><span class="p">[</span><span class="n">key1</span><span class="p">][</span><span class="n">key2</span><span class="p">]</span>
+            <span class="n">new_dict</span><span class="p">[</span><span class="n">key1</span><span class="p">][</span><span class="n">key2</span><span class="p">]</span> <span class="o">=</span> <span class="p">[[</span><span class="n">nl_value</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">i</span><span class="p">],</span>
+                                     <span class="p">[</span><span class="n">j</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">nl_value</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="n">i</span><span class="p">]]]</span>
+                                    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">nl_value</span><span class="p">[</span><span class="mi">0</span><span class="p">]))]</span>
+
+    <span class="k">with</span> <span class="n">paropen</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">outfile</span><span class="p">:</span>
+        <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">new_dict</span><span class="p">,</span> <span class="n">outfile</span><span class="p">)</span>
+
+<span class="c">###############################################################################</span>
+
+</div>
+<div class="viewcode-block" id="save_fingerprints"><a class="viewcode-back" href="../../amp/utilities.html#amp.utilities.save_fingerprints">[docs]</a><span class="k">def</span> <span class="nf">save_fingerprints</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">fingerprints</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Save fingerprints in json format.</span>
+
+<span class="sd">    :param f: Path to the file to write to.</span>
+<span class="sd">    :type f: str</span>
+<span class="sd">    :param fingerprints: Data of fingerprints.</span>
+<span class="sd">    :type fingerprints: dict</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">new_dict</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">key1</span> <span class="ow">in</span> <span class="n">fingerprints</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="n">new_dict</span><span class="p">[</span><span class="n">key1</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">key2</span> <span class="ow">in</span> <span class="n">fingerprints</span><span class="p">[</span><span class="n">key1</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">fp_value</span> <span class="o">=</span> <span class="n">fingerprints</span><span class="p">[</span><span class="n">key1</span><span class="p">][</span><span class="n">key2</span><span class="p">]</span>
+            <span class="n">new_dict</span><span class="p">[</span><span class="n">key1</span><span class="p">][</span><span class="n">key2</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">value</span> <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">fp_value</span><span class="p">]</span>
+
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">new_dict</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
+        <span class="k">return</span>
+    <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">paropen</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="s">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">outfile</span><span class="p">:</span>
+            <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">new_dict</span><span class="p">,</span> <span class="n">outfile</span><span class="p">)</span>
+
+<span class="c">###############################################################################</span>
+
+</div>
+<div class="viewcode-block" id="save_der_fingerprints"><a class="viewcode-back" href="../../amp/utilities.html#amp.utilities.save_der_fingerprints">[docs]</a><span class="k">def</span> <span class="nf">save_der_fingerprints</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">der_fingerprints</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Save derivatives of fingerprints in json format.</span>
+
+<span class="sd">    :param f: Path to the file to write to.</span>
+<span class="sd">    :type f: str</span>
+<span class="sd">    :param der_fingerprints: Data of derivative of fingerprints.</span>
+<span class="sd">    :type der_fingerprints: dict</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">new_dict</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">key1</span> <span class="ow">in</span> <span class="n">der_fingerprints</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="n">new_dict</span><span class="p">[</span><span class="n">key1</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">key2</span> <span class="ow">in</span> <span class="n">der_fingerprints</span><span class="p">[</span><span class="n">key1</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">fp_value</span> <span class="o">=</span> <span class="n">der_fingerprints</span><span class="p">[</span><span class="n">key1</span><span class="p">][</span><span class="n">key2</span><span class="p">]</span>
+            <span class="n">new_dict</span><span class="p">[</span><span class="n">key1</span><span class="p">][</span><span class="nb">str</span><span class="p">([</span><span class="n">key2</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">key2</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">key2</span><span class="p">[</span><span class="mi">2</span><span class="p">]])]</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="n">value</span> <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">fp_value</span><span class="p">]</span>
+
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">new_dict</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
+        <span class="k">return</span>
+    <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">paropen</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="s">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">outfile</span><span class="p">:</span>
+            <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">new_dict</span><span class="p">,</span> <span class="n">outfile</span><span class="p">)</span>
+
+<span class="c">###############################################################################</span>
+
+</div>
+<div class="viewcode-block" id="save_parameters"><a class="viewcode-back" href="../../amp/utilities.html#amp.utilities.save_parameters">[docs]</a><span class="k">def</span> <span class="nf">save_parameters</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">param</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Save parameters in json format.</span>
+
+<span class="sd">    :param filename: Path to the file to write to.</span>
+<span class="sd">    :type filename: str</span>
+<span class="sd">    :param param: ASE dictionary object of parameters.</span>
+<span class="sd">    :type param: dict</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">parameters</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">param</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">key</span> <span class="o">!=</span> <span class="s">&#39;regression&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">key</span> <span class="o">!=</span> <span class="s">&#39;fingerprint&#39;</span><span class="p">):</span>
+            <span class="n">parameters</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">param</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="n">param</span><span class="o">.</span><span class="n">fingerprint</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">parameters</span><span class="p">[</span><span class="s">&#39;Gs&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">param</span><span class="o">.</span><span class="n">fingerprint</span><span class="o">.</span><span class="n">Gs</span>
+        <span class="n">parameters</span><span class="p">[</span><span class="s">&#39;cutoff&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">param</span><span class="o">.</span><span class="n">fingerprint</span><span class="o">.</span><span class="n">cutoff</span>
+        <span class="n">parameters</span><span class="p">[</span><span class="s">&#39;fingerprints_tag&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">param</span><span class="o">.</span><span class="n">fingerprint</span><span class="o">.</span><span class="n">fingerprints_tag</span>
+
+    <span class="k">if</span> <span class="n">param</span><span class="o">.</span><span class="n">fingerprint</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">parameters</span><span class="p">[</span><span class="s">&#39;fingerprint&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s">&#39;None&#39;</span>
+        <span class="n">parameters</span><span class="p">[</span><span class="s">&#39;no_of_atoms&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">param</span><span class="o">.</span><span class="n">regression</span><span class="o">.</span><span class="n">no_of_atoms</span>
+    <span class="k">elif</span> <span class="n">param</span><span class="o">.</span><span class="n">fingerprint</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span> <span class="o">==</span> <span class="s">&#39;Behler&#39;</span><span class="p">:</span>
+        <span class="n">parameters</span><span class="p">[</span><span class="s">&#39;fingerprint&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s">&#39;Behler&#39;</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&#39;Fingerprinting scheme is not recognized to AMP &#39;</span>
+                           <span class="s">&#39;for saving parameters. User should add the &#39;</span>
+                           <span class="s">&#39;fingerprinting scheme under consideration.&#39;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">param</span><span class="o">.</span><span class="n">regression</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span> <span class="o">==</span> <span class="s">&#39;NeuralNetwork&#39;</span><span class="p">:</span>
+        <span class="n">parameters</span><span class="p">[</span><span class="s">&#39;regression&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s">&#39;NeuralNetwork&#39;</span>
+        <span class="n">parameters</span><span class="p">[</span><span class="s">&#39;hiddenlayers&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">param</span><span class="o">.</span><span class="n">regression</span><span class="o">.</span><span class="n">hiddenlayers</span>
+        <span class="n">parameters</span><span class="p">[</span><span class="s">&#39;activation&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">param</span><span class="o">.</span><span class="n">regression</span><span class="o">.</span><span class="n">activation</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&#39;Regression method is not recognized to AMP for &#39;</span>
+                           <span class="s">&#39;saving parameters. User should add the &#39;</span>
+                           <span class="s">&#39;regression method under consideration.&#39;</span><span class="p">)</span>
+
+    <span class="n">variables</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">param</span><span class="o">.</span><span class="n">regression</span><span class="o">.</span><span class="n">_variables</span><span class="p">:</span>
+        <span class="n">variables</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_</span><span class="p">)</span>
+    <span class="n">parameters</span><span class="p">[</span><span class="s">&#39;variables&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">variables</span>
+
+    <span class="n">base_filename</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">splitext</span><span class="p">(</span><span class="n">filename</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">export_filename</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">base_filename</span> <span class="o">+</span> <span class="s">&#39;.json&#39;</span><span class="p">)</span>
+
+    <span class="k">with</span> <span class="n">paropen</span><span class="p">(</span><span class="n">export_filename</span><span class="p">,</span> <span class="s">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">outfile</span><span class="p">:</span>
+        <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">parameters</span><span class="p">,</span> <span class="n">outfile</span><span class="p">)</span>
+
+<span class="c">###############################################################################</span>
+
+</div>
+<div class="viewcode-block" id="load_parameters"><a class="viewcode-back" href="../../amp/utilities.html#amp.utilities.load_parameters">[docs]</a><span class="k">def</span> <span class="nf">load_parameters</span><span class="p">(</span><span class="n">json_file</span><span class="p">):</span>
+
+    <span class="n">parameters</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">json_file</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">parameters</span>
+
+<span class="c">###############################################################################</span>
+
+</div>
+<div class="viewcode-block" id="make_filename"><a class="viewcode-back" href="../../amp/utilities.html#amp.utilities.make_filename">[docs]</a><span class="k">def</span> <span class="nf">make_filename</span><span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="n">base_filename</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Creates a filename from the label and the base_filename which should be</span>
+<span class="sd">    a string.</span>
+
+<span class="sd">    :param label: Prefix.</span>
+<span class="sd">    :type label: str</span>
+<span class="sd">    :param base_filename: Basic name of the file.</span>
+<span class="sd">    :type base_filename: str</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">label</span><span class="p">:</span>
+        <span class="n">filename</span> <span class="o">=</span> <span class="n">base_filename</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">filename</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">label</span> <span class="o">+</span> <span class="s">&#39;-&#39;</span> <span class="o">+</span> <span class="n">base_filename</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">filename</span>
+
+<span class="c">###############################################################################</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="../../index.html">
+              <img class="logo" src="../../_static/amp.png" alt="Logo"/>
+            </a></p>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li><a href="../../index.html">AMP 1 documentation</a> &raquo;</li>
+          <li><a href="../index.html" >Module code</a> &raquo;</li>
+          <li><a href="../amp.html" >amp</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Andrew A. Peterson, Alireza Khorshidi.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>
