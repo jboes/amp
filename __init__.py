@@ -36,6 +36,186 @@ except ImportError:
 ###############################################################################
 
 
+class SimulatedAnnealing:
+
+    ###########################################################################
+
+    def __init__(self, initial_temp, steps):
+        """
+        Class that implements simulated annealing algorithm for global search
+        of variables. This algorithm is helpful to be used for pre-conditioning
+        of the initial guess of variables for optimization of non-convex
+        functions.
+
+        :param initial_temp: Initial temperature which corresponds to initial
+                             variance of the likelihood normal probability
+                             distribution. Should take a value from 50 to 100.
+        :type initial_temp: float
+        :param steps: Number of search iterations.
+        :type steps: int
+        """
+        self.initial_temp = initial_temp
+        self.steps = steps
+
+    ###########################################################################
+
+    def initialize(self, variables, log, costfxn):
+        """
+        Function to initialize this class with.
+
+        :param variables: Calibrating variables.
+        :type variables: list
+        :param log: Write function at which to log data. Note this must be a
+                    callable function.
+        :type log: Logger object
+        :param costfxn: Object of the CostFxnandDer class.
+        :type costfxn: object
+        """
+        self.variables = variables
+        self.log = log
+        self.costfxn = costfxn
+        self.log.tic('simulated_annealing')
+        self.log('Simulated annealing started. ')
+
+    ###########################################################################
+
+    def get_variables(self,):
+        """
+        Function that samples from the space of variables according to
+        simulated annealing algorithm.
+
+        :returns: Best variables minimizing the cost function.
+        """
+        head1 = ('%4s %6s %6s %6s %6s %6s %6s %8s')
+        self.log(head1 % ('step',
+                          'temp',
+                          'newcost',
+                          'newlogp',
+                          'oldlogp',
+                          'pratio',
+                          'rand',
+                          'accpt?(%)'))
+        self.log(head1 % ('=' * 4,
+                          '=' * 6,
+                          '=' * 6,
+                          '=' * 6,
+                          '=' * 6,
+                          '=' * 6,
+                          '=' * 6,
+                          '=' * 8))
+        variables = self.variables
+        temp = self.initial_temp
+        allvariables = [variables]
+
+        self.costfxn.param.regression._variables = variables
+
+        if self.costfxn.fortran:
+            task_args = (self.costfxn.param,)
+            (energy_square_error,
+             force_square_error,
+             self.costfxn.der_variables_square_error) = \
+                self.costfxn._mp.share_cost_function_task_between_cores(
+                task=_calculate_cost_function_fortran,
+                _args=task_args, len_of_variables=len(variables))
+        else:
+            task_args = (self.costfxn.reg, self.costfxn.param,
+                         self.costfxn.sfp, self.costfxn.snl,
+                         self.costfxn.energy_coefficient,
+                         self.costfxn.force_coefficient,
+                         self.costfxn.train_forces, len(variables))
+            (energy_square_error,
+             force_square_error,
+             self.costfxn.der_variables_square_error) = \
+                self.costfxn._mp.share_cost_function_task_between_cores(
+                task=_calculate_cost_function_python,
+                _args=task_args, len_of_variables=len(variables))
+
+        square_error = \
+            self.costfxn.energy_coefficient * energy_square_error + \
+            self.costfxn.force_coefficient * force_square_error
+
+        besterror = square_error
+        bestvariables = variables
+
+        logp = -square_error / temp
+
+        accepted = 0
+
+        for step in range(self.steps):
+            _steps = np.random.rand(len(variables)) * 2. - 1.
+            _steps *= 0.2
+            newvariables = variables + _steps
+
+            self.costfxn.param.regression._variables = newvariables
+
+            if self.costfxn.fortran:
+                task_args = (self.costfxn.param,)
+                (energy_square_error,
+                 force_square_error,
+                 self.costfxn.der_variables_square_error) = \
+                    self.costfxn._mp.share_cost_function_task_between_cores(
+                    task=_calculate_cost_function_fortran,
+                    _args=task_args, len_of_variables=len(variables))
+            else:
+                task_args = (self.costfxn.reg, self.costfxn.param,
+                             self.costfxn.sfp, self.costfxn.snl,
+                             self.costfxn.energy_coefficient,
+                             self.costfxn.force_coefficient,
+                             self.costfxn.train_forces, len(variables))
+                (energy_square_error,
+                 force_square_error,
+                 self.costfxn.der_variables_square_error) = \
+                    self.costfxn._mp.share_cost_function_task_between_cores(
+                    task=_calculate_cost_function_python,
+                    _args=task_args, len_of_variables=len(variables))
+
+            new_square_error = \
+                self.costfxn.energy_coefficient * energy_square_error + \
+                self.costfxn.force_coefficient * force_square_error
+
+            newlogp = -new_square_error / temp
+
+            pratio = np.exp(newlogp - logp)
+            rand = np.random.rand()
+            if rand < pratio:
+                accept = True
+                accepted += 1.
+            else:
+                accept = False
+            line = ('%5s' ' %5.2f' ' %5.2f' ' %5.2f' ' %5.2f' ' %3.2f'
+                    ' %3.2f' ' %5s')
+            self.log(line % (step,
+                             temp,
+                             new_square_error,
+                             newlogp,
+                             logp,
+                             pratio,
+                             rand,
+                             '%s(%i)' % (accept,
+                                         int(accepted * 100 / (step + 1)))))
+            if new_square_error < besterror:
+                bestvariables = newvariables
+                besterror = new_square_error
+            if accept:
+                variables = newvariables
+                allvariables.append(newvariables)
+                logp = newlogp
+
+            if (accepted / (step + 1) < 0.5):
+                temp += 0.0005 * temp
+            else:
+                temp -= 0.002 * temp
+
+        self.log('Simulated annealing exited. ', toc='simulated_annealing')
+        self.log('\n')
+
+        return bestvariables
+
+###############################################################################
+###############################################################################
+###############################################################################
+
+
 class AMP(Calculator):
 
     """
@@ -488,7 +668,9 @@ class AMP(Calculator):
             cores=None,
             optimizer=optimizer,
             read_fingerprints=True,
-            overwrite=False,):
+            overwrite=False,
+            global_search=SimulatedAnnealing(initial_temp=70,
+                                             steps=2000),):
         """
         Fits a variable set to the data, by default using the "fmin_bfgs"
         optimizer. The optimizer takes as input a cost function to reduce and
@@ -521,6 +703,11 @@ class AMP(Calculator):
         :param overwrite: If a trained output file with the same name exists,
                           overwrite it.
         :type overwrite: bool
+        :param global_search: Method for global search of initial variables.
+                              Will ignore, if initial variables are already
+                              given. For now, it can be either None, or
+                              SimulatedAnnealing(initial_temp, steps).
+        :type global_search: object
         """
         param = self.parameters
         filename = make_filename(self.label, 'trained-parameters.json')
@@ -660,12 +847,20 @@ class AMP(Calculator):
 
         gc.collect()
 
+        if (param.regression.global_search is True) and \
+                (global_search is not None):
+            log('\n' + 'Starting global search...')
+            gs = global_search
+            gs.initialize(param.regression._variables, log, costfxn)
+            param.regression._variables = gs.get_variables()
+
         # saving initial parameters
         filename = make_filename(self.label, 'initial-parameters.json')
         save_parameters(filename, param)
         log('Initial parameters saved in file %s.' % filename)
 
-        log('Starting optimization of cost function...')
+        log.tic('optimize')
+        log('\n' + 'Starting optimization of cost function...')
         log(' Energy goal: %.3e' % energy_goal)
         if train_forces:
             log(' Force goal: %.3e' % force_goal)
@@ -692,14 +887,14 @@ class AMP(Calculator):
             log(' ...could not find parameters for the desired goal\n'
                 'error. Least error parameters saved as checkpoint.\n'
                 'Try it again or assign a larger value for "goal".',
-                toc=True)
+                toc='optimize')
             raise TrainingConvergenceError()
 
         param.regression._variables = costfxn.param.regression._variables
         self.reg.update_variables(param)
 
         log(' ...optimization completed successfully. Optimal '
-            'parameters saved.', toc=True)
+            'parameters saved.', toc='optimize')
         filename = make_filename(self.label, 'trained-parameters.json')
         save_parameters(filename, param)
 

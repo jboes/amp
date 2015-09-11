@@ -92,6 +92,7 @@ class NeuralNetwork:
         # pure atomic-coordinates scheme.
         self.switch = False
         self.no_of_atoms = None
+        self.global_search = False
 
     #########################################################################
 
@@ -731,6 +732,7 @@ class NeuralNetwork:
 
         # If weights are not given, generates random weights
         if not (self._weights or self._variables):
+            self.global_search = True
             log('Initializing with random weights.')
             if param.fingerprint is None:  # pure atomic-coordinates scheme
                 self._weights = make_weight_matrices(self.hiddenlayers,

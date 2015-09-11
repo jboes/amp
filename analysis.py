@@ -19,158 +19,8 @@ from amp import AMP
 from amp.utilities import hash_image
 from matplotlib import rcParams
 from matplotlib import pyplot
+from matplotlib.backends.backend_pdf import PdfPages
 rcParams.update({'figure.autolayout': True})
-
-###############################################################################
-
-
-class ConvergencePlot:
-
-    """
-    Creates plot analyzing the convergence behavior.
-
-    :param logfile: Write function at which log data exists.
-    :type log: Logger object
-    """
-    ###########################################################################
-
-    def __init__(self, logfile):
-
-        f = open(logfile, 'r')
-        lines = f.read().splitlines()
-        f.close()
-
-        # Get number of images.
-        for line in lines:
-            if 'unique images after hashing.' in line:
-                no_images = float(line.split()[0])
-                break
-
-        # Find where convergence data starts.
-        startline = None
-        for index, line in enumerate(lines):
-            if 'Starting optimization of cost function...' in line:
-                startline = index
-                break
-
-        # Get parameters.
-        ready = [False, False, False, False]
-        for index, line in enumerate(lines[startline:]):
-            if 'Energy goal' in line:
-                ready[0] = True
-                energygoal = float(line.split()[-1])
-            elif 'Force goal' in line:
-                ready[1] = True
-                forcegoal = float(line.split()[-1])
-            elif 'force coefficient' in line:
-                ready[2] = True
-                forcecoefficient = float(line.split()[-1])
-            elif 'No force training.' in line:
-                ready[1] = True
-                ready[2] = True
-                forcegoal = None
-                forcecoefficient = None
-            elif line.split()[0] == '0':
-                ready[3] = True
-                startline = startline + index
-            if ready == [True, True, True, True]:
-                break
-
-        if forcegoal:
-            E = energygoal**2 * no_images
-            F = forcegoal**2 * no_images
-            costfxngoal = E + forcecoefficient * F
-        else:
-            costfxngoal = energygoal**2 * no_images
-
-        # Extract data.
-        steps, es, fs, costfxns = [], [], [], []
-        costfxnEs, costfxnFs = [], []
-        for line in lines[startline:]:
-            if 'Saving checkpoint' in line:
-                continue
-            elif 'convergence!' in line:
-                continue
-            elif 'unconverged!' in line:
-                continue
-            elif 'optimization completed successfully.' in line:
-                break
-            elif 'could not find parameters for the' in line:
-                break
-            if forcegoal:
-                print(line)
-                step, time, costfxn, e, f = line.split()
-                fs.append(float(f))
-            else:
-                step, time, costfxn, e = line.split()
-            steps.append(int(step))
-            es.append(float(e))
-            costfxns.append(costfxn)
-
-            # Determine components of the cost function.
-            if forcegoal:
-                E = float(e)**2 * no_images
-                F = float(f)**2 * no_images
-                costfxnEs.append(E / float(costfxn))
-                costfxnFs.append(forcecoefficient * F / float(costfxn))
-
-        # Make plots.
-
-        from matplotlib import pyplot
-
-        fig = pyplot.figure(figsize=(6., 8.))
-        # Margins, vertical gap, and top-to-bottom ratio of figure.
-        lm, rm, bm, tm, vg, tb = 0.12, 0.05, 0.08, 0.03, 0.08, 4.
-        bottomaxheight = (1. - bm - tm - vg) / (tb + 1.)
-
-        ax = fig.add_axes((lm, bm + bottomaxheight + vg,
-                           1. - lm - rm, tb * bottomaxheight))
-        ax.semilogy(steps, es, 'b', lw=2, label='energy rmse')
-        if forcegoal:
-            ax.semilogy(steps, fs, 'g', lw=2, label='force rmse')
-        ax.semilogy(steps, costfxns, color='0.5', lw=2, label='cost function')
-        # Targets.
-        ax.semilogy([steps[0], steps[-1]], [energygoal] * 2, color='b',
-                    linestyle=':')
-        if forcegoal:
-            ax.semilogy([steps[0], steps[-1]], [forcegoal] * 2, color='g',
-                        linestyle=':')
-        ax.semilogy([steps[0], steps[-1]], [costfxngoal] * 2, color='0.5',
-                    linestyle=':')
-        ax.set_ylabel('error')
-        ax.set_xlabel('BFGS step')
-        ax.legend()
-
-        if forcegoal:
-            ax = fig.add_axes((lm, bm, 1. - lm - rm, bottomaxheight))
-            ax.fill_between(x=np.array(steps), y1=costfxnEs, color='blue')
-            ax.fill_between(x=np.array(steps), y1=costfxnEs,
-                            y2=np.array(costfxnEs) + np.array(costfxnFs),
-                            color='green')
-            ax.set_ylabel('cost function component')
-            ax.set_xlabel('BFGS step')
-            ax.set_ylim(0, 1)
-
-        self._fig = fig
-
-    ###########################################################################
-
-    def getfig(self):
-        """
-        Returns the figure object.
-        """
-        return self._fig
-
-    ###########################################################################
-
-    def savefig(self, plotfile='convergence.pdf'):
-        """
-        Saves the figure object to filename.
-
-        :param plotfile: Name or path to the plot file.
-        :type plotfile: str
-        """
-        self._fig.savefig(plotfile)
 
 ###############################################################################
 
@@ -180,13 +30,172 @@ def plot_convergence(logfile, plotfile='convergence.pdf'):
     Makes a plot of the convergence of the cost function and its energy
     and force components.
 
-    :param logfile: Write function at which log data exists.
-    :type log: Logger object
+    :param logfile: Name or path to the log file.
+    :type logfile: str
     :param plotfile: Name or path to the plot file.
     :type plotfile: str
     """
-    plot = ConvergencePlot(logfile)
-    plot.savefig(plotfile)
+    f = open(logfile, 'r')
+    lines = f.read().splitlines()
+    f.close()
+
+    # Get number of images.
+    for line in lines:
+        if 'unique images after hashing.' in line:
+            no_images = float(line.split()[0])
+            break
+
+    # Find where simulated annealing starts.
+    annealingstartline = None
+    for index, line in enumerate(lines):
+        if 'Simulated annealing started.' in line:
+            annealingstartline = index
+            break
+    annealingexitline = None
+    for index, line in enumerate(lines):
+        if 'Simulated annealing exited.' in line:
+            annealingexitline = index
+            break
+    if annealingstartline is not None:
+        # Extract data.
+        steps, temps, costfxns, acceptratios = [], [], [], []
+        for line in lines[annealingstartline + 3: annealingexitline]:
+            step, temp, costfxn, _, _, _, _, accept = line.split()
+            acceptratio = int(accept.split('(')[-1].split(')')[0])
+            steps.append(int(step))
+            temps.append(float(temp))
+            costfxns.append(float(costfxn))
+            acceptratios.append(float(acceptratio))
+
+        # Make plots
+        fig0 = pyplot.figure(figsize=(8.5, 11))
+        ax = fig0.add_subplot(311)
+        ax.set_title('Simulated annealing: trace of temperature')
+        ax.plot(temps, '-')
+        ax.set_xlabel('step')
+        ax.set_ylabel('temperature')
+
+        ax = fig0.add_subplot(312)
+        ax.set_title('trace of cost function')
+        ax.plot(costfxns, '-')
+        ax.set_yscale('log')
+        ax.set_xlabel('step')
+        ax.set_ylabel('cost function')
+
+        ax = fig0.add_subplot(313)
+        ax.set_title('trace of acceptance rate')
+        ax.plot(acceptratios, '-')
+        ax.set_xlabel('step')
+        ax.set_ylabel('acceptance rate')
+
+    # Find where convergence data starts.
+    startline = None
+    for index, line in enumerate(lines):
+        if 'Starting optimization of cost function...' in line:
+            startline = index
+            break
+
+    # Get parameters.
+    ready = [False, False, False, False]
+    for index, line in enumerate(lines[startline:]):
+        if 'Energy goal' in line:
+            ready[0] = True
+            energygoal = float(line.split()[-1])
+        elif 'Force goal' in line:
+            ready[1] = True
+            forcegoal = float(line.split()[-1])
+        elif 'force coefficient' in line:
+            ready[2] = True
+            forcecoefficient = float(line.split()[-1])
+        elif 'No force training.' in line:
+            ready[1] = True
+            ready[2] = True
+            forcegoal = None
+            forcecoefficient = None
+        elif line.split()[0] == '0':
+            ready[3] = True
+            startline = startline + index
+        if ready == [True, True, True, True]:
+            break
+
+    if forcegoal:
+        E = energygoal**2 * no_images
+        F = forcegoal**2 * no_images
+        costfxngoal = E + forcecoefficient * F
+    else:
+        costfxngoal = energygoal**2 * no_images
+
+    # Extract data.
+    steps, es, fs, costfxns = [], [], [], []
+    costfxnEs, costfxnFs = [], []
+    for line in lines[startline:]:
+        if 'Saving checkpoint' in line:
+            continue
+        elif 'convergence!' in line:
+            continue
+        elif 'unconverged!' in line:
+            continue
+        elif 'optimization completed successfully.' in line:
+            break
+        elif 'could not find parameters for the' in line:
+            break
+        if forcegoal:
+            print(line)
+            step, time, costfxn, e, f = line.split()
+            fs.append(float(f))
+        else:
+            step, time, costfxn, e = line.split()
+        steps.append(int(step))
+        es.append(float(e))
+        costfxns.append(costfxn)
+
+        # Determine components of the cost function.
+        if forcegoal:
+            E = float(e)**2 * no_images
+            F = float(f)**2 * no_images
+            costfxnEs.append(E / float(costfxn))
+            costfxnFs.append(forcecoefficient * F / float(costfxn))
+
+    # Make plots.
+    fig = pyplot.figure(figsize=(6., 8.))
+    # Margins, vertical gap, and top-to-bottom ratio of figure.
+    lm, rm, bm, tm, vg, tb = 0.12, 0.05, 0.08, 0.03, 0.08, 4.
+    bottomaxheight = (1. - bm - tm - vg) / (tb + 1.)
+
+    ax = fig.add_axes((lm, bm + bottomaxheight + vg,
+                       1. - lm - rm, tb * bottomaxheight))
+    ax.semilogy(steps, es, 'b', lw=2, label='energy rmse')
+    if forcegoal:
+        ax.semilogy(steps, fs, 'g', lw=2, label='force rmse')
+    ax.semilogy(steps, costfxns, color='0.5', lw=2, label='cost function')
+    # Targets.
+    ax.semilogy([steps[0], steps[-1]], [energygoal] * 2, color='b',
+                linestyle=':')
+    if forcegoal:
+        ax.semilogy([steps[0], steps[-1]], [forcegoal] * 2, color='g',
+                    linestyle=':')
+    ax.semilogy([steps[0], steps[-1]], [costfxngoal] * 2, color='0.5',
+                linestyle=':')
+    ax.set_ylabel('error')
+    ax.set_xlabel('BFGS step')
+    ax.legend()
+
+    if forcegoal:
+        ax = fig.add_axes((lm, bm, 1. - lm - rm, bottomaxheight))
+        ax.fill_between(x=np.array(steps), y1=costfxnEs, color='blue')
+        ax.fill_between(x=np.array(steps), y1=costfxnEs,
+                        y2=np.array(costfxnEs) + np.array(costfxnFs),
+                        color='green')
+        ax.set_ylabel('cost function component')
+        ax.set_xlabel('BFGS step')
+        ax.set_ylim(0, 1)
+
+    with PdfPages(plotfile) as pdf:
+        if annealingstartline is not None:
+            pdf.savefig(fig0)
+            pyplot.close(fig0)
+        pdf.savefig(fig)
+        pyplot.close(fig)
 
 ###############################################################################
 
