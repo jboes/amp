@@ -15,7 +15,7 @@ import os
 from ase import io
 from ase.parallel import paropen
 import json
-from amp import AMP
+from amp import Amp
 from amp.utilities import hash_image
 from matplotlib import rcParams
 from matplotlib import pyplot
@@ -207,10 +207,10 @@ def plot_parity(load,
                 color='b.',
                 overwrite=False):
     """
-    Makes a parity plot of AMP energies and forces versus real energies and
+    Makes a parity plot of Amp energies and forces versus real energies and
     forces.
 
-    :param load: Path for loading an existing parameters of AMP calculator.
+    :param load: Path for loading an existing parameters of Amp calculator.
     :type load: str
     :param images: List of ASE atoms objects with positions, symbols, energies,
                    and forces in ASE format. This is the training set of data.
@@ -240,7 +240,7 @@ def plot_parity(load,
     if plot_forces is not None:
         forcescript = os.path.join('force-' + base_filename + '.json')
 
-    calc = AMP(load=load)
+    calc = Amp(load=load)
 
     if isinstance(images, str):
         extension = os.path.splitext(images)[1]
@@ -357,7 +357,7 @@ def plot_parity(load,
                              for atom in images[hash]
                              for k in range(3)])
 
-        #######################################################################
+        ##############################################################
         # force plot
         ax = fig.add_subplot(212)
 
@@ -378,7 +378,7 @@ def plot_parity(load,
         ax.set_ylabel('Amp force')
         ax.set_title('Forces')
 
-        #######################################################################
+        ##############################################################
 
     fig.savefig(plotfile)
 
@@ -395,7 +395,7 @@ def plot_error(load,
     Makes a plot of deviations in per atom energies and forces versus real
     energies and forces.
 
-    :param load: Path for loading an existing parameters of AMP calculator.
+    :param load: Path for loading an existing parameters of Amp calculator.
     :type load: str
     :param images: List of ASE atoms objects with positions, symbols, energies,
                    and forces in ASE format. This is the training set of data.
@@ -425,7 +425,7 @@ def plot_error(load,
     if plot_forces is not None:
         forcescript = os.path.join('force-' + base_filename + '.json')
 
-    calc = AMP(load=load)
+    calc = Amp(load=load)
 
     if isinstance(images, str):
         extension = os.path.splitext(images)[1]
@@ -569,7 +569,7 @@ def plot_error(load,
                              for atom in images[hash]
                              for k in range(3)])
 
-        #######################################################################
+        ##############################################################
         # force plot
         ax = fig.add_subplot(212)
 
@@ -596,7 +596,7 @@ def plot_error(load,
         ax.set_ylabel('|actual force - Amp force|')
         ax.set_title('Forces')
 
-        #######################################################################
+        ##############################################################
 
     fig.savefig(plotfile)
 

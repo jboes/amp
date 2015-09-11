@@ -1,5 +1,5 @@
 '''This simple script aims to check the forces for 5 configurations of Pd and O
-atoms from none-neural scheme of AMP against their analytic analogs obtained
+atoms from none-neural scheme of Amp against their analytic analogs obtained
 from mathematica scripts.'''
 
 ###############################################################################
@@ -8,7 +8,7 @@ import numpy as np
 from collections import OrderedDict
 from ase import Atoms, Atom
 from ase.calculators.emt import EMT
-from amp import AMP
+from amp import Amp
 from amp.regression import NeuralNetwork
 
 ###############################################################################
@@ -125,7 +125,7 @@ def test():
 
     for fortran in [False, True]:
 
-        calc = AMP(fingerprint=None,
+        calc = Amp(fingerprint=None,
                    regression=NeuralNetwork(hiddenlayers=(2, 1),
                                             weights=weights,
                                             scalings=scalings,

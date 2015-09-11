@@ -12,7 +12,7 @@ from ase.md.velocitydistribution import MaxwellBoltzmannDistribution
 from ase import units
 from ase.md import VelocityVerlet
 from ase.constraints import FixAtoms
-from amp import AMP
+from amp import Amp
 from amp.fingerprint import Behler
 
 ###############################################################################
@@ -52,7 +52,7 @@ def test_none():
     images = generate_data(10)
 
     print('Training none-neural network.')
-    calc = AMP(fingerprint=None, label=os.path.join(label, 'none'))
+    calc = Amp(fingerprint=None, label=os.path.join(label, 'none'))
     calc.train(images, force_goal=None)
 
 ###############################################################################
@@ -65,7 +65,7 @@ def test_behler():
     images = generate_data(10)
 
     print('Training behler-neural network.')
-    calc = AMP(fingerprint=Behler(), label=os.path.join(label, 'behler'))
+    calc = Amp(fingerprint=Behler(), label=os.path.join(label, 'behler'))
     calc.train(images, force_goal=None)
 
 ###############################################################################

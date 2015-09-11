@@ -11,7 +11,7 @@ by the code with and without fortran modules.
 import numpy as np
 from ase import Atoms
 from collections import OrderedDict
-from amp import AMP
+from amp import Amp
 from amp.fingerprint import Behler
 from amp.regression import NeuralNetwork
 
@@ -169,7 +169,7 @@ def non_periodic_test():
 
     for fortran in [False, True]:
 
-        calc = AMP(fingerprint=Behler(cutoff=6.5, Gs=Gs,),
+        calc = Amp(fingerprint=Behler(cutoff=6.5, Gs=Gs,),
                    regression=NeuralNetwork(hiddenlayers=hiddenlayers,
                                             weights=weights,
                                             scalings=scalings,
@@ -309,7 +309,7 @@ def periodic_test():
 
     for fortran in [False, True]:
 
-        calc = AMP(fingerprint=Behler(cutoff=4., Gs=Gs,),
+        calc = Amp(fingerprint=Behler(cutoff=4., Gs=Gs,),
                    regression=NeuralNetwork(hiddenlayers=hiddenlayers,
                                             weights=weights,
                                             scalings=scalings,

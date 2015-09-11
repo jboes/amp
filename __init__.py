@@ -38,22 +38,21 @@ except ImportError:
 
 class SimulatedAnnealing:
 
+    """
+    Class that implements simulated annealing algorithm for global search of
+    variables. This algorithm is helpful to be used for pre-conditioning of the
+    initial guess of variables for optimization of non-convex functions.
+
+    :param initial_temp: Initial temperature which corresponds to initial
+                         variance of the likelihood normal probability
+                         distribution. Should take a value from 50 to 100.
+    :type initial_temp: float
+    :param steps: Number of search iterations.
+    :type steps: int
+    """
     ###########################################################################
 
     def __init__(self, initial_temp, steps):
-        """
-        Class that implements simulated annealing algorithm for global search
-        of variables. This algorithm is helpful to be used for pre-conditioning
-        of the initial guess of variables for optimization of non-convex
-        functions.
-
-        :param initial_temp: Initial temperature which corresponds to initial
-                             variance of the likelihood normal probability
-                             distribution. Should take a value from 50 to 100.
-        :type initial_temp: float
-        :param steps: Number of search iterations.
-        :type steps: int
-        """
         self.initial_temp = initial_temp
         self.steps = steps
 
@@ -216,10 +215,10 @@ class SimulatedAnnealing:
 ###############################################################################
 
 
-class AMP(Calculator):
+class Amp(Calculator):
 
     """
-    Atomistic Machine-Learning Potential (AMP) ASE calculator
+    Atomistic Machine-Learning Potential (Amp) ASE calculator
 
     :param fingerprint: Class representing local atomic environment. Can be
                         only None and Behler for now. Input arguments for
@@ -239,7 +238,7 @@ class AMP(Calculator):
                                >>> fingerprints_range={"Pd": [0.31, 0.59], "O":[0.56, 0.72]}
 
     :type fingerprints_range: dict
-    :param load: Path for loading an existing parameters of AMP calculator.
+    :param load: Path for loading an existing parameters of Amp calculator.
     :type load: str
     :param label: Default prefix/location used for all files.
     :type label: str
@@ -266,7 +265,7 @@ class AMP(Calculator):
         'fingerprints_range': None,
     }
 
-    #########################################################################
+    ###########################################################################
 
     def __init__(self, load=None, label=None, dblabel=None, extrapolate=True,
                  fortran=True, **kwargs):
@@ -316,7 +315,7 @@ class AMP(Calculator):
                     parameters['no_of_atoms'] = None
             else:
                 raise RuntimeError('Fingerprinting scheme is not recognized '
-                                   'to AMP for loading parameters. User '
+                                   'to Amp for loading parameters. User '
                                    'should add the fingerprinting scheme '
                                    'under consideration.')
 
@@ -329,7 +328,7 @@ class AMP(Calculator):
                     kwargs['no_of_atoms'] = parameters['no_of_atoms']
             else:
                 raise RuntimeError('Regression method is not recognized to '
-                                   'AMP for loading parameters. User should '
+                                   'Amp for loading parameters. User should '
                                    'add the regression method under '
                                    'consideration.')
 
@@ -344,7 +343,7 @@ class AMP(Calculator):
 
         self.reg.initialize(param, load)
 
-    #########################################################################
+    ###########################################################################
 
     def set(self, **kwargs):
         """
@@ -356,7 +355,7 @@ class AMP(Calculator):
         if len(changed_parameters) > 0:
             self.reset()
 
-    #########################################################################
+    ###########################################################################
 
     def set_label(self, label):
         """
@@ -373,7 +372,7 @@ class AMP(Calculator):
                     not os.path.isdir(self.directory)):
                 os.makedirs(self.directory)
 
-    #########################################################################
+    ###########################################################################
 
     def initialize(self, atoms):
         """
@@ -387,7 +386,7 @@ class AMP(Calculator):
         self.nl = NeighborList([0.5 * self.rc + 0.25] * len(atoms),
                                self_interaction=False)
 
-    #########################################################################
+    ###########################################################################
 
     def calculate(self, atoms, properties, system_changes):
         """
@@ -656,7 +655,7 @@ class AMP(Calculator):
 
             self.results['forces'] = self.forces
 
-    #########################################################################
+    ###########################################################################
 
     def train(
             self,
@@ -729,7 +728,7 @@ class AMP(Calculator):
 
         log = Logger(make_filename(self.label, 'train-log.txt'))
 
-        log('AMP training started. ' + now() + '\n')
+        log('Amp training started. ' + now() + '\n')
         if param.fingerprint is None:  # pure atomic-coordinates scheme
             log('Local environment descriptor: None')
         else:  # fingerprinting scheme
@@ -770,12 +769,12 @@ class AMP(Calculator):
             dict_images[key] = image
         images = dict_images.copy()
         del dict_images
-        hash_keys = sorted(images.keys())
-        log(' %i unique images after hashing.' % len(hash_keys))
+        hashs = sorted(images.keys())
+        log(' %i unique images after hashing.' % len(hashs))
         log(' ...hashing completed.', toc=True)
 
-        self.elements = set([atom.symbol for hash_key in hash_keys
-                             for atom in images[hash_key]])
+        self.elements = set([atom.symbol for hash in hashs
+                             for atom in images[hash]])
         self.elements = sorted(self.elements)
 
         msg = '%i unique elements included: ' % len(self.elements)
@@ -795,7 +794,7 @@ class AMP(Calculator):
         else:  # fingerprinting scheme
             # Neighborlist for all images are calculated and saved
             log.tic()
-            snl = SaveNeighborLists(param.fingerprint.cutoff, hash_keys,
+            snl = SaveNeighborLists(param.fingerprint.cutoff, hashs,
                                     images, self.dblabel, log, train_forces,
                                     read_fingerprints)
 
@@ -805,7 +804,7 @@ class AMP(Calculator):
             self.sfp = SaveFingerprints(
                 self.fp,
                 self.elements,
-                hash_keys,
+                hashs,
                 images,
                 self.dblabel,
                 train_forces,
@@ -829,7 +828,7 @@ class AMP(Calculator):
         costfxn = CostFxnandDer(
             self.reg,
             param,
-            hash_keys,
+            hashs,
             images,
             self.label,
             log,
@@ -843,7 +842,7 @@ class AMP(Calculator):
             self.sfp,
             snl,)
 
-        del hash_keys, images
+        del hashs, images
 
         gc.collect()
 
@@ -920,29 +919,29 @@ class MultiProcess:
     :param no_procs: Number of processors.
     :type no_procs: int
     """
-    #########################################################################
+    ###########################################################################
 
     def __init__(self, fortran, no_procs):
 
         self.fortran = fortran
         self.no_procs = no_procs
 
-    ##########################################################################
+    ###########################################################################
 
-    def make_list_of_sub_images(self, hash_keys, images):
+    def make_list_of_sub_images(self, hashs, images):
         """
         Two lists are made each with one entry per core. The entry of the first
         list contains list of hashes to be calculated by that core, and the
         entry of the second list contains dictionary of images to be calculated
         by that core.
 
-        :param hash_keys: Unique keys, one key per image.
-        :type hash_keys: list
+        :param hashs: Unique keys, one key per image.
+        :type hashs: list
         :param images: List of ASE atoms objects (the training set).
         :type images: list
         """
-        quotient = int(len(hash_keys) / self.no_procs)
-        remainder = len(hash_keys) - self.no_procs * quotient
+        quotient = int(len(hashs) / self.no_procs)
+        remainder = len(hashs) - self.no_procs * quotient
         list_sub_hashes = [None] * self.no_procs
         list_sub_images = [None] * self.no_procs
         count0 = 0
@@ -956,7 +955,7 @@ class MultiProcess:
             sub_images = {}
             count2 = 0
             for j in range(len_sub_hashes):
-                hash = hash_keys[count1]
+                hash = hashs[count1]
                 sub_hashes[count2] = hash
                 sub_images[hash] = images[hash]
                 count1 += 1
@@ -968,10 +967,10 @@ class MultiProcess:
         self.list_sub_hashes = list_sub_hashes
         self.list_sub_images = list_sub_images
 
-        del hash_keys, images, list_sub_hashes, list_sub_images, sub_hashes,
+        del hashs, images, list_sub_hashes, list_sub_images, sub_hashes,
         sub_images
 
-    ##########################################################################
+    ###########################################################################
 
     def share_fingerprints_task_between_cores(self, task, _args):
         """
@@ -984,9 +983,9 @@ class MultiProcess:
         """
         args = {}
         for x in range(self.no_procs):
-            sub_hash_keys = self.list_sub_hashes[x]
+            sub_hashs = self.list_sub_hashes[x]
             sub_images = self.list_sub_images[x]
-            args[x] = (x,) + (sub_hash_keys, sub_images,) + _args
+            args[x] = (x,) + (sub_hashs, sub_images,) + _args
 
         processes = [mp.Process(target=task, args=args[x])
                      for x in range(self.no_procs)]
@@ -1000,9 +999,9 @@ class MultiProcess:
         for x in range(self.no_procs):
             processes[x].terminate()
 
-        del sub_hash_keys, sub_images
+        del sub_hashs, sub_images
 
-    ##########################################################################
+    ###########################################################################
 
     def ravel_images_data(self,
                           param,
@@ -1045,8 +1044,8 @@ class MultiProcess:
             self.no_of_images[x] = len(self.list_sub_hashes[x])
             self.real_energies[x] = \
                 [self.list_sub_images[x][
-                    hash_key].get_potential_energy(apply_constraint=False)
-                    for hash_key in self.list_sub_hashes[x]]
+                    hash].get_potential_energy(apply_constraint=False)
+                    for hash in self.list_sub_hashes[x]]
 
         if self.fingerprinting:
 
@@ -1055,12 +1054,12 @@ class MultiProcess:
             self.raveled_fingerprints_of_images = {}
             for x in range(self.no_procs):
                 self.no_of_atoms_of_images[x] = \
-                    [len(self.list_sub_images[x][hash_key])
-                     for hash_key in self.list_sub_hashes[x]]
+                    [len(self.list_sub_images[x][hash])
+                     for hash in self.list_sub_hashes[x]]
                 self.atomic_numbers_of_images[x] = \
                     [atomic_numbers[atom.symbol]
-                     for hash_key in self.list_sub_hashes[x]
-                     for atom in self.list_sub_images[x][hash_key]]
+                     for hash in self.list_sub_hashes[x]
+                     for atom in self.list_sub_images[x][hash]]
                 self.raveled_fingerprints_of_images[x] = \
                     ravel_fingerprints_of_images(self.list_sub_hashes[x],
                                                  self.list_sub_images[x],
@@ -1069,19 +1068,18 @@ class MultiProcess:
             self.atomic_positions_of_images = {}
             for x in range(self.no_procs):
                 self.atomic_positions_of_images[x] = \
-                    [self.list_sub_images[x][hash_key].positions.ravel()
-                     for hash_key in self.list_sub_hashes[x]]
+                    [self.list_sub_images[x][hash].positions.ravel()
+                     for hash in self.list_sub_hashes[x]]
 
         if train_forces is True:
 
             self.real_forces = {}
             for x in range(self.no_procs):
                 self.real_forces[x] = \
-                    [self.list_sub_images[x][hash_key].get_forces(
+                    [self.list_sub_images[x][hash].get_forces(
                         apply_constraint=False)[index]
-                     for hash_key in self.list_sub_hashes[x]
-                     for index in range(len(self.list_sub_images[x][
-                         hash_key]))]
+                     for hash in self.list_sub_hashes[x]
+                     for index in range(len(self.list_sub_images[x][hash]))]
 
             if self.fingerprinting:
                 self.list_of_no_of_neighbors = {}
@@ -1099,7 +1097,7 @@ class MultiProcess:
 
         log(' ...data re-shaped.', toc=True)
 
-    ##########################################################################
+    ###########################################################################
 
     def share_cost_function_task_between_cores(self, task, _args,
                                                len_of_variables):
@@ -1123,9 +1121,9 @@ class MultiProcess:
             if self.fortran:
                 args[x] = _args + (queues[x],)
             else:
-                sub_hash_keys = self.list_sub_hashes[x]
+                sub_hashs = self.list_sub_hashes[x]
                 sub_images = self.list_sub_images[x]
-                args[x] = (sub_hash_keys, sub_images,) + _args + (queues[x],)
+                args[x] = (sub_hashs, sub_images,) + _args + (queues[x],)
 
         energy_square_error = 0.
         force_square_error = 0.
@@ -1170,12 +1168,12 @@ class MultiProcess:
                     sub_der_variables_square_error[_][j]
 
         if not self.fortran:
-            del sub_hash_keys, sub_images
+            del sub_hashs, sub_images
 
         return (energy_square_error, force_square_error,
                 der_variables_square_error)
 
-    ##########################################################################
+    ###########################################################################
 
     def send_data_to_fortran(self, x,):
         """
@@ -1229,8 +1227,8 @@ class SaveNeighborLists:
 
     :param cutoff: Cutoff radius, in Angstroms, around each atom.
     :type cutoff: float
-    :param hash_keys: Unique keys, one key per image.
-    :type hash_keys: list
+    :param hashs: Unique keys, one key per image.
+    :type hashs: list
     :param images: List of ASE atoms objects (the training set).
     :type images: list
     :param label: Prefix name used for all files.
@@ -1245,9 +1243,9 @@ class SaveNeighborLists:
                               script directory.
     :type read_fingerprints: bool
     """
-    ##########################################################################
+    ###########################################################################
 
-    def __init__(self, cutoff, hash_keys, images, label, log, train_forces,
+    def __init__(self, cutoff, hashs, images, label, log, train_forces,
                  read_fingerprints):
 
         self.cutoff = cutoff
@@ -1279,17 +1277,17 @@ class SaveNeighborLists:
 
             new_images = {}
             old_hashes = set([key[0] for key in self.nl_data.keys()])
-            for hash_key in hash_keys:
-                if hash_key not in old_hashes:
-                    new_images[hash_key] = images[hash_key]
+            for hash in hashs:
+                if hash not in old_hashes:
+                    new_images[hash] = images[hash]
 
             log(' Calculating %i of %i neighborlists.'
                 % (len(new_images), len(images)))
 
             if len(new_images) != 0:
                 new_hashs = sorted(new_images.keys())
-                for hash_key in new_hashs:
-                    image = new_images[hash_key]
+                for hash in new_hashs:
+                    image = new_images[hash]
                     nl = NeighborList(cutoffs=([self.cutoff / 2.] *
                                                len(image)),
                                       self_interaction=False,
@@ -1307,7 +1305,7 @@ class SaveNeighborLists:
                                 np.vstack(([[0, 0, 0]], neighbor_offsets))
                         n_self_indices = np.append(self_index,
                                                    neighbor_indices)
-                        self.nl_data[(hash_key, self_index)] = \
+                        self.nl_data[(hash, self_index)] = \
                             (n_self_indices, n_self_offsets,)
 
                 dict_data = OrderedDict()
@@ -1340,8 +1338,8 @@ class SaveFingerprints:
     :type fp: object
     :param elements: List if elements in images.
     :type elements: list
-    :param hash_keys: Unique keys, one key per image.
-    :type hash_keys: list
+    :param hashs: Unique keys, one key per image.
+    :type hashs: list
     :param images: List of ASE atoms objects (the training set).
     :type images: list
     :param label: Prefix name used for all files.
@@ -1360,12 +1358,12 @@ class SaveFingerprints:
     :param _mp: MultiProcess object.
     :type _mp: object
     """
-    ##########################################################################
+    ###########################################################################
 
     def __init__(self,
                  fp,
                  elements,
-                 hash_keys,
+                 hashs,
                  images,
                  label,
                  train_forces,
@@ -1404,9 +1402,9 @@ class SaveFingerprints:
 
         new_images = {}
         old_hashes = set([key[0] for key in self.fp_data.keys()])
-        for hash_key in hash_keys:
-            if hash_key not in old_hashes:
-                new_images[hash_key] = images[hash_key]
+        for hash in hashs:
+            if hash not in old_hashes:
+                new_images[hash] = images[hash]
 
         log(' Calculating %i of %i fingerprints. (%i exist in file.)'
             % (len(new_images), len(images), len(old_hashes)))
@@ -1465,12 +1463,12 @@ class SaveFingerprints:
             for _ in range(len(self.Gs[element])):
                 fingerprint_values[element][_] = []
 
-        for hash_key in hash_keys:
-            image = images[hash_key]
+        for hash in hashs:
+            image = images[hash]
             for atom in image:
                 for _ in range(len(self.Gs[atom.symbol])):
                     fingerprint_values[atom.symbol][_].append(
-                        dict_data[hash_key][atom.index][_])
+                        dict_data[hash][atom.index][_])
 
         fingerprints_range = OrderedDict()
         for element in elements:
@@ -1519,9 +1517,9 @@ class SaveFingerprints:
 
             new_images = {}
             old_hashes = set([key[0] for key in self.der_fp_data.keys()])
-            for hash_key in hash_keys:
-                if hash_key not in old_hashes:
-                    new_images[hash_key] = images[hash_key]
+            for hash in hashs:
+                if hash not in old_hashes:
+                    new_images[hash] = images[hash]
 
             log(' Calculating %i of %i fingerprint derivatives. '
                 '(%i exist in file.)'
@@ -1600,8 +1598,8 @@ class CostFxnandDer:
     :type reg: object
     :param param: ASE dictionary that contains cutoff and variables.
     :type param: dict
-    :param hash_keys: Unique keys, one key per image.
-    :type hash_keys: list
+    :param hashs: Unique keys, one key per image.
+    :type hashs: list
     :param images: ASE atoms objects (the train set).
     :type images: dict
     :param label: Prefix used for all files.
@@ -1633,9 +1631,9 @@ class CostFxnandDer:
     :param snl: SaveNeighborLists object.
     :type snl: object
     """
-    #########################################################################
+    ###########################################################################
 
-    def __init__(self, reg, param, hash_keys, images, label, log,
+    def __init__(self, reg, param, hashs, images, label, log,
                  energy_goal, force_goal, train_forces, _mp,
                  overfitting_constraint, force_coefficient, fortran, sfp=None,
                  snl=None,):
@@ -1665,11 +1663,11 @@ class CostFxnandDer:
 
         self.energy_coefficient = 1.0
 
-        self.no_of_images = len(hash_keys)
+        self.no_of_images = len(hashs)
 
         # all images are shared between cores for feed-forward and
         # back-propagation calculations
-        self._mp.make_list_of_sub_images(hash_keys, images)
+        self._mp.make_list_of_sub_images(hashs, images)
 
         if self.fortran:
             # regression data is sent to fortran modules
@@ -1689,11 +1687,11 @@ class CostFxnandDer:
                                        log,)
             del self._mp.list_sub_images, self._mp.list_sub_hashes
 
-        del hash_keys, images
+        del hashs, images
 
         gc.collect()
 
-    #########################################################################
+    ###########################################################################
 
     def f(self, variables):
         """
@@ -1809,7 +1807,7 @@ class CostFxnandDer:
 
         return self.cost_function
 
-    #########################################################################
+    ###########################################################################
 
     def fprime(self, variables):
         """
@@ -1852,42 +1850,6 @@ class CostFxnandDer:
 ###############################################################################
 
 
-class ConvergenceOccurred(Exception):
-
-    """
-    Kludge to decide when scipy's optimizers are complete.
-    """
-    pass
-
-###############################################################################
-###############################################################################
-###############################################################################
-
-
-class TrainingConvergenceError(Exception):
-
-    """
-    Error to be raise if training does not converge.
-    """
-    pass
-
-###############################################################################
-###############################################################################
-###############################################################################
-
-
-class ExtrapolateError(Exception):
-
-    """
-    Error class in the case of extrapolation.
-    """
-    pass
-
-###############################################################################
-###############################################################################
-###############################################################################
-
-
 def _calculate_fingerprints(proc_no, hashes, images, fp, label, childfiles):
     """
     Function to be called on all processes simultaneously for calculating
@@ -1907,9 +1869,9 @@ def _calculate_fingerprints(proc_no, hashes, images, fp, label, childfiles):
     :type childfiles: file
     """
     fingerprints = {}
-    for hash_key in hashes:
-        fingerprints[hash_key] = {}
-        atoms = images[hash_key]
+    for hash in hashes:
+        fingerprints[hash] = {}
+        atoms = images[hash]
         fp.initialize(atoms)
         _nl = NeighborList(cutoffs=([fp.cutoff / 2.] * len(atoms)),
                            self_interaction=False,
@@ -1927,9 +1889,9 @@ def _calculate_fingerprints(proc_no, hashes, images, fp, label, childfiles):
                   np.dot(n_offset, atoms.get_cell())
                   for n_index, n_offset in zip(n_indices, n_offsets)]
             indexfp = fp.get_fingerprint(index, symbol, n_symbols, Rs)
-            fingerprints[hash_key][index] = indexfp
+            fingerprints[hash][index] = indexfp
 
-    save_fingerprints(f=childfiles[proc_no], fingerprints=fingerprints)
+    save_fingerprints(childfiles[proc_no], fingerprints)
 
     del hashes, images
 
@@ -1956,9 +1918,9 @@ def _calculate_der_fingerprints(proc_no, hashes, images, fp,
     :type childfiles: file
     """
     data = {}
-    for hash_key in hashes:
-        data[hash_key] = {}
-        atoms = images[hash_key]
+    for hash in hashes:
+        data[hash] = {}
+        atoms = images[hash]
         fp.initialize(atoms)
         _nl = NeighborList(cutoffs=([fp.cutoff / 2.] *
                                     len(atoms)),
@@ -1968,8 +1930,8 @@ def _calculate_der_fingerprints(proc_no, hashes, images, fp,
         _nl.update(atoms)
         for self_atom in atoms:
             self_index = self_atom.index
-            n_self_indices = snl.nl_data[(hash_key, self_index)][0]
-            n_self_offsets = snl.nl_data[(hash_key, self_index)][1]
+            n_self_indices = snl.nl_data[(hash, self_index)][0]
+            n_self_offsets = snl.nl_data[(hash, self_index)][1]
             n_symbols = [atoms[n_index].symbol for n_index in n_self_indices]
             for n_symbol, n_index, n_offset in zip(n_symbols, n_self_indices,
                                                    n_self_offsets):
@@ -1995,7 +1957,7 @@ def _calculate_der_fingerprints(proc_no, hashes, images, fp,
                             neighbor_symbols,
                             Rs, self_index, i)
 
-                        data[hash_key][(n_index, self_index, i)] = der_indexfp
+                        data[hash][(n_index, self_index, i)] = der_indexfp
 
     save_der_fingerprints(childfiles[proc_no], data)
 
@@ -2070,8 +2032,8 @@ def _calculate_cost_function_python(hashes, images, reg, param, sfp,
 
     reg.update_variables(param)
 
-    for hash_key in hashes:
-        atoms = images[hash_key]
+    for hash in hashes:
+        atoms = images[hash]
         real_energy = atoms.get_potential_energy(apply_constraint=False)
         real_forces = atoms.get_forces(apply_constraint=False)
 
@@ -2088,7 +2050,7 @@ def _calculate_cost_function_python(hashes, images, reg, param, sfp,
             for atom in atoms:
                 index = atom.index
                 symbol = atom.symbol
-                indexfp = sfp.fp_data[(hash_key, index)]
+                indexfp = sfp.fp_data[(hash, index)]
                 # fingerprints are scaled to [-1, 1] range
                 scaled_indexfp = [None] * len(indexfp)
                 count = 0
@@ -2149,8 +2111,8 @@ def _calculate_cost_function_python(hashes, images, reg, param, sfp,
 
                 else:  # fingerprinting scheme
 
-                    n_self_indices = snl.nl_data[(hash_key, self_index)][0]
-                    n_self_offsets = snl.nl_data[(hash_key, self_index)][1]
+                    n_self_indices = snl.nl_data[(hash, self_index)][0]
+                    n_self_offsets = snl.nl_data[(hash, self_index)][1]
                     n_symbols = [atoms[n_index].symbol
                                  for n_index in n_self_indices]
 
@@ -2162,7 +2124,7 @@ def _calculate_cost_function_python(hashes, images, reg, param, sfp,
                         if n_offset[0] == 0 and n_offset[1] == 0 and \
                                 n_offset[2] == 0:
                             for i in range(3):
-                                der_indexfp = sfp.der_fp_data[(hash_key,
+                                der_indexfp = sfp.der_fp_data[(hash,
                                                                (n_index,
                                                                 self_index,
                                                                 i))]
@@ -2339,7 +2301,7 @@ def interpolate_images(images, load, fortran=True):
                    and forces in ASE format. This can also be the path to an
                    ASE trajectory (.traj) or database (.db) file.
     :type images: list or str
-    :param load: Path for loading an existing parameters of AMP calculator.
+    :param load: Path for loading an existing parameters of Amp calculator.
     :type load: str
     :param fortran: If True, will use fortran modules, if False, will not.
     :type fortran: bool
@@ -2362,7 +2324,7 @@ def interpolate_images(images, load, fortran=True):
     images = dict_images.copy()
     del dict_images
 
-    amp = AMP(load=load, fortran=fortran)
+    amp = Amp(load=load, fortran=fortran)
     param = amp.parameters
     fp = param.fingerprint
     fingerprints_range = param.fingerprints_range
@@ -2463,37 +2425,37 @@ def send_data_to_fortran(sfp, elements, train_forces,
 ##############################################################################
 
 
-def ravel_fingerprints_of_images(hash_keys, images, sfp):
+def ravel_fingerprints_of_images(hashs, images, sfp):
     """
     Reshape fingerprints of all images into a matrix.
 
-    :param hash_keys: Unique keys, one key per image.
-    :type hash_keys: list
+    :param hashs: Unique keys, one key per image.
+    :type hashs: list
     :param images: ASE atoms objects (the train set).
     :type images: dict
     :param sfp: SaveFingerprints object.
     :type sfp: object
     """
-    keys = [(hash_key, index) for hash_key in hash_keys
-            for index in range(len(images[hash_key]))]
+    keys = [(hash, index) for hash in hashs
+            for index in range(len(images[hash]))]
 
     raveled_fingerprints = [sfp.fp_data[key] for key in keys]
 
-    del hash_keys, images, keys
+    del hashs, images, keys
 
     return raveled_fingerprints
 
 ###############################################################################
 
 
-def ravel_neighborlists_and_der_fingerprints_of_images(hash_keys,
+def ravel_neighborlists_and_der_fingerprints_of_images(hashs,
                                                        images, sfp, snl):
     """
     Reshape neighborlists and derivatives of fingerprints of all images into a
     matrix.
 
-    :param hash_keys: Unique keys, one key per image.
-    :type hash_keys: list
+    :param hashs: Unique keys, one key per image.
+    :type hashs: list
     :param images: ASE atoms objects (the train set).
     :type images: dict
     :param sfp: SaveFingerprints object.
@@ -2504,36 +2466,36 @@ def ravel_neighborlists_and_der_fingerprints_of_images(hash_keys,
     # Only neighboring atoms of type II (within the main cell) needs to be sent
     # to fortran for force training
     list_of_no_of_neighbors = []
-    for hash_key in hash_keys:
-        atoms = images[hash_key]
+    for hash in hashs:
+        atoms = images[hash]
         for self_atom in atoms:
             self_index = self_atom.index
-            n_self_offsets = snl.nl_data[(hash_key, self_index)][1]
+            n_self_offsets = snl.nl_data[(hash, self_index)][1]
             count = 0
             for n_offset in n_self_offsets:
                 if n_offset[0] == 0 and n_offset[1] == 0 and n_offset[2] == 0:
                     count += 1
             list_of_no_of_neighbors.append(count)
 
-    raveled_neighborlists = [n_index for hash_key in hash_keys
-                             for self_atom in images[hash_key]
+    raveled_neighborlists = [n_index for hash in hashs
+                             for self_atom in images[hash]
                              for n_index, n_offset in
-                             zip(snl.nl_data[(hash_key, self_atom.index)][0],
-                                 snl.nl_data[(hash_key, self_atom.index)][1])
+                             zip(snl.nl_data[(hash, self_atom.index)][0],
+                                 snl.nl_data[(hash, self_atom.index)][1])
                              if (n_offset[0] == 0 and n_offset[1] == 0 and
                                  n_offset[2] == 0)]
 
     raveled_der_fingerprints = \
-        [sfp.der_fp_data[(hash_key, (n_index, self_atom.index, i))]
-         for hash_key in hash_keys
-         for self_atom in images[hash_key]
+        [sfp.der_fp_data[(hash, (n_index, self_atom.index, i))]
+         for hash in hashs
+         for self_atom in images[hash]
          for n_index, n_offset in
-         zip(snl.nl_data[(hash_key, self_atom.index)][0],
-             snl.nl_data[(hash_key, self_atom.index)][1])
+         zip(snl.nl_data[(hash, self_atom.index)][0],
+             snl.nl_data[(hash, self_atom.index)][1])
          if (n_offset[0] == 0 and n_offset[1] == 0 and
              n_offset[2] == 0) for i in range(3)]
 
-    del hash_keys, images
+    del hashs, images
 
     return (list_of_no_of_neighbors,
             raveled_neighborlists,

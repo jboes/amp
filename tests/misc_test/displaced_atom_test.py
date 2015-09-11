@@ -10,7 +10,7 @@ different.
 import numpy as np
 from ase import Atoms
 from collections import OrderedDict
-from amp import AMP
+from amp import Amp
 from amp.fingerprint import Behler
 from amp.regression import NeuralNetwork
 
@@ -79,7 +79,7 @@ def test():
 
     ###########################################################################
 
-    calc = AMP(fingerprint=Behler(cutoff=6.5, Gs=Gs,),
+    calc = Amp(fingerprint=Behler(cutoff=6.5, Gs=Gs,),
                regression=NeuralNetwork(hiddenlayers=hiddenlayers,
                                         weights=weights,
                                         scalings=scalings,),

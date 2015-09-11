@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """This module contains utilities for use with various aspects of the
-AMP calculators."""
+Amp calculators."""
 
 ###############################################################################
 
@@ -49,6 +49,34 @@ def randomize_images(images, fraction=0.8):
     if file_opened:
         images.close()
     return train_images, test_images
+
+###############################################################################
+
+
+class FingerprintsError(Exception):
+
+    """
+    Error class in case the functional form of fingerprints has changed.
+    """
+    pass
+
+###############################################################################
+
+
+class ConvergenceOccurred(Exception):
+    """
+    Kludge to decide when scipy's optimizers are complete.
+    """
+    pass
+
+###############################################################################
+
+
+class TrainingConvergenceError(Exception):
+    """
+    Error to be raise if training does not converge.
+    """
+    pass
 
 ###############################################################################
 
@@ -105,13 +133,13 @@ class Logger:
     :param filename: File object or path to the file to write to.
     :type filename: str
     """
-    #########################################################################
+    ###########################################################################
 
     def __init__(self, filename):
         self._f = paropen(filename, 'a')
         self._tics = {}
 
-    #########################################################################
+    ###########################################################################
 
     def tic(self, label=None):
         """
@@ -125,7 +153,7 @@ class Logger:
         else:
             self._tic = time.time()
 
-    #########################################################################
+    ###########################################################################
 
     def __call__(self, message, toc=None):
         """
@@ -249,12 +277,12 @@ def save_neighborlists(filename, neighborlists):
 ###############################################################################
 
 
-def save_fingerprints(f, fingerprints):
+def save_fingerprints(filename, fingerprints):
     """
     Save fingerprints in json format.
 
-    :param f: Path to the file to write to.
-    :type f: str
+    :param filename: Path to the file to write to.
+    :type filename: str
     :param fingerprints: Data of fingerprints.
     :type fingerprints: dict
     """
@@ -266,22 +294,22 @@ def save_fingerprints(f, fingerprints):
             new_dict[key1][key2] = [value for value in fp_value]
 
     try:
-        json.dump(new_dict, f)
-        f.flush()
+        json.dump(new_dict, filename)
+        filename.flush()
         return
     except AttributeError:
-        with paropen(f, 'wb') as outfile:
+        with paropen(filename, 'wb') as outfile:
             json.dump(new_dict, outfile)
 
 ###############################################################################
 
 
-def save_der_fingerprints(f, der_fingerprints):
+def save_der_fingerprints(filename, der_fingerprints):
     """
     Save derivatives of fingerprints in json format.
 
-    :param f: Path to the file to write to.
-    :type f: str
+    :param filename: Path to the file to write to.
+    :type filename: str
     :param der_fingerprints: Data of derivative of fingerprints.
     :type der_fingerprints: dict
     """
@@ -294,11 +322,11 @@ def save_der_fingerprints(f, der_fingerprints):
                 value for value in fp_value]
 
     try:
-        json.dump(new_dict, f)
-        f.flush()
+        json.dump(new_dict, filename)
+        filename.flush()
         return
     except AttributeError:
-        with paropen(f, 'wb') as outfile:
+        with paropen(filename, 'wb') as outfile:
             json.dump(new_dict, outfile)
 
 ###############################################################################
@@ -329,7 +357,7 @@ def save_parameters(filename, param):
     elif param.fingerprint.__class__.__name__ == 'Behler':
         parameters['fingerprint'] = 'Behler'
     else:
-        raise RuntimeError('Fingerprinting scheme is not recognized to AMP '
+        raise RuntimeError('Fingerprinting scheme is not recognized to Amp '
                            'for saving parameters. User should add the '
                            'fingerprinting scheme under consideration.')
 
@@ -338,7 +366,7 @@ def save_parameters(filename, param):
         parameters['hiddenlayers'] = param.regression.hiddenlayers
         parameters['activation'] = param.regression.activation
     else:
-        raise RuntimeError('Regression method is not recognized to AMP for '
+        raise RuntimeError('Regression method is not recognized to Amp for '
                            'saving parameters. User should add the '
                            'regression method under consideration.')
 

@@ -11,7 +11,7 @@ import numpy as np
 from collections import OrderedDict
 from ase import Atoms, Atom
 from ase.calculators.emt import EMT
-from amp import AMP
+from amp import Amp
 from amp.regression import NeuralNetwork
 
 ###############################################################################
@@ -118,7 +118,7 @@ def test():
     for fortran in [False, True]:
         for cores in range(1, 7):
 
-            calc = AMP(fingerprint=None,
+            calc = Amp(fingerprint=None,
                        regression=NeuralNetwork(hiddenlayers=(2, 1),
                                                 activation='tanh',
                                                 weights=weights,

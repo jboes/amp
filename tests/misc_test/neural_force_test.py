@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Test of the behler-neural scheme of AMP with force training. Randomly
+"""Test of the behler-neural scheme of Amp with force training. Randomly
 generates data with the EMT potential in MD simulations. Both trains and tests
 getting energy out of the calculator. Shows results for both interpolation and
 extrapolation."""
@@ -12,7 +12,7 @@ from ase.md.velocitydistribution import MaxwellBoltzmannDistribution
 from ase import units
 from ase.md import VelocityVerlet
 from ase.constraints import FixAtoms
-from amp import AMP
+from amp import Amp
 from amp.utilities import randomize_images
 
 ###############################################################################
@@ -53,7 +53,7 @@ def test_none():
     train_images, test_images = randomize_images(all_images)
 
     print('Training none-neural network.')
-    calc1 = AMP(fingerprint=None, label=os.path.join(label, 'none'))
+    calc1 = Amp(fingerprint=None, label=os.path.join(label, 'none'))
     calc1.train(train_images, energy_goal=0.01, force_goal=0.05)
 
     print('Testing none-neural network.')
@@ -63,7 +63,7 @@ def test_none():
 
     print('Verify making new calc works.')
     params = calc1.todict()
-    calc2 = AMP(**params)
+    calc2 = Amp(**params)
     energies2 = []
     for image in all_images:
         energies2.append(calc2.get_potential_energy(atoms=image))
@@ -93,7 +93,7 @@ def test_behler():
     train_images, test_images = randomize_images(all_images)
 
     print('Training behler-neural network.')
-    calc1 = AMP(label=os.path.join(label, 'behler'))
+    calc1 = Amp(label=os.path.join(label, 'behler'))
     calc1.train(train_images, energy_goal=0.01, force_goal=0.05)
 
     print('Testing behler-neural network.')
@@ -103,7 +103,7 @@ def test_behler():
 
     print('Verify making new calc works.')
     params = calc1.todict()
-    calc2 = AMP(**params)
+    calc2 = Amp(**params)
     energies2 = []
     for image in all_images:
         energies2.append(calc2.get_potential_energy(atoms=image))

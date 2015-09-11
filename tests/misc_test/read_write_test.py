@@ -5,7 +5,7 @@ import os
 from ase.structure import molecule
 from ase.calculators.emt import EMT
 from ase import Atoms
-from amp import AMP
+from amp import Amp
 
 ###############################################################################
 
@@ -37,7 +37,7 @@ def test():
 
     images = make_training_images()
 
-    calc = AMP(label='calc')
+    calc = Amp(label='calc')
     calc.train(images)
 
     # Test that we cannot overwrite. (Strange code here
@@ -53,11 +53,11 @@ def test():
     calc.train(images, overwrite=True)
 
     # New directory calculator.
-    calc = AMP(label='testdir/calc')
+    calc = Amp(label='testdir/calc')
     calc.train(images)
 
     # Open existing, save under new name.
-    calc = AMP(load='calc',
+    calc = Amp(load='calc',
                     label='calc2')
     calc.train(images)
 
@@ -66,7 +66,7 @@ def test():
     calc.train(images)
 
     # Open existing without specifying new name.
-    calc = AMP(load='calc')
+    calc = Amp(load='calc')
     calc.train(images)
 
     os.chdir(pwd)

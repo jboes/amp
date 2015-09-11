@@ -71,7 +71,7 @@ class NeuralNetwork:
 
     :raises: RuntimeError, NotImplementedError
     """
-    #########################################################################
+    ###########################################################################
 
     def __init__(self, hiddenlayers=(5, 5), activation='tanh', weights=None,
                  scalings=None, variables=None):
@@ -94,7 +94,7 @@ class NeuralNetwork:
         self.no_of_atoms = None
         self.global_search = False
 
-    #########################################################################
+    ###########################################################################
 
     def initialize(self, param, load=None, atoms=None):
         """
@@ -104,7 +104,7 @@ class NeuralNetwork:
         :param param: Object containing symmetry function's (if any) and
                       regression's properties.
         :type param: ASE calculator's Parameters class
-        :param load: Path for loading an existing AMP calculator.
+        :param load: Path for loading an existing Amp calculator.
         :type load: str
         :param atoms: Only used for no fingerprinting scheme.
         :type atoms: ASE atoms object.
@@ -237,7 +237,7 @@ class NeuralNetwork:
             del string1
             del string2
 
-    #########################################################################
+    ###########################################################################
 
     def ravel_variables(self):
         """
@@ -251,7 +251,7 @@ class NeuralNetwork:
 
         return self.param
 
-    #########################################################################
+    ###########################################################################
 
     def reset_energy(self):
         """
@@ -262,7 +262,7 @@ class NeuralNetwork:
         self.delta = {}
         self.ohat = {}
 
-    #########################################################################
+    ###########################################################################
 
     def reset_forces(self):
         """
@@ -270,7 +270,7 @@ class NeuralNetwork:
         """
         self.der_coordinates_o = {}
 
-    #########################################################################
+    ###########################################################################
 
     def update_variables(self, param):
         """
@@ -296,7 +296,7 @@ class NeuralNetwork:
                 for j in range(len(weight)):
                     self.W[element][j + 1] = np.delete(weight[j + 1], -1, 0)
 
-    #########################################################################
+    ###########################################################################
 
     def get_energy(self, input, index=None, symbol=None,):
         """
@@ -388,7 +388,7 @@ class NeuralNetwork:
             self.o[index][0] = temp
             return atomic_amp_energy
 
-    #########################################################################
+    ###########################################################################
 
     def get_force(self, i, der_indexfp, n_index=None, n_symbol=None,):
         """
@@ -460,7 +460,7 @@ class NeuralNetwork:
 
         return force
 
-    #########################################################################
+    ###########################################################################
 
     def get_variable_der_of_energy(self, index=None, symbol=None):
         """
@@ -547,7 +547,7 @@ class NeuralNetwork:
 
         return partial_der_variables_square_error
 
-    #########################################################################
+    ###########################################################################
 
     def get_variable_der_of_forces(self, self_index, i,
                                    n_index=None, n_symbol=None,):
@@ -654,7 +654,7 @@ class NeuralNetwork:
 
         return partial_der_variables_square_error
 
-    #########################################################################
+    ###########################################################################
 
     def log(self, log, param, elements, images):
         """
@@ -767,7 +767,7 @@ class NeuralNetwork:
 
         return param
 
-    #########################################################################
+    ###########################################################################
 
     def send_data_to_fortran(self, param):
         """
@@ -985,11 +985,11 @@ def make_scalings_matrices(images, activation, elements=None):
     :returns: scalings
     """
     max_act_energy = max(image.get_potential_energy(apply_constraint=False)
-                         for hash_key, image in images.items())
+                         for hash, image in images.items())
     min_act_energy = min(image.get_potential_energy(apply_constraint=False)
-                         for hash_key, image in images.items())
+                         for hash, image in images.items())
 
-    for hash_key, image in images.items():
+    for hash, image in images.items():
         if image.get_potential_energy(apply_constraint=False) == \
                 max_act_energy:
             no_atoms_of_max_act_energy = len(image)
@@ -1103,7 +1103,7 @@ class _RavelVariables:
                         fingerprinting scheme.
     :type no_of_atoms: int
     """
-    ##########################################################################
+    ###########################################################################
 
     def __init__(self, hiddenlayers, elements=None, Gs=None, no_of_atoms=None):
 
@@ -1173,7 +1173,7 @@ class _RavelVariables:
             self._scalingskeys.append({'key': 'slope'})
             self.count += 2
 
-    #########################################################################
+    ###########################################################################
 
     def to_vector(self, weights, scalings):
         """
@@ -1219,7 +1219,7 @@ class _RavelVariables:
             count += 1
         return vector
 
-    #########################################################################
+    ###########################################################################
 
     def to_dicts(self, vector):
         """
@@ -1258,7 +1258,7 @@ class _RavelVariables:
             count += 1
         return weights, scalings
 
-    #########################################################################
+    ###########################################################################
 
     def calculate_weights_norm_and_der(self, weights):
         """

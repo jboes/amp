@@ -12,7 +12,7 @@ import numpy as np
 from ase.calculators.emt import EMT
 from collections import OrderedDict
 from ase import Atoms, Atom
-from amp import AMP
+from amp import Amp
 from amp.regression import NeuralNetwork
 
 ###############################################################################
@@ -76,7 +76,7 @@ def test():
 
             label = 'None-Fortran%s-%i' % (fortran, cores)
 
-            calc = AMP(fingerprint=None,
+            calc = Amp(fingerprint=None,
                        regression=NeuralNetwork(hiddenlayers=(2, 1),
                                                 activation='tanh',
                                                 weights=weights,

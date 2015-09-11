@@ -9,7 +9,7 @@ fortran modules, and check consistency between them.
 
 import numpy as np
 from ase import Atoms
-from amp import AMP
+from amp import Amp
 from amp.fingerprint import Behler
 from amp.regression import NeuralNetwork
 
@@ -513,7 +513,7 @@ def test():
 
     for fortran in [False, True]:
 
-        calc = AMP(fingerprint=Behler(cutoff=cutoff, Gs=Gs,),
+        calc = Amp(fingerprint=Behler(cutoff=cutoff, Gs=Gs,),
                    regression=NeuralNetwork(hiddenlayers=hiddenlayers,
                                             weights=weights,
                                             scalings=scalings,
