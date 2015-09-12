@@ -111,9 +111,7 @@ class SimulatedAnnealing:
 
         if self.costfxn.fortran:
             task_args = (self.costfxn.param, calculate_gradient)
-            (energy_square_error,
-             force_square_error,
-             self.costfxn.der_variables_square_error) = \
+            (energy_square_error, force_square_error, _) = \
                 self.costfxn._mp.share_cost_function_task_between_cores(
                 task=_calculate_cost_function_fortran,
                 _args=task_args, len_of_variables=len(variables))
@@ -124,9 +122,7 @@ class SimulatedAnnealing:
                          self.costfxn.force_coefficient,
                          self.costfxn.train_forces, len(variables),
                          calculate_gradient)
-            (energy_square_error,
-             force_square_error,
-             self.costfxn.der_variables_square_error) = \
+            (energy_square_error, force_square_error, _) = \
                 self.costfxn._mp.share_cost_function_task_between_cores(
                 task=_calculate_cost_function_python,
                 _args=task_args, len_of_variables=len(variables))
@@ -152,9 +148,7 @@ class SimulatedAnnealing:
 
             if self.costfxn.fortran:
                 task_args = (self.costfxn.param, calculate_gradient)
-                (energy_square_error,
-                 force_square_error,
-                 self.costfxn.der_variables_square_error) = \
+                (energy_square_error, force_square_error, _) = \
                     self.costfxn._mp.share_cost_function_task_between_cores(
                     task=_calculate_cost_function_fortran,
                     _args=task_args, len_of_variables=len(variables))
@@ -165,9 +159,7 @@ class SimulatedAnnealing:
                              self.costfxn.force_coefficient,
                              self.costfxn.train_forces, len(variables),
                              calculate_gradient)
-                (energy_square_error,
-                 force_square_error,
-                 self.costfxn.der_variables_square_error) = \
+                (energy_square_error, force_square_error, _) = \
                     self.costfxn._mp.share_cost_function_task_between_cores(
                     task=_calculate_cost_function_python,
                     _args=task_args, len_of_variables=len(variables))
