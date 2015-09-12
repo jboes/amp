@@ -28,8 +28,8 @@ from utilities import *
 from fingerprint import *
 from regression import *
 try:
-    from amp import fmodules  # version 2 of fmodules
-    fmodules_version = 2
+    from amp import fmodules  # version 3 of fmodules
+    fmodules_version = 3
 except ImportError:
     fmodules = None
 
@@ -106,10 +106,11 @@ class SimulatedAnnealing:
         temp = self.initial_temp
         allvariables = [variables]
 
+        calculate_gradient = False
         self.costfxn.param.regression._variables = variables
 
         if self.costfxn.fortran:
-            task_args = (self.costfxn.param,)
+            task_args = (self.costfxn.param, calculate_gradient)
             (energy_square_error,
              force_square_error,
              self.costfxn.der_variables_square_error) = \
@@ -121,7 +122,8 @@ class SimulatedAnnealing:
                          self.costfxn.sfp, self.costfxn.snl,
                          self.costfxn.energy_coefficient,
                          self.costfxn.force_coefficient,
-                         self.costfxn.train_forces, len(variables))
+                         self.costfxn.train_forces, len(variables),
+                         calculate_gradient)
             (energy_square_error,
              force_square_error,
              self.costfxn.der_variables_square_error) = \
@@ -145,10 +147,11 @@ class SimulatedAnnealing:
             _steps *= 0.2
             newvariables = variables + _steps
 
+            calculate_gradient = False
             self.costfxn.param.regression._variables = newvariables
 
             if self.costfxn.fortran:
-                task_args = (self.costfxn.param,)
+                task_args = (self.costfxn.param, calculate_gradient)
                 (energy_square_error,
                  force_square_error,
                  self.costfxn.der_variables_square_error) = \
@@ -160,7 +163,8 @@ class SimulatedAnnealing:
                              self.costfxn.sfp, self.costfxn.snl,
                              self.costfxn.energy_coefficient,
                              self.costfxn.force_coefficient,
-                             self.costfxn.train_forces, len(variables))
+                             self.costfxn.train_forces, len(variables),
+                             calculate_gradient)
                 (energy_square_error,
                  force_square_error,
                  self.costfxn.der_variables_square_error) = \
@@ -1700,11 +1704,12 @@ class CostFxnandDer:
         :param variables: Calibrating variables.
         :type variables: list
         """
+        calculate_gradient = True
         log = self.log
         self.param.regression._variables = variables
 
         if self.fortran:
-            task_args = (self.param,)
+            task_args = (self.param, calculate_gradient)
             (energy_square_error,
              force_square_error,
              self.der_variables_square_error) = \
@@ -1714,7 +1719,7 @@ class CostFxnandDer:
         else:
             task_args = (self.reg, self.param, self.sfp, self.snl,
                          self.energy_coefficient, self.force_coefficient,
-                         self.train_forces, len(variables))
+                         self.train_forces, len(variables), calculate_gradient)
             (energy_square_error,
              force_square_error,
              self.der_variables_square_error) = \
@@ -1818,10 +1823,11 @@ class CostFxnandDer:
         """
         if self.steps == 0:
 
+            calculate_gradient = True
             self.param.regression._variables = variables
 
             if self.fortran:
-                task_args = (self.param,)
+                task_args = (self.param, calculate_gradient)
                 (energy_square_error,
                  force_square_error,
                  self.der_variables_square_error) = \
@@ -1831,7 +1837,8 @@ class CostFxnandDer:
             else:
                 task_args = (self.reg, self.param, self.sfp, self.snl,
                              self.energy_coefficient, self.force_coefficient,
-                             self.train_forces, len(variables))
+                             self.train_forces, len(variables),
+                             calculate_gradient)
                 (energy_square_error,
                  force_square_error,
                  self.der_variables_square_error) = \
@@ -1966,7 +1973,7 @@ def _calculate_der_fingerprints(proc_no, hashes, images, fp,
 ###############################################################################
 
 
-def _calculate_cost_function_fortran(param, queue):
+def _calculate_cost_function_fortran(param, calculate_gradient, queue):
     """
     Function to be called on all processes simultaneously for calculating cost
     function and its derivative with respect to variables in fortran.
@@ -1981,9 +1988,10 @@ def _calculate_cost_function_fortran(param, queue):
     (energy_square_error,
      force_square_error,
      der_variables_square_error) = \
-        fmodules.share_cost_function_task_between_cores(variables=variables,
-                                                        len_of_variables=len(
-                                                            variables))
+        fmodules.share_cost_function_task_between_cores(
+        variables=variables,
+        len_of_variables=len(variables),
+        calculate_gradient=calculate_gradient)
 
     queue.put([energy_square_error,
                force_square_error,
@@ -1995,7 +2003,8 @@ def _calculate_cost_function_fortran(param, queue):
 def _calculate_cost_function_python(hashes, images, reg, param, sfp,
                                     snl, energy_coefficient,
                                     force_coefficient, train_forces,
-                                    len_of_variables, queue):
+                                    len_of_variables, calculate_gradient,
+                                    queue):
     """
     Function to be called on all processes simultaneously for calculating cost
     function and its derivative with respect to variables in python.
@@ -2022,6 +2031,10 @@ def _calculate_cost_function_python(hashes, images, reg, param, sfp,
     :type train_forces: bool
     :param len_of_variables: Number of calibrating variables.
     :type len_of_variables: int
+    :param calculate_gradient: Determines whether or not gradient of the cost
+                               function with respect to variables should also
+                               be calculated.
+    :type calculate_gradient: bool
     :param queue: multiprocessing queue.
     :type queue: object
     """
@@ -2074,24 +2087,27 @@ def _calculate_cost_function_python(hashes, images, reg, param, sfp,
         energy_square_error += ((amp_energy - real_energy) ** 2.) / \
             (len(atoms) ** 2.)
 
-        if param.fingerprint is None:  # pure atomic-coordinates scheme
+        if calculate_gradient:
 
-            partial_der_variables_square_error = \
-                reg.get_variable_der_of_energy()
-            der_variables_square_error += \
-                energy_coefficient * 2. * (amp_energy - real_energy) * \
-                partial_der_variables_square_error / (len(atoms) ** 2.)
+            if param.fingerprint is None:  # pure atomic-coordinates scheme
 
-        else:  # fingerprinting scheme
-
-            for atom in atoms:
-                index = atom.index
-                symbol = atom.symbol
-                partial_der_variables_square_error =\
-                    reg.get_variable_der_of_energy(index, symbol)
+                partial_der_variables_square_error = \
+                    reg.get_variable_der_of_energy()
                 der_variables_square_error += \
                     energy_coefficient * 2. * (amp_energy - real_energy) * \
                     partial_der_variables_square_error / (len(atoms) ** 2.)
+
+            else:  # fingerprinting scheme
+
+                for atom in atoms:
+                    index = atom.index
+                    symbol = atom.symbol
+                    partial_der_variables_square_error =\
+                        reg.get_variable_der_of_energy(index, symbol)
+                    der_variables_square_error += \
+                        energy_coefficient * 2. * (amp_energy - real_energy) \
+                        * partial_der_variables_square_error / \
+                        (len(atoms) ** 2.)
 
         if train_forces is True:
 
@@ -2157,38 +2173,41 @@ def _calculate_cost_function_python(hashes, images, reg, param, sfp,
                                         real_forces[self_index][i]) **
                          2.) / len(atoms)
 
-                for i in range(3):
-                    # pure atomic-coordinates scheme
-                    if param.fingerprint is None:
+                if calculate_gradient:
 
-                        partial_der_variables_square_error = \
-                            reg.get_variable_der_of_forces(self_index, i)
-                        der_variables_square_error += \
-                            force_coefficient * (2.0 / 3.0) * \
-                            (- amp_forces[self_index][i] +
-                             real_forces[self_index][i]) * \
-                            partial_der_variables_square_error \
-                            / len(atoms)
+                    for i in range(3):
+                        # pure atomic-coordinates scheme
+                        if param.fingerprint is None:
 
-                    else:  # fingerprinting scheme
+                            partial_der_variables_square_error = \
+                                reg.get_variable_der_of_forces(self_index, i)
+                            der_variables_square_error += \
+                                force_coefficient * (2.0 / 3.0) * \
+                                (- amp_forces[self_index][i] +
+                                 real_forces[self_index][i]) * \
+                                partial_der_variables_square_error \
+                                / len(atoms)
 
-                        for n_symbol, n_index, n_offset in zip(n_symbols,
-                                                               n_self_indices,
-                                                               n_self_offsets):
-                            if n_offset[0] == 0 and n_offset[1] == 0 and \
-                                    n_offset[2] == 0:
+                        else:  # fingerprinting scheme
 
-                                partial_der_variables_square_error = \
-                                    reg.get_variable_der_of_forces(self_index,
-                                                                   i,
-                                                                   n_index,
-                                                                   n_symbol,)
-                                der_variables_square_error += \
-                                    force_coefficient * (2.0 / 3.0) * \
-                                    (- amp_forces[self_index][i] +
-                                     real_forces[self_index][i]) * \
-                                    partial_der_variables_square_error \
-                                    / len(atoms)
+                            for n_symbol, n_index, n_offset in \
+                                    zip(n_symbols, n_self_indices,
+                                        n_self_offsets):
+                                if n_offset[0] == 0 and n_offset[1] == 0 and \
+                                        n_offset[2] == 0:
+
+                                    partial_der_variables_square_error = \
+                                        reg.get_variable_der_of_forces(
+                                            self_index,
+                                            i,
+                                            n_index,
+                                            n_symbol,)
+                                    der_variables_square_error += \
+                                        force_coefficient * (2.0 / 3.0) * \
+                                        (- amp_forces[self_index][i] +
+                                         real_forces[self_index][i]) * \
+                                        partial_der_variables_square_error \
+                                        / len(atoms)
 
     del hashes, images
 

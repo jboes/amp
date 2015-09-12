@@ -1,14 +1,14 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
  
-!     Fortran Version = 2
+!     Fortran Version = 3
       subroutine check_version(version, warning) 
       implicit none
     
       integer :: version, warning
 !f2py         intent(in) :: version
 !f2py         intent(out) :: warning
-      if (version .NE. 2) then
+      if (version .NE. 3) then
           warning = 1
       else
           warning = 0
@@ -61,7 +61,8 @@
 !     subroutine that shares the task corresponding to calculation of cost function and its derivative
 !     between cores
       subroutine share_cost_function_task_between_cores(&
-      variables, len_of_variables, energy_square_error, &
+      variables, len_of_variables, calculate_gradient, &
+      energy_square_error, &
       force_square_error, der_variables_square_error)
 
       use images_props
@@ -72,6 +73,7 @@
 
       integer:: len_of_variables
       double precision:: variables(len_of_variables)
+      logical:: calculate_gradient
       double precision:: energy_square_error, force_square_error
       double precision:: der_variables_square_error(len_of_variables)
 !f2py         intent(in):: variables
@@ -222,47 +224,51 @@
         energy_square_error = energy_square_error + &
         (amp_energy - real_energy) ** 2.0d0 / (no_of_atoms ** 2.0d0)
         
-        if (fingerprinting .eqv. .false.) then
-            partial_der_variables_square_error = &
-            get_variable_der_of_energy_(len_of_input,input, &
-            len_of_variables, variables)
-            do j = 1, len_of_variables
-                der_variables_square_error(j) = &
-                der_variables_square_error(j) + &
-                energy_coefficient *  2. * (amp_energy - real_energy) &
-                * partial_der_variables_square_error(j) &
-                / (no_of_atoms ** 2.0d0)
-            end do
-        else
-            do index = 1, no_of_atoms
-                symbol = unraveled_atomic_numbers(index)
-                do element = 1, no_of_elements
-                    if (symbol == elements_numbers(element)) then
-                        exit
-                    end if
-                end do
-                len_of_fingerprint = &
-                len_fingerprints_of_elements(element)
-                allocate(fingerprint(len_of_fingerprint))
-                do p = 1, len_of_fingerprint
-                    fingerprint(p) = &
-                    unraveled_fingerprints_of_images(&
-                    image_no)%onedarray(index)%onedarray(p)
-                end do
+        if (calculate_gradient .eqv. .true.) then
+            if (fingerprinting .eqv. .false.) then
                 partial_der_variables_square_error = &
-                get_variable_der_of_energy(symbol, len_of_fingerprint, &
-                fingerprint, no_of_elements, elements_numbers, &
+                get_variable_der_of_energy_(len_of_input,input, &
                 len_of_variables, variables)
-                deallocate(fingerprint)
                 do j = 1, len_of_variables
                     der_variables_square_error(j) = &
                     der_variables_square_error(j) + &
                     energy_coefficient *  2. * &
-                    (amp_energy - real_energy) * &
-                    partial_der_variables_square_error(j) / &
-                    (no_of_atoms ** 2.0d0)
+                    (amp_energy - real_energy) &
+                    * partial_der_variables_square_error(j) &
+                    / (no_of_atoms ** 2.0d0)
                 end do
-            end do
+            else
+                do index = 1, no_of_atoms
+                    symbol = unraveled_atomic_numbers(index)
+                    do element = 1, no_of_elements
+                        if (symbol == elements_numbers(element)) then
+                            exit
+                        end if
+                    end do
+                    len_of_fingerprint = &
+                    len_fingerprints_of_elements(element)
+                    allocate(fingerprint(len_of_fingerprint))
+                    do p = 1, len_of_fingerprint
+                        fingerprint(p) = &
+                        unraveled_fingerprints_of_images(&
+                        image_no)%onedarray(index)%onedarray(p)
+                    end do
+                    partial_der_variables_square_error = &
+                    get_variable_der_of_energy(&
+                    symbol, len_of_fingerprint, &
+                    fingerprint, no_of_elements, elements_numbers, &
+                    len_of_variables, variables)
+                    deallocate(fingerprint)
+                    do j = 1, len_of_variables
+                        der_variables_square_error(j) = &
+                        der_variables_square_error(j) + &
+                        energy_coefficient *  2. * &
+                        (amp_energy - real_energy) * &
+                        partial_der_variables_square_error(j) / &
+                        (no_of_atoms ** 2.0d0)
+                    end do
+                end do
+            end if
         end if
 
         if (train_forces .eqv. .true.) then
@@ -344,61 +350,16 @@
                     real_forces(self_index, i)) ** 2.0 / no_of_atoms
                 end do
 
-                do i = 1, 3
-                    if (fingerprinting .eqv. .false.) then
-                        do p = 1,  3 * no_of_atoms_of_image
-                            input_(p) = 0.0d0
-                        end do
-                        input_(3 * (self_index - 1) + i) = 1.0d0
-                        partial_der_variables_square_error = &
-                        get_variable_der_of_forces_(len_of_input, &
-                        input, input_, len_of_variables, variables)
-                        do j = 1, len_of_variables
-                            der_variables_square_error(j) = &
-                            der_variables_square_error(j) + &
-                            force_coefficient * (2.0d0 / 3.0d0) * &
-                            (- amp_forces(self_index, i) + &
-                            real_forces(self_index, i)) * &
-                            partial_der_variables_square_error(j) / &
-                            no_of_atoms
-                        end do
-                    else
-                        do l = 1, size(n_self_indices)
-                            n_index = n_self_indices(l)
-                            n_symbol = unraveled_atomic_numbers(n_index)
-                            do element = 1, no_of_elements
-                                if (n_symbol == &
-                                elements_numbers(element)) then
-                                    exit
-                                end if
-                            end do 
-                            len_of_fingerprint = &
-                            len_fingerprints_of_elements(element)
-                            allocate(fingerprint(len_of_fingerprint))
-                            do p = 1, len_of_fingerprint
-                                fingerprint(p) = &
-                                unraveled_fingerprints_of_images(&
-                                image_no)%onedarray(&
-                                n_index)%onedarray(p)
+                if (calculate_gradient .eqv. .true.) then
+                    do i = 1, 3
+                        if (fingerprinting .eqv. .false.) then
+                            do p = 1,  3 * no_of_atoms_of_image
+                                input_(p) = 0.0d0
                             end do
-                            allocate(der_fingerprint(&
-                            len_of_fingerprint))
-                            do p = 1, len_of_fingerprint
-                                der_fingerprint(p) = &
-                                unraveled_der_fingerprints_of_images(&
-                                image_no)%onedarray(&
-                                self_index)%onedarray(l)%twodarray(i, p)
-                            end do
+                            input_(3 * (self_index - 1) + i) = 1.0d0
                             partial_der_variables_square_error = &
-                            get_variable_der_of_forces(n_symbol, &
-                            len_of_fingerprint, fingerprint, &
-                            der_fingerprint, &
-                            no_of_elements, &
-                            elements_numbers, &
-                            len_fingerprints_of_elements, &
-                            len_of_variables, variables)
-                            deallocate(fingerprint)
-                            deallocate(der_fingerprint)
+                            get_variable_der_of_forces_(len_of_input, &
+                            input, input_, len_of_variables, variables)
                             do j = 1, len_of_variables
                                 der_variables_square_error(j) = &
                                 der_variables_square_error(j) + &
@@ -408,9 +369,60 @@
                                 partial_der_variables_square_error(j) &
                                 / no_of_atoms
                             end do
-                        end do
-                    end if
-                end do
+                        else
+                            do l = 1, size(n_self_indices)
+                                n_index = n_self_indices(l)
+                                n_symbol = &
+                                unraveled_atomic_numbers(n_index)
+                                do element = 1, no_of_elements
+                                    if (n_symbol == &
+                                    elements_numbers(element)) then
+                                        exit
+                                    end if
+                                end do 
+                                len_of_fingerprint = &
+                                len_fingerprints_of_elements(element)
+                                allocate(&
+                                fingerprint(len_of_fingerprint))
+                                do p = 1, len_of_fingerprint
+                                    fingerprint(p) = &
+                                    unraveled_fingerprints_of_images(&
+                                    image_no)%onedarray(&
+                                    n_index)%onedarray(p)
+                                end do
+                                allocate(der_fingerprint(&
+                                len_of_fingerprint))
+                                do p = 1, len_of_fingerprint
+                                  der_fingerprint(p) = &
+                                  unraveled_der_fingerprints_of_images(&
+                                  image_no)%onedarray(&
+                                  self_index)%onedarray(&
+                                  l)%twodarray(i, p)
+                                end do
+                                partial_der_variables_square_error = &
+                                get_variable_der_of_forces(n_symbol, &
+                                len_of_fingerprint, fingerprint, &
+                                der_fingerprint, &
+                                no_of_elements, &
+                                elements_numbers, &
+                                len_fingerprints_of_elements, &
+                                len_of_variables, variables)
+                                deallocate(fingerprint)
+                                deallocate(der_fingerprint)
+                                do j = 1, len_of_variables
+                                    der_variables_square_error(j) = &
+                                    der_variables_square_error(j) + &
+                                    force_coefficient * (2.0d0 / 3.0d0)&
+                                    * (- amp_forces(self_index, i) + &
+                                    real_forces(self_index, i)) * &
+                                    partial_der_variables_square_error(&
+                                    j) / no_of_atoms
+                                end do
+                            end do
+                        end if
+                    end do
+                end if
+
                 if (fingerprinting .eqv. .true.) then
                     deallocate(n_self_indices)
                 end if
