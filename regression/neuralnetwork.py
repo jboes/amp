@@ -853,8 +853,8 @@ def make_weight_matrices(hiddenlayers, activation, no_of_atoms=None, Gs=None,
                          for example, in which a neural network with two hidden
                          layers, the first one having three nodes and the
                          second one having two nodes is assigned (to the whole
-                         atomic system in the of no descriptor, and to each
-                         chemical element in the fingerprinting scheme).
+                         atomic system in the case of no descriptor, and to
+                         each chemical element in the fingerprinting scheme).
                          In the fingerprinting scheme, neural network for each
                          species can be assigned seperately, as:
 
@@ -1262,7 +1262,7 @@ class _RavelVariables:
         Calculates norm of weights as well as the vector of its derivative
         for the use of constratinting overfitting.
 
-        :param weights: In the of no descriptor, keys correspond to
+        :param weights: In the case of no descriptor, keys correspond to
                         layers and values are two dimensional arrays of network
                         weight. In the fingerprinting scheme, keys correspond
                         to chemical elements and values are dictionaries with
