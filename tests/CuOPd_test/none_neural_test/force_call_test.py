@@ -125,7 +125,7 @@ def test():
 
     for fortran in [False, True]:
 
-        calc = Amp(fingerprint=None,
+        calc = Amp(descriptor=None,
                    regression=NeuralNetwork(hiddenlayers=(2, 1),
                                             weights=weights,
                                             scalings=scalings,

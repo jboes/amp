@@ -76,7 +76,7 @@ def test():
 
             label = 'None-Fortran%s-%i' % (fortran, cores)
 
-            calc = Amp(fingerprint=None,
+            calc = Amp(descriptor=None,
                        regression=NeuralNetwork(hiddenlayers=(2, 1),
                                                 activation='tanh',
                                                 weights=weights,

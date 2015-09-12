@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 """
-Script that contains Behler-Parrinello local environment descriptions.
+Script that contains Behler-Parrinello local environment descriptor.
 """
 import numpy as np
+from amp.utilities import FingerprintsError
 from ase.data import atomic_numbers
 try:
     from .. import fmodules
@@ -197,11 +198,11 @@ class Behler:
         :returns: Object containing descriptor properties.
         """
         # If Gs is not given, generates symmetry functions
-        if not param.fingerprint.Gs:
-            param.fingerprint.Gs = make_symmetry_functions(elements)
+        if not param.descriptor.Gs:
+            param.descriptor.Gs = make_symmetry_functions(elements)
         log('Symmetry functions for each element:')
-        for _ in param.fingerprint.Gs.keys():
-            log(' %2s: %i' % (_, len(param.fingerprint.Gs[_])))
+        for _ in param.descriptor.Gs.keys():
+            log(' %2s: %i' % (_, len(param.descriptor.Gs[_])))
 
         return param
 

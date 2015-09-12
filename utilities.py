@@ -343,23 +343,23 @@ def save_parameters(filename, param):
     """
     parameters = {}
     for key in param.keys():
-        if (key != 'regression') and (key != 'fingerprint'):
+        if (key != 'regression') and (key != 'descriptor'):
             parameters[key] = param[key]
 
-    if param.fingerprint is not None:
-        parameters['Gs'] = param.fingerprint.Gs
-        parameters['cutoff'] = param.fingerprint.cutoff
-        parameters['fingerprints_tag'] = param.fingerprint.fingerprints_tag
+    if param.descriptor is not None:
+        parameters['Gs'] = param.descriptor.Gs
+        parameters['cutoff'] = param.descriptor.cutoff
+        parameters['fingerprints_tag'] = param.descriptor.fingerprints_tag
 
-    if param.fingerprint is None:
-        parameters['fingerprint'] = 'None'
+    if param.descriptor is None:
+        parameters['descriptor'] = 'None'
         parameters['no_of_atoms'] = param.regression.no_of_atoms
-    elif param.fingerprint.__class__.__name__ == 'Behler':
-        parameters['fingerprint'] = 'Behler'
+    elif param.descriptor.__class__.__name__ == 'Behler':
+        parameters['descriptor'] = 'Behler'
     else:
-        raise RuntimeError('Fingerprinting scheme is not recognized to Amp '
-                           'for saving parameters. User should add the '
-                           'fingerprinting scheme under consideration.')
+        raise RuntimeError('Descriptor is not recognized to Amp for saving '
+                           'parameters. User should add the descriptor under '
+                           ' consideration.')
 
     if param.regression.__class__.__name__ == 'NeuralNetwork':
         parameters['regression'] = 'NeuralNetwork'

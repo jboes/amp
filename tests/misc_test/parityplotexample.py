@@ -9,7 +9,7 @@ from ase import io
 
 from amp.utilities import randomize_images
 from amp import Amp
-from amp.fingerprint import *
+from amp.descriptor import *
 from amp.regression import *
 
 ###############################################################################
@@ -38,7 +38,7 @@ def test():
     # Train the calculator.
     train_images, test_images = randomize_images('data.traj')
 
-    calc = Amp(fingerprint=Behler(),
+    calc = Amp(descriptor=Behler(),
                regression=NeuralNetwork())
     calc.train(train_images, force_goal=None)
 

@@ -118,7 +118,7 @@ def test():
     for fortran in [False, True]:
         for cores in range(1, 7):
 
-            calc = Amp(fingerprint=None,
+            calc = Amp(descriptor=None,
                        regression=NeuralNetwork(hiddenlayers=(2, 1),
                                                 activation='tanh',
                                                 weights=weights,

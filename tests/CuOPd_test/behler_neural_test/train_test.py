@@ -14,7 +14,7 @@ from collections import OrderedDict
 from ase import Atoms
 from ase.calculators.emt import EMT
 from amp import Amp
-from amp.fingerprint import Behler
+from amp.descriptor import Behler
 from amp.regression import NeuralNetwork
 
 ###############################################################################
@@ -160,7 +160,7 @@ def non_periodic_test():
 
             label = 'NonperiodFortran%s-%i' % (fortran, cores)
 
-            calc = Amp(fingerprint=Behler(cutoff=6.5, Gs=Gs,),
+            calc = Amp(descriptor=Behler(cutoff=6.5, Gs=Gs,),
                        regression=NeuralNetwork(hiddenlayers=hiddenlayers,
                                                 weights=weights,
                                                 scalings=scalings,
@@ -307,7 +307,7 @@ def periodic_test():
 
             label = 'PeriodFortran%s-%i' % (fortran, cores)
 
-            calc = Amp(fingerprint=Behler(cutoff=4., Gs=Gs,),
+            calc = Amp(descriptor=Behler(cutoff=4., Gs=Gs,),
                        regression=NeuralNetwork(hiddenlayers=hiddenlayers,
                                                 weights=weights,
                                                 scalings=scalings,

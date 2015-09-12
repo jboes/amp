@@ -25,7 +25,7 @@ from collections import OrderedDict
 from scipy.optimize import fmin_bfgs as optimizer
 from ase.calculators.neighborlist import NeighborList
 from utilities import *
-from fingerprint import *
+from descriptor import *
 from regression import *
 try:
     from amp import fmodules  # version 3 of fmodules
@@ -216,17 +216,17 @@ class Amp(Calculator):
     """
     Atomistic Machine-Learning Potential (Amp) ASE calculator
 
-    :param fingerprint: Class representing local atomic environment. Can be
+    :param descriptor: Class representing local atomic environment. Can be
                         only None and Behler for now. Input arguments for
                         Behler are cutoff and Gs; for more information see
                         docstring for the class Behler.
-    :type fingerprint: descriptor object
+    :type descriptor: object
     :param regression: Class representing the regression method. Can be only
                        NeuralNetwork for now. Input arguments for NeuralNetwork
                        are hiddenlayers, activation, weights, and scalings; for
                        more information see docstring for the class
                        NeuralNetwork.
-    :type regression: descriptor object
+    :type regression: object
     :param fingerprints_range: Range of fingerprints of each chemical species.
                                Should be fed as a dictionary of chemical
                                species and a list of minimum and maximun, e.g:
@@ -256,7 +256,7 @@ class Amp(Calculator):
     implemented_properties = ['energy', 'forces']
 
     default_parameters = {
-        'fingerprint': Behler(),
+        'descriptor': Behler(),
         'regression': NeuralNetwork(),
         'fingerprints_range': None,
     }
@@ -299,28 +299,27 @@ class Amp(Calculator):
 
             kwargs = {}
             kwargs['fingerprints_range'] = parameters['fingerprints_range']
-            if parameters['fingerprint'] == 'Behler':
-                kwargs['fingerprint'] = \
+            if parameters['descriptor'] == 'Behler':
+                kwargs['descriptor'] = \
                     Behler(cutoff=parameters['cutoff'],
                            Gs=parameters['Gs'],
                            fingerprints_tag=parameters['fingerprints_tag'],
                            fortran=fortran,)
-            elif parameters['fingerprint'] == 'None':
-                kwargs['fingerprint'] = None
+            elif parameters['descriptor'] == 'None':
+                kwargs['descriptor'] = None
                 if parameters['no_of_atoms'] == 'None':
                     parameters['no_of_atoms'] = None
             else:
-                raise RuntimeError('Fingerprinting scheme is not recognized '
-                                   'to Amp for loading parameters. User '
-                                   'should add the fingerprinting scheme '
-                                   'under consideration.')
+                raise RuntimeError('Descriptor is not recognized to Amp. '
+                                   'User should add the descriptor under '
+                                   'consideration.')
 
             if parameters['regression'] == 'NeuralNetwork':
                 kwargs['regression'] = \
                     NeuralNetwork(hiddenlayers=parameters['hiddenlayers'],
                                   activation=parameters['activation'],
                                   variables=parameters['variables'],)
-                if kwargs['fingerprint'] is None:
+                if kwargs['descriptor'] is None:
                     kwargs['no_of_atoms'] = parameters['no_of_atoms']
             else:
                 raise RuntimeError('Regression method is not recognized to '
@@ -332,8 +331,8 @@ class Amp(Calculator):
 
         param = self.parameters
 
-        if param.fingerprint is not None:
-            self.fp = param.fingerprint
+        if param.descriptor is not None:
+            self.fp = param.descriptor
 
         self.reg = param.regression
 
@@ -391,7 +390,7 @@ class Amp(Calculator):
         Calculator.calculate(self, atoms, properties, system_changes)
 
         param = self.parameters
-        if param.fingerprint is None:  # pure atomic-coordinates scheme
+        if param.descriptor is None:  # pure atomic-coordinates scheme
             self.reg.initialize(param=param,
                                 atoms=atoms)
         param = self.reg.ravel_variables()
@@ -405,14 +404,14 @@ class Amp(Calculator):
 
         self.nl.update(atoms)
 
-        if param.fingerprint is not None:  # fingerprinting scheme
-            self.cutoff = param.fingerprint.cutoff
+        if param.descriptor is not None:  # fingerprinting scheme
+            self.cutoff = param.descriptor.cutoff
 
             # FIXME: What is the difference between the two updates on the top
             # and bottom? Is the one on the top necessary? Where is self.nl
             #  coming from?
 
-            # Update the neighborlist for making fingerprint. Used if atoms
+            # Update the neighborlist for making fingerprints. Used if atoms
             # position has changed.
             _nl = NeighborList(cutoffs=([self.cutoff / 2.] *
                                         len(atoms)),
@@ -467,7 +466,7 @@ class Amp(Calculator):
             self.reg.reset_energy()
             self.energy = 0.0
 
-            if param.fingerprint is None:  # pure atomic-coordinates scheme
+            if param.descriptor is None:  # pure atomic-coordinates scheme
 
                 input = (atoms.positions).ravel()
                 self.energy = self.reg.get_energy(input,)
@@ -519,7 +518,7 @@ class Amp(Calculator):
             outputs = {}
             self.forces[:] = 0.0
 
-            if param.fingerprint is None:  # pure atomic-coordinates scheme
+            if param.descriptor is None:  # pure atomic-coordinates scheme
 
                 input = (atoms.positions).ravel()
                 _ = self.reg.get_energy(input,)
@@ -725,11 +724,11 @@ class Amp(Calculator):
         log = Logger(make_filename(self.label, 'train-log.txt'))
 
         log('Amp training started. ' + now() + '\n')
-        if param.fingerprint is None:  # pure atomic-coordinates scheme
+        if param.descriptor is None:  # pure atomic-coordinates scheme
             log('Local environment descriptor: None')
         else:  # fingerprinting scheme
             log('Local environment descriptor: ' +
-                param.fingerprint.__class__.__name__)
+                param.descriptor.__class__.__name__)
         log('Regression: ' + param.regression.__class__.__name__ + '\n')
 
         if not cores:
@@ -743,13 +742,13 @@ class Amp(Calculator):
             elif extension == '.db':
                 images = io.read(images)
 
-        if param.fingerprint is None:  # pure atomic-coordinates scheme
+        if param.descriptor is None:  # pure atomic-coordinates scheme
             param.no_of_atoms = len(images[0])
             for image in images:
                 if len(image) != param.no_of_atoms:
                     raise RuntimeError('Number of atoms in different images '
                                        'is not the same. Try '
-                                       'fingerprint=Behler.')
+                                       'descriptor=Behler.')
 
         log('Training on %i images.' % len(images))
 
@@ -777,20 +776,20 @@ class Amp(Calculator):
         msg += ', '.join(self.elements)
         log(msg)
 
-        if param.fingerprint is not None:  # fingerprinting scheme
+        if param.descriptor is not None:  # fingerprinting scheme
             param = self.fp.log(log, param, self.elements)
         param = self.reg.log(log, param, self.elements, images)
 
         # "MultiProcess" object is initialized
         _mp = MultiProcess(self.fortran, no_procs=cores)
 
-        if param.fingerprint is None:  # pure atomic-coordinates scheme
+        if param.descriptor is None:  # pure atomic-coordinates scheme
             self.sfp = None
             snl = None
         else:  # fingerprinting scheme
             # Neighborlist for all images are calculated and saved
             log.tic()
-            snl = SaveNeighborLists(param.fingerprint.cutoff, hashs,
+            snl = SaveNeighborLists(param.descriptor.cutoff, hashs,
                                     images, self.dblabel, log, train_forces,
                                     read_fingerprints)
 
@@ -970,7 +969,7 @@ class MultiProcess:
 
     def share_fingerprints_task_between_cores(self, task, _args):
         """
-        Fingerprints tasks are sent to cores for parallel processing.
+        Fingerprint tasks are sent to cores for parallel processing.
 
         :param task: Function to be called on each process.
         :type task: function
@@ -1029,7 +1028,7 @@ class MultiProcess:
 
         self.train_forces = train_forces
 
-        if param.fingerprint is None:
+        if param.descriptor is None:
             self.fingerprinting = False
         else:
             self.fingerprinting = True
@@ -1649,8 +1648,8 @@ class CostFxnandDer:
         self.force_coefficient = force_coefficient
         self.fortran = fortran
 
-        if param.fingerprint is not None:  # pure atomic-coordinates scheme
-            self.cutoff = param.fingerprint.cutoff
+        if param.descriptor is not None:  # pure atomic-coordinates scheme
+            self.cutoff = param.descriptor.cutoff
 
         self.energy_convergence = False
         self.force_convergence = False
@@ -2045,7 +2044,7 @@ def _calculate_cost_function_python(hashes, images, reg, param, sfp,
         reg.reset_energy()
         amp_energy = 0.
 
-        if param.fingerprint is None:  # pure atomic-coordinates scheme
+        if param.descriptor is None:  # pure atomic-coordinates scheme
 
             input = (atoms.positions).ravel()
             amp_energy = reg.get_energy(input,)
@@ -2081,7 +2080,7 @@ def _calculate_cost_function_python(hashes, images, reg, param, sfp,
 
         if calculate_gradient:
 
-            if param.fingerprint is None:  # pure atomic-coordinates scheme
+            if param.descriptor is None:  # pure atomic-coordinates scheme
 
                 partial_der_variables_square_error = \
                     reg.get_variable_der_of_energy()
@@ -2109,7 +2108,7 @@ def _calculate_cost_function_python(hashes, images, reg, param, sfp,
                 self_index = self_atom.index
                 reg.reset_forces()
 
-                if param.fingerprint is None:  # pure atomic-coordinates scheme
+                if param.descriptor is None:  # pure atomic-coordinates scheme
 
                     for i in range(3):
                         _input = [0. for __ in range(3 * len(atoms))]
@@ -2169,7 +2168,7 @@ def _calculate_cost_function_python(hashes, images, reg, param, sfp,
 
                     for i in range(3):
                         # pure atomic-coordinates scheme
-                        if param.fingerprint is None:
+                        if param.descriptor is None:
 
                             partial_der_variables_square_error = \
                                 reg.get_variable_der_of_forces(self_index, i)
@@ -2337,7 +2336,7 @@ def interpolate_images(images, load, fortran=True):
 
     amp = Amp(load=load, fortran=fortran)
     param = amp.parameters
-    fp = param.fingerprint
+    fp = param.descriptor
     fingerprints_range = param.fingerprints_range
     # FIXME: this function should be extended to no fingerprints scheme.
     if fp is not None:  # fingerprinting scheme
@@ -2398,7 +2397,7 @@ def send_data_to_fortran(sfp, elements, train_forces,
     :param param: ASE dictionary that contains cutoff and variables.
     :type param: dict
     """
-    if param.fingerprint is None:
+    if param.descriptor is None:
         fingerprinting = False
     else:
         fingerprinting = True

@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 """Test that the neural network regression works in training on energy only
-both with none and behler fingerprint.
-At some point in the development, this ability was temporarily lost!
+both with none and behler descriptor.
 """
 
 import os
@@ -13,7 +12,7 @@ from ase import units
 from ase.md import VelocityVerlet
 from ase.constraints import FixAtoms
 from amp import Amp
-from amp.fingerprint import Behler
+from amp.descriptor import Behler
 
 ###############################################################################
 
@@ -52,7 +51,7 @@ def test_none():
     images = generate_data(10)
 
     print('Training none-neural network.')
-    calc = Amp(fingerprint=None, label=os.path.join(label, 'none'))
+    calc = Amp(descriptor=None, label=os.path.join(label, 'none'))
     calc.train(images, force_goal=None)
 
 ###############################################################################
@@ -65,7 +64,7 @@ def test_behler():
     images = generate_data(10)
 
     print('Training behler-neural network.')
-    calc = Amp(fingerprint=Behler(), label=os.path.join(label, 'behler'))
+    calc = Amp(descriptor=Behler(), label=os.path.join(label, 'behler'))
     calc.train(images, force_goal=None)
 
 ###############################################################################

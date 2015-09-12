@@ -23,17 +23,16 @@ class NeuralNetwork:
                          last layer is always one corresponding to energy.
                          However, number of nodes of first layer is equal to
                          three times number of atoms in the system in the case
-                         of no fingerprinting scheme, and is equal to lengh of
-                         symmetry functions in the fingerprinting scheme. Can
-                         be fed as:
+                         of no descriptor, and is equal to length of symmetry
+                         functions of the descriptor. Can be fed as:
 
                          >>> hiddenlayers = (3, 2,)
 
                          for example, in which a neural network with two hidden
                          layers, the first one having three nodes and the
                          second one having two nodes is assigned (to the whole
-                         atomic system in the no fingerprinting scheme, and to
-                         each chemical element in the fingerprinting scheme).
+                         atomic system in the no descriptor case, and to each
+                         chemical element in the fingerprinting scheme).
                          In the fingerprinting scheme, neural network for each
                          species can be assigned seperately, as:
 
@@ -45,7 +44,7 @@ class NeuralNetwork:
                        to linear function, "tanh" refers to tanh function, and
                        "sigmoid" refers to sigmoid function.
     :type activation: str
-    :param weights: In the no fingerprinting scheme, keys correspond to layers
+    :param weights: In the case of no descriptor, keys correspond to layers
                     and values are two dimensional arrays of network weight.
                     In the fingerprinting scheme, keys correspond to chemical
                     elements and values are dictionaries with layer keys and
@@ -55,7 +54,7 @@ class NeuralNetwork:
                     for index i corresponds to bias. If weights is not given,
                     arrays will be randomly generated.
     :type weights: dict
-    :param scalings: In the no fingerprinting scheme, keys are "intercept" and
+    :param scalings: In the case of no descriptor, keys are "intercept" and
                      "slope" and values are real numbers. In the fingerprinting
                      scheme, keys correspond to chemical elements and values
                      are dictionaries with "intercept" and "slope" keys and
@@ -106,12 +105,12 @@ class NeuralNetwork:
         :type param: ASE calculator's Parameters class
         :param load: Path for loading an existing Amp calculator.
         :type load: str
-        :param atoms: Only used for no fingerprinting scheme.
+        :param atoms: Only used for the case of no descriptor.
         :type atoms: ASE atoms object.
         """
         self.param = param
 
-        if self.param.fingerprint is None:  # pure atomic-coordinates scheme
+        if self.param.descriptor is None:  # pure atomic-coordinates scheme
 
             if load is not None:
                 self.no_of_atoms = param.no_of_atoms
@@ -169,7 +168,7 @@ class NeuralNetwork:
 
         else:  # fingerprinting scheme
 
-            Gs = self.param.fingerprint.Gs
+            Gs = self.param.descriptor.Gs
 
             if Gs is not None:
 
@@ -285,7 +284,7 @@ class NeuralNetwork:
 
         self.W = {}
 
-        if self.param.fingerprint is None:  # pure atomic-coordinates scheme
+        if self.param.descriptor is None:  # pure atomic-coordinates scheme
             weight = self._weights
             for j in range(len(weight)):
                 self.W[j + 1] = np.delete(weight[j + 1], -1, 0)
@@ -312,7 +311,7 @@ class NeuralNetwork:
 
         :returns: float -- energy
         """
-        if self.param.fingerprint is None:  # pure atomic-coordinates scheme
+        if self.param.descriptor is None:  # pure atomic-coordinates scheme
             self.o = {}
             hiddensizes = self.hiddensizes
             weight = self._weights
@@ -373,7 +372,7 @@ class NeuralNetwork:
         for _ in range(len(input)):
             temp[0, _] = input[_]
 
-        if self.param.fingerprint is None:  # pure atomic-coordinates scheme
+        if self.param.descriptor is None:  # pure atomic-coordinates scheme
 
             amp_energy = self._scalings['slope'] * \
                 float(o[layer]) + self._scalings['intercept']
@@ -408,7 +407,7 @@ class NeuralNetwork:
 
         :returns: float -- force
         """
-        if self.param.fingerprint is None:  # pure atomic-coordinates scheme
+        if self.param.descriptor is None:  # pure atomic-coordinates scheme
             o = self.o
             hiddensizes = self.hiddensizes
             weight = self._weights
@@ -450,7 +449,7 @@ class NeuralNetwork:
 
         der_o[layer] = [der_o[layer]]
 
-        if self.param.fingerprint is None:  # pure atomic-coordinates scheme
+        if self.param.descriptor is None:  # pure atomic-coordinates scheme
             self.der_coordinates_o[i] = der_o
             force = float(-(self._scalings['slope'] * der_o[layer][0]))
         else:  # fingerprinting scheme
@@ -482,7 +481,7 @@ class NeuralNetwork:
         partial_der_weights_square_error, partial_der_scalings_square_error = \
             self.ravel.to_dicts(partial_der_variables_square_error)
 
-        if self.param.fingerprint is None:  # pure atomic-coordinates scheme
+        if self.param.descriptor is None:  # pure atomic-coordinates scheme
             o = self.o
             W = self.W
         else:  # fingerprinting scheme
@@ -517,7 +516,7 @@ class NeuralNetwork:
                 ohat[k - 1][0, j] = o[k - 1][0, j]
             ohat[k - 1][0, np.size(o[k - 1])] = 1.0
 
-        if self.param.fingerprint is None:  # pure atomic-coordinates scheme
+        if self.param.descriptor is None:  # pure atomic-coordinates scheme
             partial_der_scalings_square_error['intercept'] = 1.
             partial_der_scalings_square_error['slope'] = float(o[N + 1])
             for k in range(1, N + 2):
@@ -536,7 +535,7 @@ class NeuralNetwork:
             self.ravel.to_vector(partial_der_weights_square_error,
                                  partial_der_scalings_square_error)
 
-        if self.param.fingerprint is None:  # pure atomic-coordinates scheme
+        if self.param.descriptor is None:  # pure atomic-coordinates scheme
             self.D = D
             self.delta = delta
             self.ohat = ohat
@@ -573,7 +572,7 @@ class NeuralNetwork:
         partial_der_weights_square_error, partial_der_scalings_square_error = \
             self.ravel.to_dicts(partial_der_variables_square_error)
 
-        if self.param.fingerprint is None:  # pure atomic-coordinates scheme
+        if self.param.descriptor is None:  # pure atomic-coordinates scheme
             o = self.o
             der_coordinates_o = self.der_coordinates_o[i]
             W = self.W
@@ -634,7 +633,7 @@ class NeuralNetwork:
                 np.dot(np.matrix(ohat[k - 1]).T,
                        np.matrix(der_coordinates_delta[k]).T)
 
-        if self.param.fingerprint is None:  # pure atomic-coordinates scheme
+        if self.param.descriptor is None:  # pure atomic-coordinates scheme
             for k in range(1, N + 2):
                 partial_der_weights_square_error[k] = \
                     float(self._scalings['slope']) * \
@@ -675,7 +674,7 @@ class NeuralNetwork:
         """
         self.elements = elements
 
-        if param.fingerprint is None:  # pure atomic-coordinates scheme
+        if param.descriptor is None:  # pure atomic-coordinates scheme
 
             self.no_of_atoms = param.no_of_atoms
             self.hiddenlayers = param.regression.hiddenlayers
@@ -721,10 +720,10 @@ class NeuralNetwork:
 
             self.ravel = _RavelVariables(hiddenlayers=self.hiddenlayers,
                                          elements=self.elements,
-                                         Gs=param.fingerprint.Gs)
+                                         Gs=param.descriptor.Gs)
 
         log('Hidden-layer structure:')
-        if param.fingerprint is None:  # pure atomic-coordinates scheme
+        if param.descriptor is None:  # pure atomic-coordinates scheme
             log(' %s' % str(self.hiddenlayers))
         else:  # fingerprinting scheme
             for item in self.hiddenlayers.items():
@@ -734,7 +733,7 @@ class NeuralNetwork:
         if not (self._weights or self._variables):
             self.global_search = True
             log('Initializing with random weights.')
-            if param.fingerprint is None:  # pure atomic-coordinates scheme
+            if param.descriptor is None:  # pure atomic-coordinates scheme
                 self._weights = make_weight_matrices(self.hiddenlayers,
                                                      self.activation,
                                                      self.no_of_atoms)
@@ -742,7 +741,7 @@ class NeuralNetwork:
                 self._weights = make_weight_matrices(self.hiddenlayers,
                                                      self.activation,
                                                      None,
-                                                     param.fingerprint.Gs,
+                                                     param.descriptor.Gs,
                                                      self.elements,)
 
         else:
@@ -751,7 +750,7 @@ class NeuralNetwork:
         if not (self._scalings or self._variables):
             log('Initializing with random scalings.')
 
-            if param.fingerprint is None:  # pure atomic-coordinates scheme
+            if param.descriptor is None:  # pure atomic-coordinates scheme
                 self._scalings = make_scalings_matrices(images,
                                                         self.activation,)
             else:  # fingerprinting scheme
@@ -777,7 +776,7 @@ class NeuralNetwork:
                       regression's properties.
         :type param: ASE calculator's Parameters class
         """
-        if param.fingerprint is None:
+        if param.descriptor is None:
             fingerprinting = False
         else:
             fingerprinting = True
@@ -790,11 +789,11 @@ class NeuralNetwork:
             nn_structure = OrderedDict()
             for elm in self.elements:
                 if isinstance(param.regression.hiddenlayers[elm], int):
-                    nn_structure[elm] = ([len(param.fingerprint.Gs[elm])] +
+                    nn_structure[elm] = ([len(param.descriptor.Gs[elm])] +
                                          [param.regression.hiddenlayers[elm]] +
                                          [1])
                 else:
-                    nn_structure[elm] = ([len(param.fingerprint.Gs[elm])] +
+                    nn_structure[elm] = ([len(param.descriptor.Gs[elm])] +
                                          [layer for layer in
                                           param.regression.hiddenlayers[elm]] +
                                          [1])
@@ -846,17 +845,16 @@ def make_weight_matrices(hiddenlayers, activation, no_of_atoms=None, Gs=None,
                          last layer is always one corresponding to energy.
                          However, number of nodes of first layer is equal to
                          three times number of atoms in the system in the case
-                         of no fingerprinting scheme, and is equal to lengh of
-                         symmetry functions in the fingerprinting scheme. Can
-                         be fed as:
+                         of no descriptor, and is equal to length of symmetry
+                         functions in the fingerprinting scheme. Can be fed as:
 
                          >>> hiddenlayers = (3, 2,)
 
                          for example, in which a neural network with two hidden
                          layers, the first one having three nodes and the
                          second one having two nodes is assigned (to the whole
-                         atomic system in the no fingerprinting scheme, and to
-                         each chemical element in the fingerprinting scheme).
+                         atomic system in the of no descriptor, and to each
+                         chemical element in the fingerprinting scheme).
                          In the fingerprinting scheme, neural network for each
                          species can be assigned seperately, as:
 
@@ -868,8 +866,8 @@ def make_weight_matrices(hiddenlayers, activation, no_of_atoms=None, Gs=None,
                        to linear function, "tanh" refers to tanh function, and
                        "sigmoid" refers to sigmoid function.
     :type activation: str
-    :param no_of_atoms: Number of atoms in atomic systems; used only in the no
-                        fingerprinting scheme.
+    :param no_of_atoms: Number of atoms in atomic systems; used only in the
+                        case of no descriptor.
     :type no_of_atoms: int
     :param Gs: Dictionary of symbols and lists of dictionaries for making
                symmetry functions. Either auto-genetrated, or given in the
@@ -1065,16 +1063,15 @@ class _RavelVariables:
                          last layer is always one corresponding to energy.
                          However, number of nodes of first layer is equal to
                          three times number of atoms in the system in the case
-                         of no fingerprinting scheme, and is equal to lengh of
-                         symmetry functions in the fingerprinting scheme. Can
-                         be fed as:
+                         of no descriptor, and is equal to lengh of symmetry
+                         functions in the fingerprinting scheme. Can be fed as:
 
                          >>> hiddenlayers = (3, 2,)
 
                          for example, in which a neural network with two hidden
                          layers, the first one having three nodes and the
                          second one having two nodes is assigned (to the whole
-                         atomic system in the no fingerprinting scheme, and to
+                         atomic system in the case of no descriptor, and to
                          each chemical element in the fingerprinting scheme).
                          In the fingerprinting scheme, neural network for each
                          species can be assigned seperately, as:
@@ -1099,8 +1096,8 @@ class _RavelVariables:
 
                Used in the fingerprinting scheme only.
     :type Gs: dict
-    :param no_of_atoms: Number of atoms in atomic systems; used only in the no
-                        fingerprinting scheme.
+    :param no_of_atoms: Number of atoms in atomic systems; used only in the
+                        case of no descriptor.
     :type no_of_atoms: int
     """
     ###########################################################################
@@ -1181,7 +1178,7 @@ class _RavelVariables:
         vector and returns it. The dictionaries need to have the identical
         structure to those it was initialized with.
 
-        :param weights: In the no fingerprinting scheme, keys correspond to
+        :param weights: In the case of no descriptor, keys correspond to
                         layers and values are two dimensional arrays of network
                         weight. In the fingerprinting scheme, keys correspond
                         to chemical elements and values are dictionaries with
@@ -1192,7 +1189,7 @@ class _RavelVariables:
                         to bias. If weights is not given, arrays will be
                         randomly generated.
         :type weights: dict
-        :param scalings: In the no fingerprinting scheme, keys are "intercept"
+        :param scalings: In the case of no descriptor, keys are "intercept"
                          and "slope" and values are real numbers. In the
                          fingerprinting scheme, keys correspond to chemical
                          elements and values are dictionaries with "intercept"
@@ -1265,7 +1262,7 @@ class _RavelVariables:
         Calculates norm of weights as well as the vector of its derivative
         for the use of constratinting overfitting.
 
-        :param weights: In the no fingerprinting scheme, keys correspond to
+        :param weights: In the of no descriptor, keys correspond to
                         layers and values are two dimensional arrays of network
                         weight. In the fingerprinting scheme, keys correspond
                         to chemical elements and values are dictionaries with

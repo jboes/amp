@@ -53,7 +53,7 @@ def test_none():
     train_images, test_images = randomize_images(all_images)
 
     print('Training none-neural network.')
-    calc1 = Amp(fingerprint=None, label=os.path.join(label, 'none'))
+    calc1 = Amp(descriptor=None, label=os.path.join(label, 'none'))
     calc1.train(train_images, energy_goal=0.01, force_goal=0.05)
 
     print('Testing none-neural network.')
