@@ -9,6 +9,7 @@ Amp: Atomistic Machine-learning Potentials
 Welcome to Amp documentation! This project is being developed at Brown University in the School of Engineering, primarily by **Andrew Peterson** and **Alireza Khorshidi**,
 and is released under the GNU General Public License. This is a relatively new project, so things are constantly changing!
 
+Note that Amp is built off of our previous project, Neural. You may still find Neural at our `bitbucket page <https://bitbucket.org/andrewpeterson/neural>`_.
 
 **Table of Contents**:
 
