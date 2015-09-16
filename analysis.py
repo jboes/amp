@@ -25,31 +25,32 @@ rcParams.update({'figure.autolayout': True})
 ###############################################################################
 
 
-def plot_convergence(logfile, plotfile='convergence.pdf'):
+def read_trainlog(logfile):
     """
-    Makes a plot of the convergence of the cost function and its energy
-    and force components.
+    Reads the log file from the training process, returning the relevant
+    parameters.
 
     :param logfile: Name or path to the log file.
     :type logfile: str
-    :param plotfile: Name or path to the plot file.
-    :type plotfile: str
     """
-    f = open(logfile, 'r')
-    lines = f.read().splitlines()
-    f.close()
+    data = {}
+
+    with open(logfile, 'r') as f:
+        lines = f.read().splitlines()
 
     # Get number of images.
     for line in lines:
         if 'unique images after hashing.' in line:
             no_images = float(line.split()[0])
             break
+    data['no_images'] = no_images
 
     # Find where simulated annealing starts.
     annealingstartline = None
     for index, line in enumerate(lines):
         if 'Simulated annealing started.' in line:
             annealingstartline = index
+            data['annealing'] = {}
             break
     annealingexitline = None
     for index, line in enumerate(lines):
@@ -66,33 +67,18 @@ def plot_convergence(logfile, plotfile='convergence.pdf'):
             temps.append(float(temp))
             costfxns.append(float(costfxn))
             acceptratios.append(float(acceptratio))
-
-        # Make plots
-        fig0 = pyplot.figure(figsize=(8.5, 11))
-        ax = fig0.add_subplot(311)
-        ax.set_title('Simulated annealing: trace of temperature')
-        ax.plot(temps, '-')
-        ax.set_xlabel('step')
-        ax.set_ylabel('temperature')
-
-        ax = fig0.add_subplot(312)
-        ax.set_title('trace of cost function')
-        ax.plot(costfxns, '-')
-        ax.set_yscale('log')
-        ax.set_xlabel('step')
-        ax.set_ylabel('cost function')
-
-        ax = fig0.add_subplot(313)
-        ax.set_title('trace of acceptance rate')
-        ax.plot(acceptratios, '-')
-        ax.set_xlabel('step')
-        ax.set_ylabel('acceptance rate')
+        data['annealing']['steps'] = steps
+        data['annealing']['temps'] = temps
+        data['annealing']['costfxns'] = costfxns
+        data['annealing']['acceptratios'] = acceptratios
 
     # Find where convergence data starts.
     startline = None
     for index, line in enumerate(lines):
         if 'Starting optimization of cost function...' in line:
             startline = index
+            data['convergence'] = {}
+            d = data['convergence']
             break
 
     # Get parameters.
@@ -116,6 +102,9 @@ def plot_convergence(logfile, plotfile='convergence.pdf'):
             ready[3] = True
             startline = startline + index
         if ready == [True, True, True, True]:
+            d['energygoal'] = energygoal
+            d['forcegoal'] = forcegoal
+            d['forcecoefficient'] = forcecoefficient
             break
 
     if forcegoal:
@@ -124,6 +113,7 @@ def plot_convergence(logfile, plotfile='convergence.pdf'):
         costfxngoal = E + forcecoefficient * F
     else:
         costfxngoal = energygoal**2 * no_images
+    d['costfxngoal'] = costfxngoal
 
     # Extract data.
     steps, es, fs, costfxns = [], [], [], []
@@ -155,43 +145,94 @@ def plot_convergence(logfile, plotfile='convergence.pdf'):
             F = float(f)**2 * no_images
             costfxnEs.append(E / float(costfxn))
             costfxnFs.append(forcecoefficient * F / float(costfxn))
+    d['steps'] = steps
+    d['es'] = es
+    d['fs'] = fs
+    d['costfxns'] = costfxns
+    d['costfxnEs'] = costfxnEs
+    d['costfxnFs'] = costfxnFs
+
+    return data
+
+###############################################################################
+
+
+def plot_convergence(logfile, plotfile='convergence.pdf'):
+    """
+    Makes a plot of the convergence of the cost function and its energy
+    and force components.
+
+    :param logfile: Name or path to the log file.
+    :type logfile: str
+    :param plotfile: Name or path to the plot file.
+    :type plotfile: str
+    """
+
+    data = read_trainlog(logfile)
+
+    if 'annealing' in data:
+        # Make plots
+        d = data['annealing']
+        fig0 = pyplot.figure(figsize=(8.5, 11))
+        ax = fig0.add_subplot(311)
+        ax.set_title('Simulated annealing: trace of temperature')
+        ax.plot(d['temps'], '-')
+        ax.set_xlabel('step')
+        ax.set_ylabel('temperature')
+
+        ax = fig0.add_subplot(312)
+        ax.set_title('trace of cost function')
+        ax.plot(d['costfxns'], '-')
+        ax.set_yscale('log')
+        ax.set_xlabel('step')
+        ax.set_ylabel('cost function')
+
+        ax = fig0.add_subplot(313)
+        ax.set_title('trace of acceptance rate')
+        ax.plot(d['acceptratios'], '-')
+        ax.set_xlabel('step')
+        ax.set_ylabel('acceptance rate')
 
     # Make plots.
     fig = pyplot.figure(figsize=(6., 8.))
+    d = data['convergence']
     # Margins, vertical gap, and top-to-bottom ratio of figure.
     lm, rm, bm, tm, vg, tb = 0.12, 0.05, 0.08, 0.03, 0.08, 4.
     bottomaxheight = (1. - bm - tm - vg) / (tb + 1.)
 
     ax = fig.add_axes((lm, bm + bottomaxheight + vg,
                        1. - lm - rm, tb * bottomaxheight))
-    ax.semilogy(steps, es, 'b', lw=2, label='energy rmse')
-    if forcegoal:
-        ax.semilogy(steps, fs, 'g', lw=2, label='force rmse')
-    ax.semilogy(steps, costfxns, color='0.5', lw=2, label='cost function')
+    ax.semilogy(d['steps'], d['es'], 'b', lw=2, label='energy rmse')
+    if d['forcegoal']:
+        ax.semilogy(d['steps'], d['fs'], 'g', lw=2, label='force rmse')
+    ax.semilogy(d['steps'], d['costfxns'], color='0.5', lw=2,
+                label='cost function')
     # Targets.
-    ax.semilogy([steps[0], steps[-1]], [energygoal] * 2, color='b',
-                linestyle=':')
-    if forcegoal:
-        ax.semilogy([steps[0], steps[-1]], [forcegoal] * 2, color='g',
-                    linestyle=':')
-    ax.semilogy([steps[0], steps[-1]], [costfxngoal] * 2, color='0.5',
-                linestyle=':')
+    ax.semilogy([d['steps'][0], d['steps'][-1]], [d['energygoal']] * 2,
+                color='b', linestyle=':')
+    if d['forcegoal']:
+        ax.semilogy([d['steps'][0], d['steps'][-1]], [d['forcegoal']] * 2,
+                    color='g', linestyle=':')
+    ax.semilogy([d['steps'][0], d['steps'][-1]], [d['costfxngoal']] * 2,
+                color='0.5', linestyle=':')
     ax.set_ylabel('error')
     ax.set_xlabel('BFGS step')
     ax.legend()
 
-    if forcegoal:
+    if d['forcegoal']:
         ax = fig.add_axes((lm, bm, 1. - lm - rm, bottomaxheight))
-        ax.fill_between(x=np.array(steps), y1=costfxnEs, color='blue')
-        ax.fill_between(x=np.array(steps), y1=costfxnEs,
-                        y2=np.array(costfxnEs) + np.array(costfxnFs),
+        ax.fill_between(x=np.array(d['steps']), y1=d['costfxnEs'],
+                        color='blue')
+        ax.fill_between(x=np.array(d['steps']), y1=d['costfxnEs'],
+                        y2=np.array(d['costfxnEs']) +
+                        np.array(d['costfxnFs']),
                         color='green')
         ax.set_ylabel('cost function component')
         ax.set_xlabel('BFGS step')
         ax.set_ylim(0, 1)
 
     with PdfPages(plotfile) as pdf:
-        if annealingstartline is not None:
+        if 'annealing' in data:
             pdf.savefig(fig0)
             pyplot.close(fig0)
         pdf.savefig(fig)
