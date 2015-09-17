@@ -52,7 +52,7 @@ def test_none():
 
     print('Training none-neural network.')
     calc = Amp(descriptor=None, label=os.path.join(label, 'none'))
-    calc.train(images, force_goal=None)
+    calc.train(images, force_goal=None, global_search=None)
 
 ###############################################################################
 
