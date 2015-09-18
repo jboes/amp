@@ -1,4 +1,4 @@
-﻿.. _analysis:
+.. _analysis:
 
 Analysis
 =================
