@@ -32,6 +32,7 @@ and is released under the GNU General Public License. This is a relatively new p
    amp/main.rst
    amp/regression/neuralnetwork.rst
    amp/utilities.rst
+   amp/default.rst
 
 
 
