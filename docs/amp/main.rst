@@ -3,7 +3,7 @@
 Main
 =================
 
-.. autoclass:: amp.AMP
+.. autoclass:: amp.Amp
    :members:
 
 .. autoclass:: amp.MultiProcess
