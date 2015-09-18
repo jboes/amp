@@ -3,8 +3,6 @@
 Neural Network
 =================
 
-This is a test!
-
 .. autoclass:: amp.regression.neuralnetwork.NeuralNetwork
    :members:
 
