@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# AMP documentation build configuration file, created by
+# Amp documentation build configuration file, created by
 # sphinx-quickstart on Thu Jul 30 17:27:50 2015.
 #
 # This file is execfile()d with the current directory set to its
@@ -96,7 +96,7 @@ exclude_patterns = []
 #show_authors = False
 
 # The name of the Pygments (syntax highlighting) style to use.
-pygments_style = 'sphinx'
+pygments_style = 'google'
 
 # A list of ignored prefixes for module index sorting.
 #modindex_common_prefix = []
@@ -279,7 +279,7 @@ epub_publisher = u'Andrew A. Peterson, Alireza Khorshidi'
 epub_copyright = u'2015, Andrew A. Peterson, Alireza Khorshidi'
 
 # The basename for the epub file. It defaults to the project name.
-#epub_basename = u'AMP'
+#epub_basename = u'Amp'
 
 # The HTML theme for the epub output. Since the default themes are not optimized
 # for small screen space, using the same theme for HTML and epub output is
