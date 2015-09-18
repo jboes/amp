@@ -27,11 +27,11 @@ and is released under the GNU General Public License. This is a relatively new p
 .. toctree::
    :maxdepth: 1
 
-   amp/analysis
-   amp/descriptor/behler
-   amp/main
-   amp/regression/neuralnetwork
-   amp/utilities
+   amp/analysis.rst
+   amp/descriptor/behler.rst
+   amp/main.rst
+   amp/regression/neuralnetwork.rst
+   amp/utilities.rst
 
 
 
