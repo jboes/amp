@@ -5,4 +5,6 @@ List of Kernels and Default Parameters
 ---------------------------------------
 
 .. automodule:: amp.cov
-   :members:
+    :members:
+    :undoc-members:
+    :show-inheritance:
