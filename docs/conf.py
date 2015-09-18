@@ -53,7 +53,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'AMP'
+project = u'Amp'
 copyright = u'2015, Andrew A. Peterson, Alireza Khorshidi'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -147,6 +147,7 @@ html_static_path = ['_static']
 # If not '', a 'Last updated on:' timestamp is inserted at every page bottom,
 # using the given strftime format.
 #html_last_updated_fmt = '%b %d, %Y'
+html_last_updated_fmt = '%a, %d %b %Y %H:%M:%S'
 
 # If true, SmartyPants will be used to convert quotes and dashes to
 # typographically correct entities.
@@ -186,7 +187,7 @@ html_static_path = ['_static']
 #html_file_suffix = None
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'AMPdoc'
+htmlhelp_basename = 'Ampdoc'
 
 
 # -- Options for LaTeX output ---------------------------------------------
@@ -206,7 +207,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-  ('index', 'AMP.tex', u'AMP Documentation',
+  ('index', 'Amp.tex', u'Amp Documentation',
    u'Andrew A. Peterson, Alireza Khorshidi', 'manual'),
 ]
 
@@ -236,7 +237,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    ('index', 'amp', u'AMP Documentation',
+    ('index', 'amp', u'Amp Documentation',
      [u'Alireza Khorshidi, Andrew A. Peterson'], 1)
 ]
 
@@ -250,8 +251,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-  ('index', 'AMP', u'AMP Documentation',
-   u'Andrew A. Peterson, Alireza Khorshidi', 'AMP', 'One line description of project.',
+  ('index', 'Amp', u'Amp Documentation',
+   u'Andrew A. Peterson, Alireza Khorshidi', 'Amp', 'One line description of project.',
    'Miscellaneous'),
 ]
 
@@ -271,7 +272,7 @@ texinfo_documents = [
 # -- Options for Epub output ----------------------------------------------
 
 # Bibliographic Dublin Core info.
-epub_title = u'AMP'
+epub_title = u'Amp'
 epub_author = u'Andrew A. Peterson, Alireza Khorshidi'
 epub_publisher = u'Andrew A. Peterson, Alireza Khorshidi'
 epub_copyright = u'2015, Andrew A. Peterson, Alireza Khorshidi'

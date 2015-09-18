@@ -3,8 +3,7 @@
 Analysis
 =================
 
-.. autoclass:: amp.analysis.ConvergencePlot
-   :members:
+.. autofunction:: amp.analysis.read_trainlog
 
 .. autofunction:: amp.analysis.plot_convergence
 
