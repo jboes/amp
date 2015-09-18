@@ -15,19 +15,13 @@ Amp is designed to integrate closely with the `Atomic Simulation Environment <ht
 As such, the interface is in pure python, although several compute-heavy parts of the underlying codes also have fortran
 versions to accelerate the calculations. The close integration with ASE means that any calculator that works with ASE
 - including EMT, GPAW, DACAPO, VASP, NWChem, and Gaussian - can easily be used as the parent method.
-
 .. autofunction:: analysis.read_trainlog
-
 .. autoclass:: amp.CostFxnandDer
    :members:
-
 .. autoexception:: amp.ConvergenceOccurred
    :members:
-
 .. autoexception:: utilities.UntrainedError
    :members:
-
 .. autofunction:: utilities.hash_image
-
 .. autoclass:: utilities.Logger
    :members:
