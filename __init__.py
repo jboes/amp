@@ -1230,24 +1230,17 @@ class MultiProcess:
         for x in range(self.no_procs):
             queues[x] = mp.Queue()
 
-#        print "self.no_procs =", self.no_procs
-
         args = {}
         for x in range(self.no_procs):
             if self.fortran:
                 args[x] = _args + (queues[x],)
             else:
                 sub_hashs = self.list_sub_hashes[x]
-#                print "sub_hashs =", sub_hashs
                 sub_images = self.list_sub_images[x]
-#                print "sub_images =", sub_images
                 args[x] = (sub_hashs, sub_images,) + _args + (queues[x],)
-#                print "args[x] =", args[x]
 
         energy_square_error = 0.
         force_square_error = 0.
-
-#        print "len_of_variables =", len_of_variables
 
         der_variables_square_error = [0.] * len_of_variables
 
@@ -1275,7 +1268,6 @@ class MultiProcess:
         results = {}
         for x in range(self.no_procs):
             results[x] = queues[x].get()
-#            print "results[x] =", results[x]
 
         sub_energy_square_error = [results[x][0] for x in range(self.no_procs)]
         sub_force_square_error = [results[x][1] for x in range(self.no_procs)]
