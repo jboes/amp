@@ -664,7 +664,8 @@ class Amp(Calculator):
             read_fingerprints=True,
             overwrite=False,
             global_search=SimulatedAnnealing(initial_temp=70,
-                                             steps=2000),):
+                                             steps=2000),
+            perturb_variables=None):
         """
         Fits a variable set to the data, by default using the "fmin_bfgs"
         optimizer. The optimizer takes as input a cost function to reduce and
@@ -702,6 +703,11 @@ class Amp(Calculator):
                               given. For now, it can be either None, or
                               SimulatedAnnealing(initial_temp, steps).
         :type global_search: object
+        :param perturb_variables: If not None, after training, variables
+                                  will be perturbed by the amount specified,
+                                  and plotted as pdf book. A typical value is
+                                  0.01.
+        :type perturb_variables: float
         """
         param = self.parameters
         filename = make_filename(self.label, 'trained-parameters.json')
@@ -882,20 +888,133 @@ class Amp(Calculator):
                 'error. Least error parameters saved as checkpoint.\n'
                 'Try it again or assign a larger value for "goal".',
                 toc='optimize')
+        else:
+            param.regression._variables = costfxn.param.regression._variables
+            self.reg.update_variables(param)
+            log(' ...optimization completed successfully. Optimal '
+                'parameters saved.', toc='optimize')
+            filename = make_filename(self.label, 'trained-parameters.json')
+            save_parameters(filename, param)
+
+            self.cost_function = costfxn.cost_function
+            self.energy_per_atom_rmse = costfxn.energy_per_atom_rmse
+            self.force_rmse = costfxn.force_rmse
+            self.der_variables_cost_function = \
+                costfxn.der_variables_square_error
+
+        # perturb variables and plot cost function
+        if perturb_variables is not None:
+
+            log.tic('perturb')
+            log('\n' + 'Perturbing variables...')
+
+            calculate_gradient = False
+            energy_coefficient = 1.
+            optimizedvariables = costfxn.param.regression._variables.copy()
+            no_of_variables = len(optimizedvariables)
+            optimizedcost = costfxn.cost_function
+            zeros = np.zeros(no_of_variables)
+
+            all_variables = []
+            all_costs = []
+            for _ in range(no_of_variables):
+                log('variable %s out of %s' % (_, no_of_variables - 1))
+                costs = []
+                perturbance = zeros.copy()
+                perturbance[_] -= perturb_variables
+                perturbedvariables = optimizedvariables + perturbance
+
+                param.regression._variables = perturbedvariables
+
+                if self.fortran:
+                    task_args = (param, calculate_gradient)
+                    (energy_square_error,
+                     force_square_error,
+                     ___) = \
+                        costfxn._mp.share_cost_function_task_between_cores(
+                        task=_calculate_cost_function_fortran,
+                        _args=task_args, len_of_variables=no_of_variables)
+                else:
+                    task_args = (self.reg, param, self.sfp, snl,
+                                 energy_coefficient, force_coefficient,
+                                 train_forces, no_of_variables,
+                                 calculate_gradient)
+                    (energy_square_error,
+                     force_square_error,
+                     ___) = \
+                        costfxn._mp.share_cost_function_task_between_cores(
+                        task=_calculate_cost_function_python,
+                        _args=task_args, len_of_variables=no_of_variables)
+
+                newcost = energy_coefficient * energy_square_error + \
+                    force_coefficient * force_square_error
+                costs.append(newcost)
+
+                costs.append(optimizedcost)
+
+                perturbance = zeros.copy()
+                perturbance[_] += perturb_variables
+                perturbedvariables = optimizedvariables + perturbance
+
+                param.regression._variables = perturbedvariables
+
+                if self.fortran:
+                    task_args = (param, calculate_gradient)
+                    (energy_square_error,
+                     force_square_error,
+                     ___) = \
+                        costfxn._mp.share_cost_function_task_between_cores(
+                        task=_calculate_cost_function_fortran,
+                        _args=task_args, len_of_variables=no_of_variables)
+                else:
+                    task_args = (self.reg, param, self.sfp, snl,
+                                 energy_coefficient, force_coefficient,
+                                 train_forces, no_of_variables,
+                                 calculate_gradient)
+                    (energy_square_error,
+                     force_square_error,
+                     ___) = \
+                        costfxn._mp.share_cost_function_task_between_cores(
+                        task=_calculate_cost_function_python,
+                        _args=task_args, len_of_variables=no_of_variables)
+
+                newcost = energy_coefficient * energy_square_error + \
+                    force_coefficient * force_square_error
+                costs.append(newcost)
+
+                all_variables.append([optimizedvariables[_] -
+                                      perturb_variables,
+                                      optimizedvariables[_],
+                                      optimizedvariables[_] +
+                                      perturb_variables])
+                all_costs.append(costs)
+
+            log('Plotting cost function vs perturbed variables...')
+
+            import matplotlib
+            matplotlib.use('Agg')
+            from matplotlib import rcParams
+            from matplotlib import pyplot
+            from matplotlib.backends.backend_pdf import PdfPages
+            rcParams.update({'figure.autolayout': True})
+
+            filename = make_filename(self.label, 'perturbed-parameters.pdf')
+            with PdfPages(filename) as pdf:
+                for _ in range(no_of_variables):
+                    fig = pyplot.figure()
+                    ax = fig.add_subplot(111)
+                    ax.plot(all_variables[_],
+                            all_costs[_],
+                            marker='o', linestyle='--', color='b',)
+                    ax.set_xlabel('variable %s' % _)
+                    ax.set_ylabel('cost function')
+                    pdf.savefig(fig)
+                    pyplot.close(fig)
+
+            log(' ...perturbing variables completed.', toc='perturb')
+
+        if not converged:
             raise TrainingConvergenceError()
-
-        param.regression._variables = costfxn.param.regression._variables
-        self.reg.update_variables(param)
-
-        log(' ...optimization completed successfully. Optimal '
-            'parameters saved.', toc='optimize')
-        filename = make_filename(self.label, 'trained-parameters.json')
-        save_parameters(filename, param)
-
-        self.cost_function = costfxn.cost_function
-        self.energy_per_atom_rmse = costfxn.energy_per_atom_rmse
-        self.force_rmse = costfxn.force_rmse
-        self.der_variables_cost_function = costfxn.der_variables_square_error
 
 ###############################################################################
 ###############################################################################
@@ -1111,17 +1230,24 @@ class MultiProcess:
         for x in range(self.no_procs):
             queues[x] = mp.Queue()
 
+#        print "self.no_procs =", self.no_procs
+
         args = {}
         for x in range(self.no_procs):
             if self.fortran:
                 args[x] = _args + (queues[x],)
             else:
                 sub_hashs = self.list_sub_hashes[x]
+#                print "sub_hashs =", sub_hashs
                 sub_images = self.list_sub_images[x]
+#                print "sub_images =", sub_images
                 args[x] = (sub_hashs, sub_images,) + _args + (queues[x],)
+#                print "args[x] =", args[x]
 
         energy_square_error = 0.
         force_square_error = 0.
+
+#        print "len_of_variables =", len_of_variables
 
         der_variables_square_error = [0.] * len_of_variables
 
@@ -1149,6 +1275,7 @@ class MultiProcess:
         results = {}
         for x in range(self.no_procs):
             results[x] = queues[x].get()
+#            print "results[x] =", results[x]
 
         sub_energy_square_error = [results[x][0] for x in range(self.no_procs)]
         sub_force_square_error = [results[x][1] for x in range(self.no_procs)]
@@ -1680,7 +1807,7 @@ class CostFxnandDer:
                                        self.reg.elements,
                                        self.train_forces,
                                        log,)
-            del self._mp.list_sub_images, self._mp.list_sub_hashes
+#            del self._mp.list_sub_images, self._mp.list_sub_hashes
 
         del hashs, images
 
