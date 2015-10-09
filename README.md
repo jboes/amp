@@ -1,4 +1,4 @@
-# Amp: Atomistics Machine-learning Potentials#
+# Amp: Atomistic Machine-learning Potentials#
 
 Developed by Andrew Peterson & Alireza Khorshidi, Brown University School of Engineering. *Amp* allows for the modular representation of the potential energy surface with descriptor and regression methods of choice for the user.
 
