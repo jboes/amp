@@ -127,9 +127,6 @@ class NeuralNetwork:
 
                 if self.no_of_atoms is not None:
 
-                    self.ravel = \
-                        _RavelVariables(hiddenlayers=self.hiddenlayers,
-                                        no_of_atoms=self.no_of_atoms)
                     structure = self.hiddenlayers
                     if isinstance(structure, str):
                         structure = structure.split('-')
@@ -138,6 +135,10 @@ class NeuralNetwork:
                     else:
                         structure = list(structure)
                     self.hiddensizes = [int(part) for part in structure]
+
+                    self.ravel = \
+                        _RavelVariables(hiddensizes=self.hiddensizes,
+                                        no_of_atoms=self.no_of_atoms)
 
                     if load is not None:
                         self._weights, self._scalings = \
@@ -194,7 +195,7 @@ class NeuralNetwork:
                     hiddensizes = [int(part) for part in structure]
                     self.hiddensizes[element] = hiddensizes
 
-                self.ravel = _RavelVariables(hiddenlayers=self.hiddenlayers,
+                self.ravel = _RavelVariables(hiddensizes=self.hiddensizes,
                                              elements=self.elements,
                                              Gs=Gs)
 
@@ -690,7 +691,7 @@ class NeuralNetwork:
             self.hiddensizes = hiddensizes
 
             self.ravel = _RavelVariables(
-                hiddenlayers=self.hiddenlayers,
+                hiddensizes=self.hiddensizes,
                 elements=self.elements,
                 no_of_atoms=self.no_of_atoms)
 
@@ -718,7 +719,7 @@ class NeuralNetwork:
                 hiddensizes = [int(part) for part in structure]
                 self.hiddensizes[element] = hiddensizes
 
-            self.ravel = _RavelVariables(hiddenlayers=self.hiddenlayers,
+            self.ravel = _RavelVariables(hiddensizes=self.hiddensizes,
                                          elements=self.elements,
                                          Gs=param.descriptor.Gs)
 
@@ -1057,29 +1058,10 @@ class _RavelVariables:
     data is saved in the class; each time it is used it is passed either
     the dictionaries or vector.
 
-    :param hiddenlayers: Dictionary of chemical element symbols and
-                         architectures of their corresponding hidden layers of
-                         the conventional neural network. Number of nodes of
-                         last layer is always one corresponding to energy.
-                         However, number of nodes of first layer is equal to
-                         three times number of atoms in the system in the case
-                         of no descriptor, and is equal to lengh of symmetry
-                         functions in the fingerprinting scheme. Can be fed as:
-
-                         >>> hiddenlayers = (3, 2,)
-
-                         for example, in which a neural network with two hidden
-                         layers, the first one having three nodes and the
-                         second one having two nodes is assigned (to the whole
-                         atomic system in the case of no descriptor, and to
-                         each chemical element in the fingerprinting scheme).
-                         In the fingerprinting scheme, neural network for each
-                         species can be assigned seperately, as:
-
-                         >>> hiddenlayers = {"O":(3,5), "Au":(5,6)}
-
-                         for example.
-    :type hiddenlayers: dict
+    :param hiddensizes: Dictionary of chemical element symbols and
+                        architectures of their corresponding hidden layers of
+                        the conventional neural network.
+    :type hiddensizes: dict
     :param elements: List of atom symbols; used in the fingerprinting scheme
                      only.
     :type elements: list of str
@@ -1102,7 +1084,7 @@ class _RavelVariables:
     """
     ###########################################################################
 
-    def __init__(self, hiddenlayers, elements=None, Gs=None, no_of_atoms=None):
+    def __init__(self, hiddensizes, elements=None, Gs=None, no_of_atoms=None):
 
         self.no_of_atoms = no_of_atoms
         self.count = 0
@@ -1112,22 +1094,15 @@ class _RavelVariables:
         if self.no_of_atoms is None:  # fingerprinting scheme
 
             for element in elements:
-                structure = hiddenlayers[element]
-                if isinstance(structure, str):
-                    structure = structure.split('-')
-                elif isinstance(structure, int):
-                    structure = [structure]
-                else:
-                    structure = list(structure)
-                hiddensizes = [int(part) for part in structure]
-                for layer in range(1, len(hiddensizes) + 2):
+                for layer in range(1, len(hiddensizes[element]) + 2):
                     if layer == 1:
-                        shape = (len(Gs[element]) + 1, hiddensizes[0])
-                    elif layer == (len(hiddensizes) + 1):
-                        shape = (hiddensizes[layer - 2] + 1, 1)
+                        shape = (len(Gs[element]) + 1, hiddensizes[element][0])
+                    elif layer == (len(hiddensizes[element]) + 1):
+                        shape = (hiddensizes[element][layer - 2] + 1, 1)
                     else:
                         shape = (
-                            hiddensizes[layer - 2] + 1, hiddensizes[layer - 1])
+                            hiddensizes[element][layer - 2] + 1,
+                            hiddensizes[element][layer - 1])
                     size = shape[0] * shape[1]
                     self._weightskeys.append({'key1': element,
                                               'key2': layer,
@@ -1144,14 +1119,6 @@ class _RavelVariables:
 
         else:  # pure atomic-coordinates scheme
 
-            structure = hiddenlayers
-            if isinstance(structure, str):
-                structure = structure.split('-')
-            elif isinstance(structure, int):
-                structure = [structure]
-            else:
-                structure = list(structure)
-            hiddensizes = [int(part) for part in structure]
             for layer in range(1, len(hiddensizes) + 2):
                 if layer == 1:
                     shape = (3 * no_of_atoms + 1, hiddensizes[0])
