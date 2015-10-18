@@ -72,7 +72,7 @@ class NeuralNetwork:
     """
     ###########################################################################
 
-    def __init__(self, hiddenlayers=(5, 5), activation='tanh', weights=None,
+    def __init__(self, hiddenlayers=(1, 1), activation='tanh', weights=None,
                  scalings=None, variables=None):
 
         self.hiddenlayers = hiddenlayers
@@ -294,6 +294,108 @@ class NeuralNetwork:
                 self.W[element] = {}
                 for j in range(len(weight)):
                     self.W[element][j + 1] = np.delete(weight[j + 1], -1, 0)
+
+    ###########################################################################
+
+    def introduce_variables(self, log, param):
+        """
+        Introducing new variables.
+
+        :param log: Write function at which to log data. Note this must be a
+                    callable function.
+        :type log: Logger object
+        :param param: Object containing regression's properties.
+        :type param: ASE calculator's Parameters class
+        """
+        log('Introducing new hidden-layer nodes...')
+
+        self._weights, self._scalings = \
+            self.ravel.to_dicts(param.regression._variables)
+
+        if self.param.descriptor is None:  # pure atomic-coordinates scheme
+            for j in range(1, len(self._weights) + 1):
+                shape = np.shape(self._weights[j])
+                if j == 1:
+                    self._weights[j] = \
+                        np.insert(self._weights[j],
+                                  shape[1],
+                                  shape[0] * [0],
+                                  1)
+                elif j == len(self._weights):
+                    self._weights[j] = \
+                        np.insert(self._weights[j],
+                                  -1,
+                                  shape[1] * [0],
+                                  0)
+                else:
+                    self._weights[j] = \
+                        np.insert(self._weights[j],
+                                  shape[1],
+                                  shape[0] * [0],
+                                  1)
+                    self._weights[j] = \
+                        np.insert(self._weights[j],
+                                  -1,
+                                  (shape[1] + 1) * [0],
+                                  0)
+
+        else:  # fingerprinting scheme
+            for element in self.elements:
+                for j in range(1, len(self._weights[element]) + 1):
+                    shape = np.shape(self._weights[element][j])
+                    if j == 1:
+                        self._weights[element][j] = \
+                            np.insert(self._weights[element][j],
+                                      shape[1],
+                                      shape[0] * [0],
+                                      1)
+                    elif j == len(self._weights[element]):
+                        self._weights[element][j] = \
+                            np.insert(self._weights[element][j],
+                                      -1,
+                                      (shape[1] + 1) * [0],
+                                      0)
+                    else:
+                        self._weights[element][j] = \
+                            np.insert(self._weights[element][j],
+                                      shape[1],
+                                      shape[0] * [0],
+                                      1)
+                        self._weights[element][j] = \
+                            np.insert(self._weights[element][j],
+                                      -1,
+                                      (shape[1] + 1) * [0],
+                                      0)
+
+        if self.param.descriptor is None:  # pure atomic-coordinates scheme
+            for _ in range(len(self.hiddenlayers)):
+                self.hiddenlayers[_] += 1
+            self.ravel = _RavelVariables(hiddenlayers=self.hiddenlayers,
+                                         no_of_atoms=self.no_of_atoms)
+        else:  # fingerprinting scheme
+            for element in self.elements:
+                for _ in range(len(self.hiddenlayers[element])):
+                    self.hiddenlayers[element][_] += 1
+            self.ravel = _RavelVariables(hiddenlayers=self.hiddenlayers,
+                                         elements=self.elements,
+                                         Gs=param.descriptor.Gs)
+
+        self._variables = \
+            self.ravel.to_vector(self._weights, self._scalings)
+
+        param.regression._variables = self._variables
+
+        log('Hidden-layer structure:')
+        if param.descriptor is None:  # pure atomic-coordinates scheme
+            log(' %s' % str(self.hiddenlayers))
+        else:  # fingerprinting scheme
+            for item in self.hiddenlayers.items():
+                log(' %2s: %s' % item)
+        
+        param.regression.hiddenlayers = self.hiddenlayers
+        self.hiddenlayers = self.hiddenlayers
+
+        return param
 
     ###########################################################################
 

@@ -850,7 +850,7 @@ class Amp(Calculator):
                                   self.reg.elements,
                                   train_forces,
                                   log,)
-#            del self._mp.list_sub_images, self._mp.list_sub_hashes
+#            del _mp.list_sub_images, _mp.list_sub_hashes
 
         costfxn = CostFxnandDer(
             self.reg,
@@ -891,39 +891,50 @@ class Amp(Calculator):
         else:
             log(' No force training.')
         log.tic()
+
         converged = False
+        step = 0
+        while not converged:
+            if step > 0:
+                param = self.reg.introduce_variables(log, param)
+                costfxn = CostFxnandDer(
+                    self.reg,
+                    param,
+                    no_of_images,
+                    self.label,
+                    log,
+                    energy_goal,
+                    force_goal,
+                    train_forces,
+                    _mp,
+                    self.overfitting_constraint,
+                    force_coefficient,
+                    self.fortran,
+                    self.sfp,
+                    snl,)
 
-        variables = param.regression._variables
+            variables = param.regression._variables
 
-        try:
-            optimizer(f=costfxn.f, x0=variables,
-                      fprime=costfxn.fprime,
-                      gtol=10. ** -500.)
+            try:
+                optimizer(f=costfxn.f, x0=variables,
+                          fprime=costfxn.fprime,
+                          gtol=10. ** -500.)
 
-        except ConvergenceOccurred:
-            converged = True
+            except ConvergenceOccurred:
+                converged = True
+            step += 1
 
-        if not converged:
-            log('Saving checkpoint data.')
-            filename = make_filename(self.label, 'parameters-checkpoint.json')
-            save_parameters(filename, costfxn.param)
-            log(' ...could not find parameters for the desired goal\n'
-                'error. Least error parameters saved as checkpoint.\n'
-                'Try it again or assign a larger value for "goal".',
-                toc='optimize')
-        else:
-            param.regression._variables = costfxn.param.regression._variables
-            self.reg.update_variables(param)
-            log(' ...optimization completed successfully. Optimal '
-                'parameters saved.', toc='optimize')
-            filename = make_filename(self.label, 'trained-parameters.json')
-            save_parameters(filename, param)
+        param.regression._variables = costfxn.param.regression._variables
+        self.reg.update_variables(param)
+        log(' ...optimization completed successfully. Optimal '
+            'parameters saved.', toc='optimize')
+        filename = make_filename(self.label, 'trained-parameters.json')
+        save_parameters(filename, param)
 
-            self.cost_function = costfxn.cost_function
-            self.energy_per_atom_rmse = costfxn.energy_per_atom_rmse
-            self.force_rmse = costfxn.force_rmse
-            self.der_variables_cost_function = \
-                costfxn.der_variables_square_error
+        self.cost_function = costfxn.cost_function
+        self.energy_per_atom_rmse = costfxn.energy_per_atom_rmse
+        self.force_rmse = costfxn.force_rmse
+        self.der_variables_cost_function = costfxn.der_variables_square_error
 
         # perturb variables and plot cost function
         if perturb_variables is not None:
