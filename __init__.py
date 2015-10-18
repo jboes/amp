@@ -727,6 +727,8 @@ class Amp(Calculator):
             if not force_coefficient:
                 force_coefficient = (energy_goal / force_goal)**2.
 
+        energy_coefficient = 1.
+
         log = Logger(make_filename(self.label, 'train-log.txt'))
 
         log('Amp training started. ' + now() + '\n')
@@ -789,6 +791,10 @@ class Amp(Calculator):
         # "MultiProcess" object is initialized
         _mp = MultiProcess(self.fortran, no_procs=cores)
 
+        # all images are shared between cores for feed-forward and
+        # back-propagation calculations
+        _mp.make_list_of_sub_images(hashs, images)
+
         if param.descriptor is None:  # pure atomic-coordinates scheme
             self.sfp = None
             snl = None
@@ -826,11 +832,30 @@ class Amp(Calculator):
         # one core
 #        _mp = MultiProcess(self.fortran, no_procs=1)
 
+        no_of_images = len(hashs)
+
+        del hashs, images
+
+        if self.fortran:
+            # data common between processes is sent to fortran modules
+            send_data_to_fortran(self.sfp,
+                                 self.reg.elements,
+                                 train_forces,
+                                 energy_coefficient,
+                                 force_coefficient,
+                                 param,)
+            _mp.ravel_images_data(param,
+                                  self.sfp,
+                                  snl,
+                                  self.reg.elements,
+                                  train_forces,
+                                  log,)
+#            del self._mp.list_sub_images, self._mp.list_sub_hashes
+
         costfxn = CostFxnandDer(
             self.reg,
             param,
-            hashs,
-            images,
+            no_of_images,
             self.label,
             log,
             energy_goal,
@@ -842,8 +867,6 @@ class Amp(Calculator):
             self.fortran,
             self.sfp,
             snl,)
-
-        del hashs, images
 
         gc.collect()
 
@@ -909,7 +932,6 @@ class Amp(Calculator):
             log('\n' + 'Perturbing variables...')
 
             calculate_gradient = False
-            energy_coefficient = 1.
             optimizedvariables = costfxn.param.regression._variables.copy()
             no_of_variables = len(optimizedvariables)
             optimizedcost = costfxn.cost_function
@@ -1712,10 +1734,8 @@ class CostFxnandDer:
     :type reg: object
     :param param: ASE dictionary that contains cutoff and variables.
     :type param: dict
-    :param hashs: Unique keys, one key per image.
-    :type hashs: list
-    :param images: ASE atoms objects (the train set).
-    :type images: dict
+    :param no_of_images: Number of images.
+    :type no_of_images: int
     :param label: Prefix used for all files.
     :type label: str
     :param log: Write function at which to log data. Note this must be a
@@ -1747,10 +1767,9 @@ class CostFxnandDer:
     """
     ###########################################################################
 
-    def __init__(self, reg, param, hashs, images, label, log,
-                 energy_goal, force_goal, train_forces, _mp,
-                 overfitting_constraint, force_coefficient, fortran, sfp=None,
-                 snl=None,):
+    def __init__(self, reg, param, no_of_images, label, log, energy_goal,
+                 force_goal, train_forces, _mp, overfitting_constraint,
+                 force_coefficient, fortran, sfp=None, snl=None,):
 
         self.reg = reg
         self.param = param
@@ -1765,7 +1784,7 @@ class CostFxnandDer:
         self._mp = _mp
         self.overfitting_constraint = overfitting_constraint
         self.force_coefficient = force_coefficient
-        self.fortran = fortran
+        self.no_of_images = no_of_images
 
         if param.descriptor is not None:  # pure atomic-coordinates scheme
             self.cutoff = param.descriptor.cutoff
@@ -1777,31 +1796,9 @@ class CostFxnandDer:
 
         self.energy_coefficient = 1.0
 
-        self.no_of_images = len(hashs)
-
-        # all images are shared between cores for feed-forward and
-        # back-propagation calculations
-        self._mp.make_list_of_sub_images(hashs, images)
-
-        if self.fortran:
+        if fortran:
             # regression data is sent to fortran modules
             self.reg.send_data_to_fortran(param)
-            # data common between processes is sent to fortran modules
-            send_data_to_fortran(self.sfp,
-                                 self.reg.elements,
-                                 self.train_forces,
-                                 self.energy_coefficient,
-                                 self.force_coefficient,
-                                 param,)
-            self._mp.ravel_images_data(param,
-                                       self.sfp,
-                                       self.snl,
-                                       self.reg.elements,
-                                       self.train_forces,
-                                       log,)
-#            del self._mp.list_sub_images, self._mp.list_sub_hashes
-
-        del hashs, images
 
         gc.collect()
 
