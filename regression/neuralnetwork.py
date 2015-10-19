@@ -353,7 +353,7 @@ class NeuralNetwork:
                         self._weights[element][j] = \
                             np.insert(self._weights[element][j],
                                       -1,
-                                      (shape[1] + 1) * [0],
+                                      shape[1] * [0],
                                       0)
                     else:
                         self._weights[element][j] = \
@@ -391,7 +391,7 @@ class NeuralNetwork:
         else:  # fingerprinting scheme
             for item in self.hiddenlayers.items():
                 log(' %2s: %s' % item)
-        
+
         param.regression.hiddenlayers = self.hiddenlayers
         self.hiddenlayers = self.hiddenlayers
 
