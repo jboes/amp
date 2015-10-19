@@ -43,18 +43,23 @@ class SimulatedAnnealing:
     variables. This algorithm is helpful to be used for pre-conditioning of the
     initial guess of variables for optimization of non-convex functions.
 
-    :param initial_temp: Initial temperature which corresponds to initial
+    :param temperature: Initial temperature which corresponds to initial
                          variance of the likelihood normal probability
                          distribution. Should take a value from 50 to 100.
-    :type initial_temp: float
+    :type temperature: float
     :param steps: Number of search iterations.
     :type steps: int
+    :param acceptance_criteria: A float in the range of zero to one.
+                                Temperature will be controlled such that
+                                acceptance rate meets this criteria.
+    :type acceptance_criteria: float
     """
     ###########################################################################
 
-    def __init__(self, initial_temp, steps):
-        self.initial_temp = initial_temp
+    def __init__(self, temperature, steps, acceptance_criteria=0.5):
+        self.temperature = temperature
         self.steps = steps
+        self.acceptance_criteria = acceptance_criteria
 
     ###########################################################################
 
@@ -103,8 +108,7 @@ class SimulatedAnnealing:
                           '=' * 6,
                           '=' * 8))
         variables = self.variables
-        temp = self.initial_temp
-        allvariables = [variables]
+        temp = self.temperature
 
         calculate_gradient = False
         self.costfxn.param.regression._variables = variables
@@ -131,21 +135,23 @@ class SimulatedAnnealing:
             self.costfxn.energy_coefficient * energy_square_error + \
             self.costfxn.force_coefficient * force_square_error
 
+        allvariables = [variables]
         besterror = square_error
         bestvariables = variables
-
-        logp = -square_error / temp
 
         accepted = 0
 
         for step in range(self.steps):
+
+            # Calculating old log of probability
+            logp = - square_error / temp
+
+            # Calculating new log of probability
             _steps = np.random.rand(len(variables)) * 2. - 1.
             _steps *= 0.2
             newvariables = variables + _steps
-
             calculate_gradient = False
             self.costfxn.param.regression._variables = newvariables
-
             if self.costfxn.fortran:
                 task_args = (self.costfxn.param, calculate_gradient)
                 (energy_square_error, force_square_error, _) = \
@@ -163,13 +169,12 @@ class SimulatedAnnealing:
                     self.costfxn._mp.share_cost_function_task_between_cores(
                     task=_calculate_cost_function_python,
                     _args=task_args, len_of_variables=len(variables))
-
             new_square_error = \
                 self.costfxn.energy_coefficient * energy_square_error + \
                 self.costfxn.force_coefficient * force_square_error
+            newlogp = - new_square_error / temp
 
-            newlogp = -new_square_error / temp
-
+            # Calculating probability ratio
             pratio = np.exp(newlogp - logp)
             rand = np.random.rand()
             if rand < pratio:
@@ -194,9 +199,10 @@ class SimulatedAnnealing:
             if accept:
                 variables = newvariables
                 allvariables.append(newvariables)
-                logp = newlogp
+                square_error = new_square_error
 
-            if (accepted / (step + 1) < 0.5):
+            # Changing temprature according to acceptance ratio
+            if (accepted / (step + 1) < self.acceptance_criteria):
                 temp += 0.0005 * temp
             else:
                 temp -= 0.002 * temp
@@ -663,7 +669,7 @@ class Amp(Calculator):
             optimizer=optimizer,
             read_fingerprints=True,
             overwrite=False,
-            global_search=SimulatedAnnealing(initial_temp=70,
+            global_search=SimulatedAnnealing(temperature=70,
                                              steps=2000),
             perturb_variables=None):
         """
@@ -701,7 +707,7 @@ class Amp(Calculator):
         :param global_search: Method for global search of initial variables.
                               Will ignore, if initial variables are already
                               given. For now, it can be either None, or
-                              SimulatedAnnealing(initial_temp, steps).
+                              SimulatedAnnealing(temperature, steps).
         :type global_search: object
         :param perturb_variables: If not None, after training, variables
                                   will be perturbed by the amount specified,
