@@ -1795,6 +1795,7 @@ class CostFxnandDer:
         self._mp = _mp
         self.overfitting_constraint = overfitting_constraint
         self.force_coefficient = force_coefficient
+        self.fortran = fortran
         self.no_of_images = no_of_images
 
         if param.descriptor is not None:  # pure atomic-coordinates scheme
