@@ -323,8 +323,8 @@ class Amp(Calculator):
             if parameters['regression'] == 'NeuralNetwork':
                 kwargs['regression'] = \
                     NeuralNetwork(hiddenlayers=parameters['hiddenlayers'],
-                                  activation=parameters['activation'],
-                                  variables=parameters['variables'],)
+                                  activation=parameters['activation'],)
+                kwargs['regression']._variables = parameters['variables']
                 if kwargs['descriptor'] is None:
                     kwargs['no_of_atoms'] = parameters['no_of_atoms']
             else:

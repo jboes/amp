@@ -61,9 +61,6 @@ class NeuralNetwork:
                      real number values. If scalings is not given, it will be
                      randomly generated.
     :type scalings: dict
-    :param variables: Weights and scalings can be fed in the form of a list
-                      also.
-    :type variables: list
 
     .. note:: Dimensions of weight two dimensional arrays should be consistent
               with hiddenlayers.
@@ -73,12 +70,11 @@ class NeuralNetwork:
     ###########################################################################
 
     def __init__(self, hiddenlayers=(1, 1), activation='tanh', weights=None,
-                 scalings=None, variables=None):
+                 scalings=None,):
 
         self.hiddenlayers = hiddenlayers
         self._weights = weights
         self._scalings = scalings
-        self._variables = variables
 
         self.activation = activation
         # Checking that the activation function is given correctly:
@@ -92,6 +88,7 @@ class NeuralNetwork:
         self.switch = False
         self.no_of_atoms = None
         self.global_search = False
+        self._variables = None
 
     ###########################################################################
 
