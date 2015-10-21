@@ -32,8 +32,13 @@ def randomize_images(images, fraction=0.8):
     """
     file_opened = False
     if type(images) == str:
-        images = io.Trajectory(images, 'r')
+        extension = os.path.splitext(images)[1]
+        if extension == '.traj':
+            images = io.Trajectory(images, 'r')
+        elif extension == '.db':
+            images = io.read(images)
         file_opened = True
+
     trainingsize = int(fraction * len(images))
     testsize = len(images) - trainingsize
     testindices = []
