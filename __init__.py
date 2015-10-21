@@ -833,11 +833,6 @@ class Amp(Calculator):
             if param.fingerprints_range is None:
                 param.fingerprints_range = self.sfp.fingerprints_range
 
-        # If you want to use only one core for feed-forward evaluation
-        # uncomment this line: Re-initializing "Multiprocessing" object with
-        # one core
-#        _mp = MultiProcess(self.fortran, no_procs=1)
-
         no_of_images = len(hashs)
 
         del hashs, images
