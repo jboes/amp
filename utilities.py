@@ -9,6 +9,7 @@ import hashlib
 import time
 import os
 import json
+import sqlite3
 from ase import io
 from ase.parallel import paropen
 from ase.calculators.neighborlist import NeighborList
@@ -69,6 +70,7 @@ class FingerprintsError(Exception):
 
 
 class ConvergenceOccurred(Exception):
+
     """
     Kludge to decide when scipy's optimizers are complete.
     """
@@ -78,6 +80,7 @@ class ConvergenceOccurred(Exception):
 
 
 class TrainingConvergenceError(Exception):
+
     """
     Error to be raise if training does not converge.
     """
@@ -87,6 +90,7 @@ class TrainingConvergenceError(Exception):
 
 
 class ExtrapolateError(Exception):
+
     """
     Error class in the case of extrapolation.
     """
@@ -96,6 +100,7 @@ class ExtrapolateError(Exception):
 
 
 class UntrainedError(Exception):
+
     """
     Error class in the case of unsuccessful training.
     """
@@ -258,7 +263,7 @@ def names_of_allocated_nodes():
 ###############################################################################
 
 
-def save_neighborlists(filename, neighborlists):
+def save_neighborlists_json(filename, neighborlists):
     """
     Save neighborlists in json format.
 
@@ -282,7 +287,7 @@ def save_neighborlists(filename, neighborlists):
 ###############################################################################
 
 
-def save_fingerprints(filename, fingerprints):
+def save_fingerprints_json(filename, fingerprints):
     """
     Save fingerprints in json format.
 
@@ -309,7 +314,7 @@ def save_fingerprints(filename, fingerprints):
 ###############################################################################
 
 
-def save_der_fingerprints(filename, der_fingerprints):
+def save_der_fingerprints_json(filename, der_fingerprints):
     """
     Save derivatives of fingerprints in json format.
 
@@ -333,6 +338,106 @@ def save_der_fingerprints(filename, der_fingerprints):
     except AttributeError:
         with paropen(filename, 'wb') as outfile:
             json.dump(new_dict, outfile)
+
+###############################################################################
+
+
+def save_neighborlists_sqlite(filename, neighborlists):
+    """
+    Save neighborlists in SQLite3 format.
+
+    :param filename: Path to the file to write to.
+    :type filename: str
+    :param neighborlists: Data of neighbor lists.
+    :type neighborlists: dict
+    """
+
+    conn = sqlite3.connect(filename)
+    c = conn.cursor()
+    # Create table
+    c.execute('''CREATE TABLE neighborlists
+    (image text, atom integer, nl_index integer,
+     neighbor_atom integer,
+     offset1 integer, offset2 integer, offset3 integer)''')
+    for key in neighborlists.keys():
+        key0 = key[0]
+        key1 = key[1]
+        value0 = neighborlists[key][0]
+        value1 = neighborlists[key][1]
+        for _ in range(len(value0)):
+            value = value1[_]
+            # Insert a row of data
+            data = (key0, key1, _, value0[_], value[0], value[1], value[2])
+            c.execute('''INSERT INTO neighborlists VALUES
+            (?, ?, ?, ?, ?, ?, ?)''', data)
+    # Save (commit) the changes
+    conn.commit()
+    conn.close()
+
+###############################################################################
+
+
+def save_fingerprints_sqlite(filename, fingerprints):
+    """
+    Save fingerprints in SQLite3 format.
+
+    :param filename: Path to the file to write to.
+    :type filename: str
+    :param fingerprints: Data of fingerprints.
+    :type fingerprints: dict
+    """
+
+    conn = sqlite3.connect(filename)
+    c = conn.cursor()
+    # Create table
+    c.execute('''CREATE TABLE fingerprints
+    (image text, atom integer, fp_index integer, value real)''')
+    for key in fingerprints.keys():
+        key0 = key[0]
+        key1 = key[1]
+        value = fingerprints[key]
+        for _ in range(len(value)):
+            # Insert a row of data
+            data = (key0, key1, _, value[_])
+            c.execute('''INSERT INTO fingerprints VALUES (?, ?, ?, ?)''', data)
+    # Save (commit) the changes
+    conn.commit()
+    conn.close()
+
+###############################################################################
+
+
+def save_der_fingerprints_sqlite(filename, der_fingerprints):
+    """
+    Save derivatives of fingerprints in SQLite3 format.
+
+    :param filename: Path to the file to write to.
+    :type filename: str
+    :param der_fingerprints: Data of derivative of fingerprints.
+    :type der_fingerprints: dict
+    """
+
+    conn = sqlite3.connect(filename)
+    c = conn.cursor()
+    # Create table
+    c.execute('''CREATE TABLE fingerprint_derivatives
+    (image text, atom integer, neighbor_atom integer,
+     direction integer, fp_index integer, value real)''')
+    for key in der_fingerprints.keys():
+        key0 = key[0]
+        key1 = key[1]
+        key10 = key1[0]
+        key11 = key1[1]
+        key12 = key1[2]
+        value = der_fingerprints[key]
+        for _ in range(len(value)):
+            # Insert a row of data
+            data = (key0, key10, key11, key12, _, value[_])
+            c.execute('''INSERT INTO fingerprint_derivatives VALUES
+            (?, ?, ?, ?, ?, ?)''', data)
+    # Save (commit) the changes
+    conn.commit()
+    conn.close()
 
 ###############################################################################
 

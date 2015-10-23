@@ -1463,7 +1463,7 @@ class SaveNeighborLists:
                 for key in self.nl_data.keys():
                     dict_data[key[0]][key[1]] = self.nl_data[key]
                 filename = make_filename(label, 'neighborlists.json')
-                save_neighborlists(filename, dict_data)
+                save_neighborlists_json(filename, dict_data)
                 log(' ...neighborlists calculated and saved to %s.' %
                     filename, toc=True)
 
@@ -1601,7 +1601,7 @@ class SaveFingerprints:
             log.tic('save_fps')
             log(' Saving fingerprints...')
             filename = make_filename(label, 'fingerprints.json')
-            save_fingerprints(filename, dict_data)
+            save_fingerprints_json(filename, dict_data)
             log(' ...fingerprints saved to %s.' % filename,
                 toc='save_fps')
 
@@ -1721,7 +1721,7 @@ class SaveFingerprints:
                 for key in self.der_fp_data.keys():
                     dict_data[key[0]][key[1]] = self.der_fp_data[key]
                 filename = make_filename(label, 'fingerprint-derivatives.json')
-                save_der_fingerprints(filename, dict_data)
+                save_der_fingerprints_json(filename, dict_data)
                 log(' ...fingerprint derivatives calculated and saved to %s.'
                     % filename, toc='save_der_fps')
 
@@ -2018,7 +2018,7 @@ def _calculate_fingerprints(proc_no, hashes, images, fp, label, childfiles):
             indexfp = fp.get_fingerprint(index, symbol, n_symbols, Rs)
             fingerprints[hash][index] = indexfp
 
-    save_fingerprints(childfiles[proc_no], fingerprints)
+    save_fingerprints_json(childfiles[proc_no], fingerprints)
 
     del hashes, images
 
@@ -2086,7 +2086,7 @@ def _calculate_der_fingerprints(proc_no, hashes, images, fp,
 
                         data[hash][(n_index, self_index, i)] = der_indexfp
 
-    save_der_fingerprints(childfiles[proc_no], data)
+    save_der_fingerprints_json(childfiles[proc_no], data)
 
     del hashes, images, data
 
