@@ -198,10 +198,8 @@ def count_allocated_cpus():
     """
     if 'PBS_NODEFILE' in os.environ.keys():
         ncores = len(open(os.environ['PBS_NODEFILE']).readlines())
-    elif 'SLURM_JOB_NODELIST' in os.environ.keys():
-        raise Warning('Functionality for SLURM is untested and might not '
-                      'work.')
-        ncores = len(open(os.environ['SLURM_JOB_NODELIST']).readlines())
+    elif 'SLURM_NTASKS' in os.environ.keys():
+        ncores = int(os.environ['SLURM_NTASKS'])
     elif 'LOADL_PROCESSOR_LIST' in os.environ.keys():
         raise Warning('Functionality for LoadLeveler is untested and might '
                       'not work.')
@@ -215,9 +213,8 @@ def count_allocated_cpus():
             nprocs = int(fields[1])
             ncores += nprocs
     else:
-        raise NotImplementedError('Unsupported batch management system. '
-                                  'Currently only PBS, SLURM, LoadLeveler '
-                                  'and SGE are supported.')
+        import multiprocessing
+        ncores = multiprocessing.cpu_count()
 
     return ncores
 

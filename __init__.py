@@ -746,7 +746,8 @@ class Amp(Calculator):
         log('Regression: ' + param.regression.__class__.__name__ + '\n')
 
         if not cores:
-            cores = mp.cpu_count()
+            from utilities import count_allocated_cpus
+            cores = count_allocated_cpus()
         log('Parallel processing over %i cores.\n' % cores)
 
         if isinstance(images, str):
