@@ -13,6 +13,7 @@ from ase.md import VelocityVerlet
 from ase.constraints import FixAtoms
 from amp import Amp
 from amp.descriptor import Behler
+from amp.regression import NeuralNetwork
 
 ###############################################################################
 
@@ -51,7 +52,9 @@ def test_none():
     images = generate_data(10)
 
     print('Training none-neural network.')
-    calc = Amp(descriptor=None, label=os.path.join(label, 'none'))
+    calc = Amp(descriptor=None,
+               label=os.path.join(label, 'none'),
+               regression=NeuralNetwork(hiddenlayers=(5, 5)))
     calc.train(images, force_goal=None, global_search=None)
 
 ###############################################################################
@@ -64,7 +67,9 @@ def test_behler():
     images = generate_data(10)
 
     print('Training behler-neural network.')
-    calc = Amp(descriptor=Behler(), label=os.path.join(label, 'behler'))
+    calc = Amp(descriptor=Behler(),
+               label=os.path.join(label, 'behler'),
+               regression=NeuralNetwork(hiddenlayers=(5, 5)))
     calc.train(images, force_goal=None)
 
 ###############################################################################
