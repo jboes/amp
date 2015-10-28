@@ -118,17 +118,37 @@ def read_trainlog(logfile):
     # Extract data.
     steps, es, fs, costfxns = [], [], [], []
     costfxnEs, costfxnFs = [], []
-    for line in lines[startline:]:
+    index = startline
+    while index < len(lines):
+        line = lines[index]
         if 'Saving checkpoint' in line:
+            index += 1
             continue
         elif 'convergence!' in line:
+            index += 1
             continue
         elif 'unconverged!' in line:
+            index += 1
             continue
         elif 'optimization completed successfully.' in line:
             break
         elif 'could not find parameters for the' in line:
             break
+        elif 'Introducing new hidden-layer nodes...' in line:
+            # Find where optimization resumes.
+            print('!!!')
+            nindex = index + 1
+            found = False
+            while not found:
+                line = lines[nindex]
+                print(line)
+                print(line.split()[0])
+                if line.split()[0] == '0':
+                    print('found it')
+                    index = nindex
+                    found = True
+                nindex += 1
+            continue
         if forcegoal:
             print(line)
             step, time, costfxn, e, f = line.split()
@@ -145,6 +165,7 @@ def read_trainlog(logfile):
             F = float(f)**2 * no_images
             costfxnEs.append(E / float(costfxn))
             costfxnFs.append(forcecoefficient * F / float(costfxn))
+        index += 1
     d['steps'] = steps
     d['es'] = es
     d['fs'] = fs
@@ -193,37 +214,48 @@ def plot_convergence(logfile, plotfile='convergence.pdf'):
         ax.set_xlabel('step')
         ax.set_ylabel('acceptance rate')
 
+    # Find if multiple runs contained in data set.
+    d = data['convergence']
+    steps = range(len(d['steps']))
+    breaks = []
+    for index, step in enumerate(d['steps'][1:]):
+        if step < d['steps'][index]:
+            breaks.append(index)
+
     # Make plots.
     fig = pyplot.figure(figsize=(6., 8.))
-    d = data['convergence']
     # Margins, vertical gap, and top-to-bottom ratio of figure.
     lm, rm, bm, tm, vg, tb = 0.12, 0.05, 0.08, 0.03, 0.08, 4.
     bottomaxheight = (1. - bm - tm - vg) / (tb + 1.)
 
     ax = fig.add_axes((lm, bm + bottomaxheight + vg,
                        1. - lm - rm, tb * bottomaxheight))
-    ax.semilogy(d['steps'], d['es'], 'b', lw=2, label='energy rmse')
+    ax.semilogy(steps, d['es'], 'b', lw=2, label='energy rmse')
     if d['forcegoal']:
-        ax.semilogy(d['steps'], d['fs'], 'g', lw=2, label='force rmse')
-    ax.semilogy(d['steps'], d['costfxns'], color='0.5', lw=2,
+        ax.semilogy(steps, d['fs'], 'g', lw=2, label='force rmse')
+    ax.semilogy(steps, d['costfxns'], color='0.5', lw=2,
                 label='cost function')
     # Targets.
-    ax.semilogy([d['steps'][0], d['steps'][-1]], [d['energygoal']] * 2,
+    ax.semilogy([steps[0], steps[-1]], [d['energygoal']] * 2,
                 color='b', linestyle=':')
     if d['forcegoal']:
-        ax.semilogy([d['steps'][0], d['steps'][-1]], [d['forcegoal']] * 2,
+        ax.semilogy([steps[0], steps[-1]], [d['forcegoal']] * 2,
                     color='g', linestyle=':')
-    ax.semilogy([d['steps'][0], d['steps'][-1]], [d['costfxngoal']] * 2,
+    ax.semilogy([steps[0], steps[-1]], [d['costfxngoal']] * 2,
                 color='0.5', linestyle=':')
     ax.set_ylabel('error')
     ax.set_xlabel('BFGS step')
     ax.legend()
+    if len(breaks) > 0:
+        ylim = ax.get_ylim()
+        for b in breaks:
+            ax.plot([b]*2, ylim, '--k')
 
     if d['forcegoal']:
         ax = fig.add_axes((lm, bm, 1. - lm - rm, bottomaxheight))
-        ax.fill_between(x=np.array(d['steps']), y1=d['costfxnEs'],
+        ax.fill_between(x=np.array(steps), y1=d['costfxnEs'],
                         color='blue')
-        ax.fill_between(x=np.array(d['steps']), y1=d['costfxnEs'],
+        ax.fill_between(x=np.array(steps), y1=d['costfxnEs'],
                         y2=np.array(d['costfxnEs']) +
                         np.array(d['costfxnFs']),
                         color='green')
