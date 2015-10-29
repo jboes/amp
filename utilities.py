@@ -293,20 +293,13 @@ def save_fingerprints_json(filename, fingerprints):
     :param fingerprints: Data of fingerprints.
     :type fingerprints: dict
     """
-    new_dict = {}
-    for key1 in fingerprints.keys():
-        new_dict[key1] = {}
-        for key2 in fingerprints[key1].keys():
-            fp_value = fingerprints[key1][key2]
-            new_dict[key1][key2] = [value for value in fp_value]
-
     try:
-        json.dump(new_dict, filename)
+        json.dump(fingerprints, filename)
         filename.flush()
         return
     except AttributeError:
         with paropen(filename, 'wb') as outfile:
-            json.dump(new_dict, outfile)
+            json.dump(fingerprints, outfile)
 
 ###############################################################################
 
@@ -324,9 +317,7 @@ def save_der_fingerprints_json(filename, der_fingerprints):
     for key1 in der_fingerprints.keys():
         new_dict[key1] = {}
         for key2 in der_fingerprints[key1].keys():
-            fp_value = der_fingerprints[key1][key2]
-            new_dict[key1][str([key2[0], key2[1], key2[2]])] = [
-                value for value in fp_value]
+            new_dict[key1][str(key2)] = der_fingerprints[key1][key2]
 
     try:
         json.dump(new_dict, filename)
