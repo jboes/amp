@@ -6,6 +6,7 @@ from ase.structure import molecule
 from ase.calculators.emt import EMT
 from ase import Atoms
 from amp import Amp
+from amp.regression import NeuralNetwork
 
 ###############################################################################
 
@@ -37,7 +38,7 @@ def test():
 
     images = make_training_images()
 
-    calc = Amp(label='calc')
+    calc = Amp(label='calc', regression=NeuralNetwork(hiddenlayers=(5, 5)))
     calc.train(images)
 
     # Test that we cannot overwrite. (Strange code here
@@ -53,7 +54,8 @@ def test():
     calc.train(images, overwrite=True)
 
     # New directory calculator.
-    calc = Amp(label='testdir/calc')
+    calc = Amp(label='testdir/calc',
+               regression=NeuralNetwork(hiddenlayers=(5, 5)))
     calc.train(images)
 
     # Open existing, save under new name.
