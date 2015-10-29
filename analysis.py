@@ -245,7 +245,7 @@ def plot_convergence(logfile, plotfile='convergence.pdf'):
                 color='0.5', linestyle=':')
     ax.set_ylabel('error')
     ax.set_xlabel('BFGS step')
-    ax.legend()
+    ax.legend(loc='best')
     if len(breaks) > 0:
         ylim = ax.get_ylim()
         for b in breaks:
