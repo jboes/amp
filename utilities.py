@@ -260,76 +260,6 @@ def names_of_allocated_nodes():
 ###############################################################################
 
 
-def save_neighborlists_json(filename, neighborlists):
-    """
-    Save neighborlists in json format.
-
-    :param filename: Path to the file to write to.
-    :type filename: str
-    :param neighborlists: Data of neighbor lists.
-    :type neighborlists: dict
-    """
-    new_dict = {}
-    for key1 in neighborlists.keys():
-        new_dict[key1] = {}
-        for key2 in neighborlists[key1].keys():
-            nl_value = neighborlists[key1][key2]
-            new_dict[key1][key2] = [[nl_value[0][i],
-                                     [j for j in nl_value[1][i]]]
-                                    for i in range(len(nl_value[0]))]
-
-    with paropen(filename, 'wb') as outfile:
-        json.dump(new_dict, outfile)
-
-###############################################################################
-
-
-def save_fingerprints_json(filename, fingerprints):
-    """
-    Save fingerprints in json format.
-
-    :param filename: Path to the file to write to.
-    :type filename: str
-    :param fingerprints: Data of fingerprints.
-    :type fingerprints: dict
-    """
-    try:
-        json.dump(fingerprints, filename)
-        filename.flush()
-        return
-    except AttributeError:
-        with paropen(filename, 'wb') as outfile:
-            json.dump(fingerprints, outfile)
-
-###############################################################################
-
-
-def save_der_fingerprints_json(filename, der_fingerprints):
-    """
-    Save derivatives of fingerprints in json format.
-
-    :param filename: Path to the file to write to.
-    :type filename: str
-    :param der_fingerprints: Data of derivative of fingerprints.
-    :type der_fingerprints: dict
-    """
-    new_dict = {}
-    for key1 in der_fingerprints.keys():
-        new_dict[key1] = {}
-        for key2 in der_fingerprints[key1].keys():
-            new_dict[key1][str(key2)] = der_fingerprints[key1][key2]
-
-    try:
-        json.dump(new_dict, filename)
-        filename.flush()
-        return
-    except AttributeError:
-        with paropen(filename, 'wb') as outfile:
-            json.dump(new_dict, outfile)
-
-###############################################################################
-
-
 def save_neighborlists_sqlite(filename, neighborlists):
     """
     Save neighborlists in SQLite3 format.
@@ -507,5 +437,148 @@ def make_filename(label, base_filename):
         filename = os.path.join(label + '-' + base_filename)
 
     return filename
+
+###############################################################################
+
+
+class IO:
+
+    """
+    Class that save and read neighborlists, fingerprints, and their
+    derivatives from either json or db files.
+
+    :param hashs: Unique keys, one key per image.
+    :type hashs: list
+    :param images: List of ASE atoms objects with positions, symbols, energies,
+                   and forces in ASE format. This is the training set of data.
+                   This can also be the path to an ASE trajectory (.traj) or
+                   database (.db) file. Energies can be obtained from any
+                   reference, e.g. DFT calculations.
+    :type images: list or str
+    """
+    ###########################################################################
+
+    def __init__(self, hashs, images):
+        self.hashs = hashs
+        self.images = images
+
+    ###########################################################################
+
+    def save(self, filename, data_type, data):
+        """
+        Saves data.
+
+        :param filename: Name of the file to save data to or read data from.
+        :type filename: str
+        :param data_type: Can be either 'neighborlists', 'fingerprints', or
+                          'fingerprint-derivatives'.
+        :type data_type: str
+        :param data: Data to be saved.
+        :type data: dict
+        """
+        if data_type is 'neighborlists':
+            # Reformatting data for saving
+            new_dict = {}
+            hashs = data.keys()
+            for hash in hashs:
+                image = self.images[hash]
+                new_dict[hash] = {}
+                for index in range(len(image)):
+                    nl_value = data[hash][index]
+                    new_dict[hash][index] = [[nl_value[0][i],
+                                              list(nl_value[1][i])]
+                                             for i in range(len(nl_value[0]))]
+            with paropen(filename, 'wb') as outfile:
+                json.dump(new_dict, outfile)
+            del new_dict
+
+        elif data_type is 'fingerprints':
+            try:
+                json.dump(data, filename)
+                filename.flush()
+                return
+            except AttributeError:
+                with paropen(filename, 'wb') as outfile:
+                    json.dump(data, outfile)
+
+        elif data_type is 'fingerprint_derivatives':
+            new_dict = {}
+            hashs = data.keys()
+            for hash in hashs:
+                new_dict[hash] = {}
+                pair_atom_keys = data[hash].keys()
+                for pair_atom_key in pair_atom_keys:
+                    new_dict[hash][str(pair_atom_key)] = \
+                        data[hash][pair_atom_key]
+            try:
+                json.dump(new_dict, filename)
+                filename.flush()
+                return
+            except AttributeError:
+                with paropen(filename, 'wb') as outfile:
+                    json.dump(new_dict, outfile)
+            del new_dict
+        del data
+
+    ###########################################################################
+
+    def read(self, filename, data_type, data):
+        """
+        Reads data.
+
+        :param filename: Name of the file to save data to or read data from.
+        :type filename: str
+        :param data_type: Can be either 'neighborlists', 'fingerprints', or
+                          'fingerprint-derivatives'.
+        :type data_type: str
+        :param data: Data to be read.
+        :type data: dict
+        """
+        hashes = []
+        if data_type is 'neighborlists':
+            fp = paropen(filename, 'rb')
+            loaded_data = json.load(fp)
+            hashes = loaded_data.keys()
+            for hash in hashes:
+                data[hash] = {}
+                image = self.images[hash]
+                for index in range(len(image)):
+                    nl_value = loaded_data[hash][str(index)]
+                    data[hash][index] = ([value[0] for value in nl_value],
+                                         [value[1] for value in nl_value],)
+
+        elif data_type is 'fingerprints':
+            if isinstance(filename, str):
+                fp = paropen(filename, 'rb')
+                loaded_data = json.load(fp)
+            else:
+                filename.seek(0)
+                loaded_data = json.load(filename)
+            hashes = loaded_data.keys()
+            for hash in hashes:
+                data[hash] = {}
+                image = self.images[hash]
+                for index in range(len(image)):
+                    fp_value = loaded_data[hash][str(index)]
+                    data[hash][index] = [float(value) for value in fp_value]
+
+        elif data_type is 'fingerprint_derivatives':
+            if isinstance(filename, str):
+                fp = paropen(filename, 'rb')
+                loaded_data = json.load(fp)
+            else:
+                filename.seek(0)
+                loaded_data = json.load(filename)
+            hashes = loaded_data.keys()
+            for hash in hashes:
+                data[hash] = {}
+                image = self.images[hash]
+                pair_atom_keys = loaded_data[hash].keys()
+                for pair_atom_key in pair_atom_keys:
+                    fp_value = loaded_data[hash][pair_atom_key]
+                    data[hash][eval(pair_atom_key)] = \
+                        [float(value) for value in fp_value]
+
+        return hashes, data
 
 ###############################################################################
