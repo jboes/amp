@@ -534,12 +534,12 @@ class IO:
         :param data: Data to be read.
         :type data: dict
         """
-        hashes = []
+        hashs = []
         if data_type is 'neighborlists':
             fp = paropen(filename, 'rb')
             loaded_data = json.load(fp)
-            hashes = loaded_data.keys()
-            for hash in hashes:
+            hashs = loaded_data.keys()
+            for hash in hashs:
                 data[hash] = {}
                 image = self.images[hash]
                 for index in range(len(image)):
@@ -554,8 +554,8 @@ class IO:
             else:
                 filename.seek(0)
                 loaded_data = json.load(filename)
-            hashes = loaded_data.keys()
-            for hash in hashes:
+            hashs = loaded_data.keys()
+            for hash in hashs:
                 data[hash] = {}
                 image = self.images[hash]
                 for index in range(len(image)):
@@ -569,8 +569,8 @@ class IO:
             else:
                 filename.seek(0)
                 loaded_data = json.load(filename)
-            hashes = loaded_data.keys()
-            for hash in hashes:
+            hashs = loaded_data.keys()
+            for hash in hashs:
                 data[hash] = {}
                 image = self.images[hash]
                 pair_atom_keys = loaded_data[hash].keys()
@@ -579,6 +579,6 @@ class IO:
                     data[hash][eval(pair_atom_key)] = \
                         [float(value) for value in fp_value]
 
-        return hashes, data
+        return hashs, data
 
 ###############################################################################
