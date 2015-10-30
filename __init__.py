@@ -669,6 +669,7 @@ class Amp(Calculator):
             optimizer=optimizer,
             read_fingerprints=True,
             overwrite=False,
+            data_format='db',
             global_search=SimulatedAnnealing(temperature=70,
                                              steps=2000),
             perturb_variables=None):
@@ -704,6 +705,8 @@ class Amp(Calculator):
         :param overwrite: If a trained output file with the same name exists,
                           overwrite it.
         :type overwrite: bool
+        :param data_format: Format of saved data. Can be either "json" or "db".
+        :type data_format: str
         :param global_search: Method for global search of initial variables.
                               Will ignore, if initial variables are already
                               given. For now, it can be either None, or
@@ -802,7 +805,7 @@ class Amp(Calculator):
         # back-propagation calculations
         _mp.make_list_of_sub_images(hashs, images)
 
-        io = IO(hashs, images)  # utilities.IO object initialized.
+        io = IO(hashs, images,)  # utilities.IO object initialized.
 
         if param.descriptor is None:  # pure atomic-coordinates scheme
             self.sfp = None
@@ -812,14 +815,15 @@ class Amp(Calculator):
             log.tic()
             snl = SaveNeighborLists(param.descriptor.cutoff, hashs,
                                     images, self.dblabel, log, train_forces,
-                                    read_fingerprints, io)
+                                    read_fingerprints, io, data_format)
 
             gc.collect()
 
             # Fingerprints are calculated and saved
             self.sfp = SaveFingerprints(self.fp, self.elements, hashs, images,
                                         self.dblabel, train_forces,
-                                        read_fingerprints, snl, log, _mp, io)
+                                        read_fingerprints, snl, log, _mp, io,
+                                        data_format)
 
             gc.collect()
 
@@ -1387,11 +1391,13 @@ class SaveNeighborLists:
     :type read_fingerprints: bool
     :param io: utilities.IO class for reading/saving data.
     :type io: object
+    :param data_format: Format of saved data. Can be either "json" or "db".
+    :type data_format: str
     """
     ###########################################################################
 
     def __init__(self, cutoff, hashs, images, label, log, train_forces,
-                 read_fingerprints, io):
+                 read_fingerprints, io, data_format):
 
         self.cutoff = cutoff
         self.images = images
@@ -1402,13 +1408,17 @@ class SaveNeighborLists:
             log('Calculating neighborlist for each atom...')
             log.tic()
             if read_fingerprints:
-                filename = make_filename(label, 'neighborlists.json')
+                if data_format is 'json':
+                    filename = make_filename(label, 'neighborlists.json')
+                elif data_format is 'db':
+                    filename = make_filename(label, 'neighborlists.db')
                 if not os.path.exists(filename):
                     log(' No saved neighborlist file found.')
                 else:
                     old_hashs, self.nl_data = io.read(filename,
                                                       'neighborlists',
-                                                      self.nl_data)
+                                                      self.nl_data,
+                                                      data_format)
                     log(' Saved neighborlist file %s loaded with %i entries.'
                         % (filename, len(old_hashs)))
                     new_images = {}
@@ -1448,8 +1458,11 @@ class SaveNeighborLists:
                         self.nl_data[hash][self_index] = \
                             (n_self_indices, n_self_offsets,)
 
-                filename = make_filename(label, 'neighborlists.json')
-                io.save(filename, 'neighborlists', self.nl_data)
+                if data_format is 'json':
+                    filename = make_filename(label, 'neighborlists.json')
+                elif data_format is 'db':
+                    filename = make_filename(label, 'neighborlists.db')
+                io.save(filename, 'neighborlists', self.nl_data, data_format)
                 log(' ...neighborlists calculated and saved to %s.' %
                     filename, toc=True)
 
@@ -1493,11 +1506,13 @@ class SaveFingerprints:
     :type _mp: object
     :param io: utilities.IO class for reading/saving data.
     :type io: object
+    :param data_format: Format of saved data. Can be either "json" or "db".
+    :type data_format: str
     """
     ###########################################################################
 
     def __init__(self, fp, elements, hashs, images, label, train_forces,
-                 read_fingerprints, snl, log, _mp, io):
+                 read_fingerprints, snl, log, _mp, io, data_format):
 
         self.Gs = fp.Gs
         self.train_forces = train_forces
@@ -1509,15 +1524,18 @@ class SaveFingerprints:
         log.tic()
 
         if read_fingerprints:
-            filename = make_filename(label, 'fingerprints.json')
+
+            if data_format is 'json':
+                filename = make_filename(label, 'fingerprints.json')
+            elif data_format is 'db':
+                filename = make_filename(label, 'fingerprints.db')
             if not os.path.exists(filename):
                 log('No saved fingerprint file found.')
             else:
                 log.tic('read_fps')
                 log(' Reading fingerprints from %s...' % filename)
-                old_hashs, self.fp_data = io.read(filename,
-                                                  'fingerprints',
-                                                  self.fp_data)
+                old_hashs, self.fp_data = io.read(filename, 'fingerprints',
+                                                  self.fp_data, data_format)
                 log(' ...fingerprints read', toc='read_fps')
                 new_images = {}
                 for hash in hashs:
@@ -1552,17 +1570,20 @@ class SaveFingerprints:
             log.tic('read_fps')
             log(' Reading calculated child-fingerprints...')
             for f in childfiles:
-                _, self.fp_data = io.read(f, 'fingerprints', self.fp_data)
+                _, self.fp_data = io.read(f, 'fingerprints', self.fp_data,
+                                          'json')
             log(' ...child-fingerprints read.', toc='read_fps')
             del new_hashs
 
         if len(new_images) != 0:
             log.tic('save_fps')
             log(' Saving fingerprints...')
-            filename = make_filename(label, 'fingerprints.json')
-            io.save(filename, 'fingerprints', self.fp_data)
-            log(' ...fingerprints saved to %s.' % filename,
-                toc='save_fps')
+            if data_format is 'json':
+                filename = make_filename(label, 'fingerprints.json')
+            elif data_format is 'db':
+                filename = make_filename(label, 'fingerprints.db')
+            io.save(filename, 'fingerprints', self.fp_data, data_format)
+            log(' ...fingerprints saved to %s.' % filename, toc='save_fps')
 
         fingerprint_values = {}
         for element in elements:
@@ -1595,7 +1616,12 @@ class SaveFingerprints:
             log.tic('fp_forces')
 
             if read_fingerprints:
-                filename = make_filename(label, 'fingerprint-derivatives.json')
+                if data_format is 'json':
+                    filename = make_filename(label,
+                                             'fingerprint-derivatives.json')
+                elif data_format is 'db':
+                    filename = make_filename(label,
+                                             'fingerprint-derivatives.db')
                 if not os.path.exists(filename):
                     log('Either no saved fingerprint-derivatives file found '
                         'or it cannot be read.')
@@ -1604,9 +1630,8 @@ class SaveFingerprints:
                     log(' Reading fingerprint derivatives from file %s' %
                         filename)
                     old_hashs, self.der_fp_data = \
-                        io.read(filename,
-                                'fingerprint_derivatives',
-                                self.der_fp_data)
+                        io.read(filename, 'fingerprint_derivatives',
+                                self.der_fp_data, data_format)
                     log(' ...fingerprint derivatives read.',
                         toc='read_der_fps')
 
@@ -1651,13 +1676,20 @@ class SaveFingerprints:
                 log(' Reading child-fingerprint-derivatives...')
                 for f in childfiles:
                     _, self.der_fp_data = io.read(f, 'fingerprint_derivatives',
-                                                  self.der_fp_data)
+                                                  self.der_fp_data,
+                                                  'json')
                 log(' ...child-fingerprint-derivatives are read.',
                     toc='read_der_fps')
 
                 log.tic('save_der_fps')
-                filename = make_filename(label, 'fingerprint-derivatives.json')
-                io.save(filename, 'fingerprint_derivatives', self.der_fp_data)
+                if data_format is 'json':
+                    filename = make_filename(label,
+                                             'fingerprint-derivatives.json')
+                elif data_format is 'db':
+                    filename = make_filename(label,
+                                             'fingerprint-derivatives.db')
+                io.save(filename, 'fingerprint_derivatives', self.der_fp_data,
+                        data_format)
                 log(' ...fingerprint derivatives calculated and saved to %s.'
                     % filename, toc='save_der_fps')
 
@@ -1956,15 +1988,15 @@ def _calculate_fingerprints(proc_no, hashs, images, fp, label, childfiles, io):
             indexfp = fp.get_fingerprint(index, symbol, n_symbols, Rs)
             fingerprints[hash][index] = indexfp
 
-    io.save(childfiles[proc_no], 'fingerprints', fingerprints)
+    io.save(childfiles[proc_no], 'fingerprints', fingerprints, 'json')
 
     del hashs, images
 
 ###############################################################################
 
 
-def _calculate_der_fingerprints(proc_no, hashs, images, fp, snl, label,
-                                childfiles, io):
+def _calculate_der_fingerprints(proc_no, hashs, images, fp,
+                                snl, label, childfiles, io):
     """
     Function to be called on all processes simultaneously for calculating
     derivatives of fingerprints.
@@ -2026,7 +2058,7 @@ def _calculate_der_fingerprints(proc_no, hashs, images, fp, snl, label,
 
                         data[hash][(n_index, self_index, i)] = der_indexfp
 
-    io.save(childfiles[proc_no], 'fingerprint_derivatives', data)
+    io.save(childfiles[proc_no], 'fingerprint_derivatives', data, 'json')
 
     del hashs, images, data
 

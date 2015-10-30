@@ -12,7 +12,6 @@ import json
 import sqlite3
 from ase import io
 from ase.parallel import paropen
-from ase.calculators.neighborlist import NeighborList
 
 ###############################################################################
 
@@ -260,106 +259,6 @@ def names_of_allocated_nodes():
 ###############################################################################
 
 
-def save_neighborlists_sqlite(filename, neighborlists):
-    """
-    Save neighborlists in SQLite3 format.
-
-    :param filename: Path to the file to write to.
-    :type filename: str
-    :param neighborlists: Data of neighbor lists.
-    :type neighborlists: dict
-    """
-
-    conn = sqlite3.connect(filename)
-    c = conn.cursor()
-    # Create table
-    c.execute('''CREATE TABLE neighborlists
-    (image text, atom integer, nl_index integer,
-     neighbor_atom integer,
-     offset1 integer, offset2 integer, offset3 integer)''')
-    for key in neighborlists.keys():
-        key0 = key[0]
-        key1 = key[1]
-        value0 = neighborlists[key][0]
-        value1 = neighborlists[key][1]
-        for _ in range(len(value0)):
-            value = value1[_]
-            # Insert a row of data
-            data = (key0, key1, _, value0[_], value[0], value[1], value[2])
-            c.execute('''INSERT INTO neighborlists VALUES
-            (?, ?, ?, ?, ?, ?, ?)''', data)
-    # Save (commit) the changes
-    conn.commit()
-    conn.close()
-
-###############################################################################
-
-
-def save_fingerprints_sqlite(filename, fingerprints):
-    """
-    Save fingerprints in SQLite3 format.
-
-    :param filename: Path to the file to write to.
-    :type filename: str
-    :param fingerprints: Data of fingerprints.
-    :type fingerprints: dict
-    """
-
-    conn = sqlite3.connect(filename)
-    c = conn.cursor()
-    # Create table
-    c.execute('''CREATE TABLE fingerprints
-    (image text, atom integer, fp_index integer, value real)''')
-    for key in fingerprints.keys():
-        key0 = key[0]
-        key1 = key[1]
-        value = fingerprints[key]
-        for _ in range(len(value)):
-            # Insert a row of data
-            data = (key0, key1, _, value[_])
-            c.execute('''INSERT INTO fingerprints VALUES (?, ?, ?, ?)''', data)
-    # Save (commit) the changes
-    conn.commit()
-    conn.close()
-
-###############################################################################
-
-
-def save_der_fingerprints_sqlite(filename, der_fingerprints):
-    """
-    Save derivatives of fingerprints in SQLite3 format.
-
-    :param filename: Path to the file to write to.
-    :type filename: str
-    :param der_fingerprints: Data of derivative of fingerprints.
-    :type der_fingerprints: dict
-    """
-
-    conn = sqlite3.connect(filename)
-    c = conn.cursor()
-    # Create table
-    c.execute('''CREATE TABLE fingerprint_derivatives
-    (image text, atom integer, neighbor_atom integer,
-     direction integer, fp_index integer, value real)''')
-    for key in der_fingerprints.keys():
-        key0 = key[0]
-        key1 = key[1]
-        key10 = key1[0]
-        key11 = key1[1]
-        key12 = key1[2]
-        value = der_fingerprints[key]
-        for _ in range(len(value)):
-            # Insert a row of data
-            data = (key0, key10, key11, key12, _, value[_])
-            c.execute('''INSERT INTO fingerprint_derivatives VALUES
-            (?, ?, ?, ?, ?, ?)''', data)
-    # Save (commit) the changes
-    conn.commit()
-    conn.close()
-
-###############################################################################
-
-
 def save_parameters(filename, param):
     """
     Save parameters in json format.
@@ -464,7 +363,7 @@ class IO:
 
     ###########################################################################
 
-    def save(self, filename, data_type, data):
+    def save(self, filename, data_type, data, data_format):
         """
         Saves data.
 
@@ -475,54 +374,135 @@ class IO:
         :type data_type: str
         :param data: Data to be saved.
         :type data: dict
+        :param data_format: Format of saved data. Can be either "json" or
+                            "db".
+        :type data_format: str
         """
         if data_type is 'neighborlists':
-            # Reformatting data for saving
-            new_dict = {}
-            hashs = data.keys()
-            for hash in hashs:
-                image = self.images[hash]
-                new_dict[hash] = {}
-                for index in range(len(image)):
-                    nl_value = data[hash][index]
-                    new_dict[hash][index] = [[nl_value[0][i],
-                                              list(nl_value[1][i])]
-                                             for i in range(len(nl_value[0]))]
-            with paropen(filename, 'wb') as outfile:
-                json.dump(new_dict, outfile)
-            del new_dict
 
-        elif data_type is 'fingerprints':
-            try:
-                json.dump(data, filename)
-                filename.flush()
-                return
-            except AttributeError:
-                with paropen(filename, 'wb') as outfile:
-                    json.dump(data, outfile)
-
-        elif data_type is 'fingerprint_derivatives':
-            new_dict = {}
-            hashs = data.keys()
-            for hash in hashs:
-                new_dict[hash] = {}
-                pair_atom_keys = data[hash].keys()
-                for pair_atom_key in pair_atom_keys:
-                    new_dict[hash][str(pair_atom_key)] = \
-                        data[hash][pair_atom_key]
-            try:
-                json.dump(new_dict, filename)
-                filename.flush()
-                return
-            except AttributeError:
+            if data_format is 'json':
+                # Reformatting data for saving
+                new_dict = {}
+                hashs = data.keys()
+                for hash in hashs:
+                    image = self.images[hash]
+                    new_dict[hash] = {}
+                    for index in range(len(image)):
+                        nl_value = data[hash][index]
+                        new_dict[hash][index] = [[nl_value[0][i],
+                                                  list(nl_value[1][i])]
+                                                 for i in
+                                                 range(len(nl_value[0]))]
                 with paropen(filename, 'wb') as outfile:
                     json.dump(new_dict, outfile)
-            del new_dict
+                del new_dict
+
+            elif data_format is 'db':
+                conn = sqlite3.connect(filename)
+                c = conn.cursor()
+                # Create table
+                c.execute('''CREATE TABLE IF NOT EXISTS neighborlists
+                (image text, atom integer, nl_index integer,
+                neighbor_atom integer,
+                offset1 integer, offset2 integer, offset3 integer)''')
+                hashs = data.keys()
+                for hash in hashs:
+                    image = self.images[hash]
+                    for index in range(len(image)):
+                        value0 = data[hash][index][0]
+                        value1 = data[hash][index][1]
+                        for _ in range(len(value0)):
+                            value = value1[_]
+                            # Insert a row of data
+                            row = (hash, index, _, value0[_], value[0],
+                                   value[1], value[2])
+                            c.execute('''INSERT INTO neighborlists VALUES
+                            (?, ?, ?, ?, ?, ?, ?)''', row)
+                # Save (commit) the changes
+                conn.commit()
+                conn.close()
+
+        elif data_type is 'fingerprints':
+
+            if data_format is 'json':
+                try:
+                    json.dump(data, filename)
+                    filename.flush()
+                    return
+                except AttributeError:
+                    with paropen(filename, 'wb') as outfile:
+                        json.dump(data, outfile)
+
+            elif data_format is 'db':
+                conn = sqlite3.connect(filename)
+                c = conn.cursor()
+                # Create table
+                c.execute('''CREATE TABLE IF NOT EXISTS fingerprints
+                (image text, atom integer, fp_index integer, value real)''')
+                hashs = data.keys()
+                for hash in hashs:
+                    image = self.images[hash]
+                    for index in range(len(image)):
+                        value = data[hash][index]
+                        for _ in range(len(value)):
+                            # Insert a row of data
+                            row = (hash, index, _, value[_])
+                            c.execute('''INSERT INTO fingerprints VALUES
+                            (?, ?, ?, ?)''', row)
+                # Save (commit) the changes
+                conn.commit()
+                conn.close()
+
+        elif data_type is 'fingerprint_derivatives':
+
+            if data_format is 'json':
+                new_dict = {}
+                hashs = data.keys()
+                for hash in hashs:
+                    new_dict[hash] = {}
+                    pair_atom_keys = data[hash].keys()
+                    for pair_atom_key in pair_atom_keys:
+                        new_dict[hash][str(pair_atom_key)] = \
+                            data[hash][pair_atom_key]
+                try:
+                    json.dump(new_dict, filename)
+                    filename.flush()
+                    return
+                except AttributeError:
+                    with paropen(filename, 'wb') as outfile:
+                        json.dump(new_dict, outfile)
+                del new_dict
+
+            elif data_format is 'db':
+                conn = sqlite3.connect(filename)
+                c = conn.cursor()
+                # Create table
+                c.execute('''CREATE TABLE IF NOT EXISTS fingerprint_derivatives
+                (image text, atom integer, neighbor_atom integer,
+                direction integer, fp_index integer, value real)''')
+                hashs = data.keys()
+                for hash in hashs:
+                    pair_atom_keys = data[hash].keys()
+                    for pair_atom_key in pair_atom_keys:
+                        n_index = pair_atom_key[0]
+                        self_index = pair_atom_key[1]
+                        i = pair_atom_key[2]
+                        value = data[hash][pair_atom_key]
+                        for _ in range(len(value)):
+                            # Insert a row of data
+                            row = (hash, self_index, n_index, i, _, value[_])
+                            c.execute('''INSERT INTO fingerprint_derivatives
+                            VALUES (?, ?, ?, ?, ?, ?)''', row)
+
+                # Save (commit) the changes
+                conn.commit()
+                conn.close()
+
         del data
 
     ###########################################################################
 
-    def read(self, filename, data_type, data):
+    def read(self, filename, data_type, data, data_format):
         """
         Reads data.
 
@@ -533,51 +513,132 @@ class IO:
         :type data_type: str
         :param data: Data to be read.
         :type data: dict
+        :param data_format: Format of saved data. Can be either "json" or
+                            "db".
+        :type data_format: str
         """
         hashs = []
         if data_type is 'neighborlists':
-            fp = paropen(filename, 'rb')
-            loaded_data = json.load(fp)
-            hashs = loaded_data.keys()
-            for hash in hashs:
-                data[hash] = {}
-                image = self.images[hash]
-                for index in range(len(image)):
-                    nl_value = loaded_data[hash][str(index)]
-                    data[hash][index] = ([value[0] for value in nl_value],
-                                         [value[1] for value in nl_value],)
+
+            if data_format is 'json':
+                fp = paropen(filename, 'rb')
+                loaded_data = json.load(fp)
+                hashs = loaded_data.keys()
+                for hash in hashs:
+                    data[hash] = {}
+                    image = self.images[hash]
+                    for index in range(len(image)):
+                        nl_value = loaded_data[hash][str(index)]
+                        nl_indices = [value[0] for value in nl_value]
+                        nl_offsets = [value[1] for value in nl_value]
+                        data[hash][index] = (nl_indices, nl_offsets,)
+
+            elif data_format is 'db':
+                conn = sqlite3.connect(filename)
+                c = conn.cursor()
+                c.execute("SELECT * FROM neighborlists")
+                rows = c.fetchall()
+                hashs = set([row[0] for row in rows])
+                for hash in hashs:
+                    data[hash] = {}
+                    image = self.images[hash]
+                    for index in range(len(image)):
+                        c.execute('''SELECT * FROM neighborlists WHERE image=?
+                        AND atom=?''', (hash, index,))
+                        rows = c.fetchall()
+                        nl_indices = set([row[2] for row in rows])
+                        nl_offsets = [[row[3], row[4], row[5]]
+                                      for nl_index in nl_indices
+                                      for row in rows if row[2] == nl_index]
+                        data[hash][index] = (nl_indices, nl_offsets,)
 
         elif data_type is 'fingerprints':
-            if isinstance(filename, str):
-                fp = paropen(filename, 'rb')
-                loaded_data = json.load(fp)
-            else:
-                filename.seek(0)
-                loaded_data = json.load(filename)
-            hashs = loaded_data.keys()
-            for hash in hashs:
-                data[hash] = {}
-                image = self.images[hash]
-                for index in range(len(image)):
-                    fp_value = loaded_data[hash][str(index)]
-                    data[hash][index] = [float(value) for value in fp_value]
+
+            if data_format is 'json':
+                if isinstance(filename, str):
+                    fp = paropen(filename, 'rb')
+                    loaded_data = json.load(fp)
+                else:
+                    filename.seek(0)
+                    loaded_data = json.load(filename)
+                hashs = loaded_data.keys()
+                for hash in hashs:
+                    data[hash] = {}
+                    image = self.images[hash]
+                    for index in range(len(image)):
+                        fp_value = loaded_data[hash][str(index)]
+                        data[hash][index] = \
+                            [float(value) for value in fp_value]
+
+            elif data_format is 'db':
+                conn = sqlite3.connect(filename)
+                c = conn.cursor()
+                c.execute("SELECT * FROM fingerprints")
+                rows1 = c.fetchall()
+                hashs = set([row[0] for row in rows1])
+                for hash in hashs:
+                    data[hash] = {}
+                    image = self.images[hash]
+                    for index in range(len(image)):
+                        c.execute('''SELECT * FROM fingerprints
+                        WHERE image=? AND atom=?''', (hash, index,))
+                        rows2 = c.fetchall()
+                        fp_value = [row[3] for fp_index in len(rows2)
+                                    for row in rows if row[2] == fp_index]
+                        data[hash][index] = fp_value
 
         elif data_type is 'fingerprint_derivatives':
-            if isinstance(filename, str):
-                fp = paropen(filename, 'rb')
-                loaded_data = json.load(fp)
-            else:
-                filename.seek(0)
-                loaded_data = json.load(filename)
-            hashs = loaded_data.keys()
-            for hash in hashs:
-                data[hash] = {}
-                image = self.images[hash]
-                pair_atom_keys = loaded_data[hash].keys()
-                for pair_atom_key in pair_atom_keys:
-                    fp_value = loaded_data[hash][pair_atom_key]
-                    data[hash][eval(pair_atom_key)] = \
-                        [float(value) for value in fp_value]
+
+            if data_format is 'json':
+                if isinstance(filename, str):
+                    fp = paropen(filename, 'rb')
+                    loaded_data = json.load(fp)
+                else:
+                    filename.seek(0)
+                    loaded_data = json.load(filename)
+                hashs = loaded_data.keys()
+                for hash in hashs:
+                    data[hash] = {}
+                    image = self.images[hash]
+                    pair_atom_keys = loaded_data[hash].keys()
+                    for pair_atom_key in pair_atom_keys:
+                        fp_value = loaded_data[hash][pair_atom_key]
+                        data[hash][eval(pair_atom_key)] = \
+                            [float(value) for value in fp_value]
+
+            elif data_format is 'db':
+                conn = sqlite3.connect(filename)
+                c = conn.cursor()
+                c.execute("SELECT * FROM fingerprint_derivatives")
+                rows1 = c.fetchall()
+                hashs = set([row[0] for row in rows1])
+                for hash in hashs:
+                    data[hash] = {}
+                    image = self.images[hash]
+                    for self_index in range(len(image)):
+                        c.execute('''SELECT * FROM fingerprint_derivatives
+                        WHERE image=? AND atom=?''', (hash, self_index,))
+                        rows2 = c.fetchall()
+                        nl_indices = set([row[2] for row in rows2])
+                        for n_index in nl_indices:
+                            for i in range(3):
+                                c.execute('''SELECT * FROM
+                                fingerprint_derivatives
+                                WHERE image=? AND atom=? AND neighbor_atom=?
+                                AND direction=?''',
+                                          (hash, self_index, n_index, i))
+                                rows3 = c.fetchall()
+                                der_fp_values = \
+                                    [row[5]
+                                     for der_fp_index in range(len(rows3))
+                                     for row in rows3
+                                     if row[4] == der_fp_index]
+                                data[hash][(n_index, self_index, i)] = \
+                                    der_fp_values
+
+                # Save (commit) the changes
+                conn.commit()
+                conn.close()
 
         return hashs, data
 
