@@ -583,8 +583,8 @@ class IO:
                         c.execute('''SELECT * FROM fingerprints
                         WHERE image=? AND atom=?''', (hash, index,))
                         rows2 = c.fetchall()
-                        fp_value = [row[3] for fp_index in len(rows2)
-                                    for row in rows if row[2] == fp_index]
+                        fp_value = [row[3] for fp_index in range(len(rows2))
+                                    for row in rows2 if row[2] == fp_index]
                         data[hash][index] = fp_value
 
         elif data_type is 'fingerprint_derivatives':

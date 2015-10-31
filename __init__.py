@@ -15,7 +15,6 @@ from ase.parallel import paropen
 import os
 from ase import io as aseio
 import numpy as np
-import json
 import tempfile
 import warnings
 from datetime import datetime
@@ -672,7 +671,8 @@ class Amp(Calculator):
             data_format='db',
             global_search=SimulatedAnnealing(temperature=70,
                                              steps=2000),
-            perturb_variables=None):
+            perturb_variables=None,
+            extend_variables=True):
         """
         Fits a variable set to the data, by default using the "fmin_bfgs"
         optimizer. The optimizer takes as input a cost function to reduce and
@@ -717,6 +717,10 @@ class Amp(Calculator):
                                   and plotted as pdf book. A typical value is
                                   0.01.
         :type perturb_variables: float
+        :param extend_variables: Determines whether or not the code should
+                                 extend the number of variables if convergence
+                                 does not happen.
+        :type extend_variables: bool
         """
         param = self.parameters
         filename = make_filename(self.label, 'trained-parameters.json')
@@ -922,19 +926,33 @@ class Amp(Calculator):
 
             except ConvergenceOccurred:
                 converged = True
-            step += 1
 
-        param.regression._variables = costfxn.param.regression._variables
-        self.reg.update_variables(param)
-        log(' ...optimization completed successfully. Optimal '
-            'parameters saved.', toc='optimize')
-        filename = make_filename(self.label, 'trained-parameters.json')
-        save_parameters(filename, param)
+            if extend_variables is False:
+                break
+            else:
+                step += 1
 
-        self.cost_function = costfxn.cost_function
-        self.energy_per_atom_rmse = costfxn.energy_per_atom_rmse
-        self.force_rmse = costfxn.force_rmse
-        self.der_variables_cost_function = costfxn.der_variables_square_error
+        if not converged:
+            log('Saving checkpoint data.')
+            filename = make_filename(self.label, 'parameters-checkpoint.json')
+            save_parameters(filename, costfxn.param)
+            log(' ...could not find parameters for the desired goal\n'
+                'error. Least error parameters saved as checkpoint.\n'
+                'Try it again or assign a larger value for "goal".',
+                toc='optimize')
+        else:
+            param.regression._variables = costfxn.param.regression._variables
+            self.reg.update_variables(param)
+            log(' ...optimization completed successfully. Optimal '
+                'parameters saved.', toc='optimize')
+            filename = make_filename(self.label, 'trained-parameters.json')
+            save_parameters(filename, param)
+
+            self.cost_function = costfxn.cost_function
+            self.energy_per_atom_rmse = costfxn.energy_per_atom_rmse
+            self.force_rmse = costfxn.force_rmse
+            self.der_variables_cost_function = \
+                costfxn.der_variables_square_error
 
         # perturb variables and plot cost function
         if perturb_variables is not None:
