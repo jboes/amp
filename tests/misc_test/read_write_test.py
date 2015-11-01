@@ -7,6 +7,7 @@ from ase.calculators.emt import EMT
 from ase import Atoms
 from amp import Amp
 from amp.regression import NeuralNetwork
+from ase.io import PickleTrajectory
 
 ###############################################################################
 
@@ -37,39 +38,43 @@ def test():
     os.chdir(testdir)
 
     images = make_training_images()
+    ff = PickleTrajectory('images.traj', 'w')
+    for image in images:
+        ff.write(image)
 
     calc = Amp(label='calc', regression=NeuralNetwork(hiddenlayers=(5, 5)))
-    calc.train(images)
+    calc.train(images, global_search=None, extend_variables=False,)
 
     # Test that we cannot overwrite. (Strange code here
     # because we *want* it to raise an exception...)
     try:
-        calc.train(images)
+        calc.train(images, global_search=None, extend_variables=False,)
     except IOError:
         pass
     else:
         raise RuntimeError('Code allowed to overwrite!')
 
     # Test that we can manually overwrite.
-    calc.train(images, overwrite=True)
+    calc.train(images, overwrite=True, global_search=None,
+               extend_variables=False,)
 
     # New directory calculator.
     calc = Amp(label='testdir/calc',
                regression=NeuralNetwork(hiddenlayers=(5, 5)))
-    calc.train(images)
+    calc.train(images, global_search=None, extend_variables=False,)
 
     # Open existing, save under new name.
     calc = Amp(load='calc',
                     label='calc2')
-    calc.train(images)
+    calc.train(images, global_search=None, extend_variables=False,)
 
     # Change label and re-train
     calc.set_label('calc_new/calc')
-    calc.train(images)
+    calc.train(images, global_search=None, extend_variables=False,)
 
     # Open existing without specifying new name.
     calc = Amp(load='calc')
-    calc.train(images)
+    calc.train(images, global_search=None, extend_variables=False,)
 
     os.chdir(pwd)
 
