@@ -3,7 +3,7 @@
 Script that contains Behler-Parrinello local environment descriptor.
 """
 import numpy as np
-from amp.utilities import FingerprintsError
+from ..utilities import FingerprintsError
 from ase.data import atomic_numbers
 try:
     from .. import fmodules

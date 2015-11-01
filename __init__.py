@@ -27,7 +27,7 @@ from utilities import *
 from descriptor import *
 from regression import *
 try:
-    from amp import fmodules  # version 3 of fmodules
+    from . import fmodules  # version 3 of fmodules
     fmodules_version = 3
 except ImportError:
     fmodules = None

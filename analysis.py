@@ -15,8 +15,8 @@ import os
 from ase import io
 from ase.parallel import paropen
 import json
-from amp import Amp
-from amp.utilities import hash_image
+from . import Amp
+from .utilities import hash_image
 from matplotlib import rcParams
 from matplotlib import pyplot
 from matplotlib.backends.backend_pdf import PdfPages
