@@ -377,10 +377,10 @@ class IO:
         """
         if data_type is 'neighborlists':
 
+            hashs = data.keys()
             if data_format is 'json':
                 # Reformatting data for saving
                 new_dict = {}
-                hashs = data.keys()
                 for hash in hashs:
                     image = self.images[hash]
                     new_dict[hash] = {}
@@ -402,7 +402,6 @@ class IO:
                 (image text, atom integer, nl_index integer,
                 neighbor_atom integer,
                 offset1 integer, offset2 integer, offset3 integer)''')
-                hashs = data.keys()
                 for hash in hashs:
                     image = self.images[hash]
                     for index in range(len(image)):
@@ -452,9 +451,9 @@ class IO:
 
         elif data_type is 'fingerprint_derivatives':
 
+            hashs = data.keys()
             if data_format is 'json':
                 new_dict = {}
-                hashs = data.keys()
                 for hash in hashs:
                     new_dict[hash] = {}
                     pair_atom_keys = data[hash].keys()
@@ -477,7 +476,6 @@ class IO:
                 c.execute('''CREATE TABLE IF NOT EXISTS fingerprint_derivatives
                 (image text, atom integer, neighbor_atom integer,
                 direction integer, fp_index integer, value real)''')
-                hashs = data.keys()
                 for hash in hashs:
                     pair_atom_keys = data[hash].keys()
                     for pair_atom_key in pair_atom_keys:
