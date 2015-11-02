@@ -532,7 +532,7 @@ class Amp(Calculator):
                 for self_index in range(no_of_atoms):
                     self.reg.reset_forces()
                     for i in range(3):
-                        _input = [0. for __ in range(3 * no_of_atoms)]
+                        _input = [0.] * (3 * no_of_atoms)
                         _input[3 * self_index + i] = 1.
                         force = self.reg.get_force(i, _input,)
                         self.forces[self_index][i] = force
@@ -2233,7 +2233,7 @@ def _calculate_cost_function_python(hashs, images, reg, param, sfp,
                 if param.descriptor is None:  # pure atomic-coordinates scheme
 
                     for i in range(3):
-                        _input = [0. for __ in range(3 * no_of_atoms)]
+                        _input = [0.] * (3 * no_of_atoms)
                         _input[3 * self_index + i] = 1.
                         force = reg.get_force(i, _input,)
                         amp_forces[self_index][i] = force

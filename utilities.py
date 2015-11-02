@@ -297,10 +297,7 @@ def save_parameters(filename, param):
                            'saving parameters. User should add the '
                            'regression method under consideration.')
 
-    variables = []
-    for _ in param.regression._variables:
-        variables.append(_)
-    parameters['variables'] = variables
+    parameters['variables'] = param.regression._variables
 
     base_filename = os.path.splitext(filename)[0]
     export_filename = os.path.join(base_filename + '.json')

@@ -345,9 +345,9 @@ def plot_parity(load,
     # calculating energies for images if json is not found
     if len(energy_data.keys()) == 0:
         for hash in hashes:
-            act_energy = \
-                images[hash].get_potential_energy(apply_constraint=False)
-            amp_energy = calc.get_potential_energy(images[hash])
+            atoms = images[hash]
+            act_energy = atoms.get_potential_energy(apply_constraint=False)
+            amp_energy = calc.get_potential_energy(atoms)
             energy_data[hash] = [act_energy, amp_energy]
         # saving energy script
         try:
@@ -532,11 +532,11 @@ def plot_error(load,
     # calculating errors for images if json is not found
     if len(energy_data.keys()) == 0:
         for hash in hashes:
-            act_energy = \
-                images[hash].get_potential_energy(apply_constraint=False)
-            amp_energy = calc.get_potential_energy(images[hash])
-            energy_error = abs(amp_energy - act_energy) / len(images[hash])
-            act_energy_per_atom = act_energy / len(images[hash])
+            atoms = images[hash]
+            act_energy = atoms.get_potential_energy(apply_constraint=False)
+            amp_energy = calc.get_potential_energy(atoms)
+            energy_error = abs(amp_energy - act_energy) / len(atoms)
+            act_energy_per_atom = act_energy / len(atoms)
             energy_data[hash] = [act_energy_per_atom, energy_error]
         # saving energy script
         try:

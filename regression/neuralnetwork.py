@@ -1021,8 +1021,8 @@ def make_weight_matrices(hiddenlayers, activation, no_of_atoms=None, Gs=None,
             * normalized_weight_range - normalized_weight_range / 2.
         for _ in range(len(weight)):  # biases
             size = weight[_ + 1][-1].size
-            for jj in range(size):
-                weight[_ + 1][-1][jj] = 0.
+            for __ in range(size):
+                weight[_ + 1][-1][__] = 0.
 
     else:
 
@@ -1055,8 +1055,8 @@ def make_weight_matrices(hiddenlayers, activation, no_of_atoms=None, Gs=None,
                 * normalized_weight_range - normalized_weight_range / 2.
             for _ in range(len(weight[element])):  # biases
                 size = weight[element][_ + 1][-1].size
-                for jj in range(size):
-                    weight[element][_ + 1][-1][jj] = 0.
+                for __ in range(size):
+                    weight[element][_ + 1][-1][__] = 0.
 
     return weight
 

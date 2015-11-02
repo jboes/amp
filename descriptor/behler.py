@@ -341,12 +341,13 @@ def make_symmetry_functions(elements):
     """
     G = {}
     for element0 in elements:
-        _G = []
+
         # Radial symmetry functions.
         etas = [0.05, 4., 20., 80.]
-        for eta in etas:
-            for element in elements:
-                _G.append({'type': 'G2', 'element': element, 'eta': eta})
+        _G = [{'type': 'G2', 'element': element, 'eta': eta}
+              for eta in etas
+              for element in elements]
+
         # Angular symmetry functions.
         etas = [0.005]
         zetas = [1., 4.]
@@ -570,11 +571,10 @@ def calculate_der_G2(n_indices, symbols, Rs, G_element, eta, cutoff, a, Ra,
     if fortran:  # fortran version; faster
         G_number = [atomic_numbers[G_element]]
         numbers = [atomic_numbers[symbol] for symbol in symbols]
-        list_n_indices = [n_indices[_] for _ in range(len(n_indices))]
         if len(Rs) == 0:
             ridge = 0.
         else:
-            ridge = fmodules.calculate_der_g2(n_indices=list_n_indices,
+            ridge = fmodules.calculate_der_g2(n_indices=list(n_indices),
                                               numbers=numbers, rs=Rs,
                                               g_number=G_number,
                                               g_eta=eta, cutoff=cutoff,
@@ -636,11 +636,10 @@ def calculate_der_G4(n_indices, symbols, Rs, G_elements, gamma, zeta, eta,
     if fortran:  # fortran version; faster
         G_numbers = sorted([atomic_numbers[el] for el in G_elements])
         numbers = [atomic_numbers[symbol] for symbol in symbols]
-        list_n_indices = [n_indices[_] for _ in range(len(n_indices))]
         if len(Rs) == 0:
             ridge = 0.
         else:
-            ridge = fmodules.calculate_der_g4(n_indices=list_n_indices,
+            ridge = fmodules.calculate_der_g4(n_indices=list(n_indices),
                                               numbers=numbers, rs=Rs,
                                               g_numbers=G_numbers,
                                               g_gamma=gamma,
