@@ -107,6 +107,7 @@ class SimulatedAnnealing:
                           '=' * 6,
                           '=' * 8))
         variables = self.variables
+        len_of_variables = len(variables)
         temp = self.temperature
 
         calculate_gradient = False
@@ -117,18 +118,18 @@ class SimulatedAnnealing:
             (energy_square_error, force_square_error, _) = \
                 self.costfxn._mp.share_cost_function_task_between_cores(
                 task=_calculate_cost_function_fortran,
-                _args=task_args, len_of_variables=len(variables))
+                _args=task_args, len_of_variables=len_of_variables)
         else:
             task_args = (self.costfxn.reg, self.costfxn.param,
                          self.costfxn.sfp, self.costfxn.snl,
                          self.costfxn.energy_coefficient,
                          self.costfxn.force_coefficient,
-                         self.costfxn.train_forces, len(variables),
+                         self.costfxn.train_forces, len_of_variables,
                          calculate_gradient)
             (energy_square_error, force_square_error, _) = \
                 self.costfxn._mp.share_cost_function_task_between_cores(
                 task=_calculate_cost_function_python,
-                _args=task_args, len_of_variables=len(variables))
+                _args=task_args, len_of_variables=len_of_variables)
 
         square_error = \
             self.costfxn.energy_coefficient * energy_square_error + \
@@ -146,7 +147,7 @@ class SimulatedAnnealing:
             logp = - square_error / temp
 
             # Calculating new log of probability
-            _steps = np.random.rand(len(variables)) * 2. - 1.
+            _steps = np.random.rand(len_of_variables) * 2. - 1.
             _steps *= 0.2
             newvariables = variables + _steps
             calculate_gradient = False
@@ -156,18 +157,18 @@ class SimulatedAnnealing:
                 (energy_square_error, force_square_error, _) = \
                     self.costfxn._mp.share_cost_function_task_between_cores(
                     task=_calculate_cost_function_fortran,
-                    _args=task_args, len_of_variables=len(variables))
+                    _args=task_args, len_of_variables=len_of_variables)
             else:
                 task_args = (self.costfxn.reg, self.costfxn.param,
                              self.costfxn.sfp, self.costfxn.snl,
                              self.costfxn.energy_coefficient,
                              self.costfxn.force_coefficient,
-                             self.costfxn.train_forces, len(variables),
+                             self.costfxn.train_forces, len_of_variables,
                              calculate_gradient)
                 (energy_square_error, force_square_error, _) = \
                     self.costfxn._mp.share_cost_function_task_between_cores(
                     task=_calculate_cost_function_python,
-                    _args=task_args, len_of_variables=len(variables))
+                    _args=task_args, len_of_variables=len_of_variables)
             new_square_error = \
                 self.costfxn.energy_coefficient * energy_square_error + \
                 self.costfxn.force_coefficient * force_square_error
@@ -394,6 +395,7 @@ class Amp(Calculator):
         """
         Calculator.calculate(self, atoms, properties, system_changes)
 
+        no_of_atoms = len(atoms)
         param = self.parameters
         if param.descriptor is None:  # pure atomic-coordinates scheme
             self.reg.initialize(param=param,
@@ -419,7 +421,7 @@ class Amp(Calculator):
             # Update the neighborlist for making fingerprints. Used if atoms
             # position has changed.
             _nl = NeighborList(cutoffs=([self.cutoff / 2.] *
-                                        len(atoms)),
+                                        no_of_atoms),
                                self_interaction=False,
                                bothways=True,
                                skin=0.)
@@ -527,11 +529,10 @@ class Amp(Calculator):
 
                 input = (atoms.positions).ravel()
                 _ = self.reg.get_energy(input,)
-                for atom in atoms:
-                    self_index = atom.index
+                for self_index in range(no_of_atoms):
                     self.reg.reset_forces()
                     for i in range(3):
-                        _input = [0. for __ in range(3 * len(atoms))]
+                        _input = [0. for __ in range(3 * no_of_atoms)]
                         _input[3 * self_index + i] = 1.
                         force = self.reg.get_force(i, _input,)
                         self.forces[self_index][i] = force
@@ -541,8 +542,7 @@ class Amp(Calculator):
                 # Neighborlists for all atoms are calculated.
                 dict_nl = {}
                 n_self_offsets = {}
-                for self_atom in atoms:
-                    self_index = self_atom.index
+                for self_index in range(no_of_atoms):
                     neighbor_indices, neighbor_offsets = \
                         _nl.get_neighbors(self_index)
                     n_self_indices = np.append(self_index, neighbor_indices)
@@ -587,8 +587,7 @@ class Amp(Calculator):
 
                     __ = self.reg.get_energy(scaled_indexfp, index, symbol)
 
-                for atom in atoms:
-                    self_index = atom.index
+                for self_index in range(no_of_atoms):
                     n_self_indices = dict_nl[self_index]
                     _n_self_offsets = n_self_offsets[self_index]
                     n_self_symbols = [atoms[n_index].symbol
@@ -1455,15 +1454,15 @@ class SaveNeighborLists:
                 new_hashs = sorted(new_images.keys())
                 for hash in new_hashs:
                     image = new_images[hash]
+                    no_of_atoms = len(image)
                     self.nl_data[hash] = {}
                     nl = NeighborList(cutoffs=([self.cutoff / 2.] *
-                                               len(image)),
+                                               no_of_atoms),
                                       self_interaction=False,
                                       bothways=True, skin=0.)
                     # FIXME: Is update necessary?
                     nl.update(image)
-                    for self_atom in image:
-                        self_index = self_atom.index
+                    for self_index in range(no_of_atoms):
                         neighbor_indices, neighbor_offsets = \
                             nl.get_neighbors(self_index)
                         if len(neighbor_offsets) == 0:
@@ -1612,9 +1611,11 @@ class SaveFingerprints:
         for hash in hashs:
             image = images[hash]
             for atom in image:
-                for _ in range(len(self.Gs[atom.symbol])):
-                    fingerprint_values[atom.symbol][_].append(
-                        self.fp_data[hash][atom.index][_])
+                index = atom.index
+                symbol = atom.symbol
+                for _ in range(len(self.Gs[symbol])):
+                    fingerprint_values[symbol][_].append(
+                        self.fp_data[hash][index][_])
 
         fingerprints_range = OrderedDict()
         for element in elements:
@@ -1813,6 +1814,7 @@ class CostFxnandDer:
         calculate_gradient = True
         log = self.log
         self.param.regression._variables = variables
+        len_of_variables = len(variables)
 
         if self.fortran:
             task_args = (self.param, calculate_gradient)
@@ -1821,17 +1823,18 @@ class CostFxnandDer:
              self.der_variables_square_error) = \
                 self._mp.share_cost_function_task_between_cores(
                 task=_calculate_cost_function_fortran,
-                _args=task_args, len_of_variables=len(variables))
+                _args=task_args, len_of_variables=len_of_variables)
         else:
             task_args = (self.reg, self.param, self.sfp, self.snl,
                          self.energy_coefficient, self.force_coefficient,
-                         self.train_forces, len(variables), calculate_gradient)
+                         self.train_forces, len_of_variables,
+                         calculate_gradient)
             (energy_square_error,
              force_square_error,
              self.der_variables_square_error) = \
                 self._mp.share_cost_function_task_between_cores(
                 task=_calculate_cost_function_python,
-                _args=task_args, len_of_variables=len(variables))
+                _args=task_args, len_of_variables=len_of_variables)
 
         square_error = self.energy_coefficient * energy_square_error + \
             self.force_coefficient * force_square_error
@@ -1931,6 +1934,7 @@ class CostFxnandDer:
 
             calculate_gradient = True
             self.param.regression._variables = variables
+            len_of_variables = len(variables)
 
             if self.fortran:
                 task_args = (self.param, calculate_gradient)
@@ -1939,18 +1943,18 @@ class CostFxnandDer:
                  self.der_variables_square_error) = \
                     self._mp.share_cost_function_task_between_cores(
                     task=_calculate_cost_function_fortran,
-                    _args=task_args, len_of_variables=len(variables))
+                    _args=task_args, len_of_variables=len_of_variables)
             else:
                 task_args = (self.reg, self.param, self.sfp, self.snl,
                              self.energy_coefficient, self.force_coefficient,
-                             self.train_forces, len(variables),
+                             self.train_forces, len_of_variables,
                              calculate_gradient)
                 (energy_square_error,
                  force_square_error,
                  self.der_variables_square_error) = \
                     self._mp.share_cost_function_task_between_cores(
                     task=_calculate_cost_function_python,
-                    _args=task_args, len_of_variables=len(variables))
+                    _args=task_args, len_of_variables=len_of_variables)
 
         der_cost_function = self.der_variables_square_error
 
@@ -2038,15 +2042,14 @@ def _calculate_der_fingerprints(proc_no, hashs, images, fp,
     for hash in hashs:
         data[hash] = {}
         atoms = images[hash]
+        no_of_atoms = len(atoms)
         fp.initialize(atoms)
-        _nl = NeighborList(cutoffs=([fp.cutoff / 2.] *
-                                    len(atoms)),
+        _nl = NeighborList(cutoffs=([fp.cutoff / 2.] * no_of_atoms),
                            self_interaction=False,
                            bothways=True,
                            skin=0.)
         _nl.update(atoms)
-        for self_atom in atoms:
-            self_index = self_atom.index
+        for self_index in range(no_of_atoms):
             n_self_indices = snl.nl_data[hash][self_index][0]
             n_self_offsets = snl.nl_data[hash][self_index][1]
             n_symbols = [atoms[n_index].symbol for n_index in n_self_indices]
@@ -2157,6 +2160,7 @@ def _calculate_cost_function_python(hashs, images, reg, param, sfp,
 
     for hash in hashs:
         atoms = images[hash]
+        no_of_atoms = len(atoms)
         real_energy = atoms.get_potential_energy(apply_constraint=False)
         real_forces = atoms.get_forces(apply_constraint=False)
 
@@ -2195,7 +2199,7 @@ def _calculate_cost_function_python(hashs, images, reg, param, sfp,
                 amp_energy += atomic_amp_energy
 
         energy_square_error += ((amp_energy - real_energy) ** 2.) / \
-            (len(atoms) ** 2.)
+            (no_of_atoms ** 2.)
 
         if calculate_gradient:
 
@@ -2205,7 +2209,7 @@ def _calculate_cost_function_python(hashs, images, reg, param, sfp,
                     reg.get_variable_der_of_energy()
                 der_variables_square_error += \
                     energy_coefficient * 2. * (amp_energy - real_energy) * \
-                    partial_der_variables_square_error / (len(atoms) ** 2.)
+                    partial_der_variables_square_error / (no_of_atoms ** 2.)
 
             else:  # fingerprinting scheme
 
@@ -2217,20 +2221,19 @@ def _calculate_cost_function_python(hashs, images, reg, param, sfp,
                     der_variables_square_error += \
                         energy_coefficient * 2. * (amp_energy - real_energy) \
                         * partial_der_variables_square_error / \
-                        (len(atoms) ** 2.)
+                        (no_of_atoms ** 2.)
 
         if train_forces is True:
 
             real_forces = atoms.get_forces(apply_constraint=False)
-            amp_forces = np.zeros((len(atoms), 3))
-            for self_atom in atoms:
-                self_index = self_atom.index
+            amp_forces = np.zeros((no_of_atoms, 3))
+            for self_index in range(no_of_atoms):
                 reg.reset_forces()
 
                 if param.descriptor is None:  # pure atomic-coordinates scheme
 
                     for i in range(3):
-                        _input = [0. for __ in range(3 * len(atoms))]
+                        _input = [0. for __ in range(3 * no_of_atoms)]
                         _input[3 * self_index + i] = 1.
                         force = reg.get_force(i, _input,)
                         amp_forces[self_index][i] = force
@@ -2281,7 +2284,7 @@ def _calculate_cost_function_python(hashs, images, reg, param, sfp,
                     force_square_error += \
                         ((1.0 / 3.0) * (amp_forces[self_index][i] -
                                         real_forces[self_index][i]) **
-                         2.) / len(atoms)
+                         2.) / no_of_atoms
 
                 if calculate_gradient:
 
@@ -2296,7 +2299,7 @@ def _calculate_cost_function_python(hashs, images, reg, param, sfp,
                                 (- amp_forces[self_index][i] +
                                  real_forces[self_index][i]) * \
                                 partial_der_variables_square_error \
-                                / len(atoms)
+                                / no_of_atoms
 
                         else:  # fingerprinting scheme
 
@@ -2317,7 +2320,7 @@ def _calculate_cost_function_python(hashs, images, reg, param, sfp,
                                         (- amp_forces[self_index][i] +
                                          real_forces[self_index][i]) * \
                                         partial_der_variables_square_error \
-                                        / len(atoms)
+                                        / no_of_atoms
 
     del hashs, images
 
@@ -2597,8 +2600,8 @@ def ravel_neighborlists_and_der_fingerprints_of_images(hashs,
     list_of_no_of_neighbors = []
     for hash in hashs:
         atoms = images[hash]
-        for self_atom in atoms:
-            self_index = self_atom.index
+        no_of_atoms = len(atoms)
+        for self_index in range(no_of_atoms):
             n_self_offsets = snl.nl_data[hash][self_index][1]
             count = 0
             for n_offset in n_self_offsets:

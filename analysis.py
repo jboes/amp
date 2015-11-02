@@ -401,12 +401,13 @@ def plot_parity(load,
         # calculating forces for images if json is not found
         if len(force_data.keys()) == 0:
             for hash in hashes:
+                atoms = images[hash]
+                no_of_atoms = len(atoms)
                 force_data[hash] = {}
-                act_force = images[hash].get_forces(apply_constraint=False)
-                images[hash].set_calculator(calc)
-                amp_force = calc.get_forces(images[hash])
-                for atom in images[hash]:
-                    index = atom.index
+                act_force = atoms.get_forces(apply_constraint=False)
+                atoms.set_calculator(calc)
+                amp_force = calc.get_forces(atoms)
+                for index in range(no_of_atoms):
                     force_data[hash][index] = {}
                     for k in range(3):
                         force_data[hash][index][k] = \
@@ -435,8 +436,9 @@ def plot_parity(load,
         ax = fig.add_subplot(212)
 
         for hash in hashes:
-            for atom in images[hash]:
-                index = atom.index
+            atoms = images[hash]
+            no_of_atoms = len(atoms)
+            for index in range(no_of_atoms):
                 for k in range(3):
                     ax.plot(force_data[hash][index][k][0],
                             force_data[hash][index][k][1],
@@ -599,12 +601,13 @@ def plot_error(load,
         # calculating errors for images if json is not found
         if len(force_data.keys()) == 0:
             for hash in hashes:
+                atoms = images[hash]
+                no_of_atoms = len(atoms)
                 force_data[hash] = {}
-                act_force = images[hash].get_forces(apply_constraint=False)
-                images[hash].set_calculator(calc)
-                amp_force = calc.get_forces(images[hash])
-                for atom in images[hash]:
-                    index = atom.index
+                act_force = atoms.get_forces(apply_constraint=False)
+                atoms.set_calculator(calc)
+                amp_force = calc.get_forces(atoms)
+                for index in range(no_of_atoms):
                     force_data[hash][index] = {}
                     for k in range(3):
                         force_data[hash][index][k] = \
@@ -624,12 +627,12 @@ def plot_error(load,
         force_square_error = 0.
         for hash in hashes:
             atoms = images[hash]
-            for atom in atoms:
-                index = atom.index
+            no_of_atoms = len(atoms)
+            for index in range(no_of_atoms):
                 for k in range(3):
                     force_square_error += \
                         ((1.0 / 3.0) * force_data[hash][index][k][1] ** 2.) / \
-                        len(atoms)
+                        no_of_atoms
 
         force_rmse = np.sqrt(force_square_error / len(hashes))
 
@@ -647,8 +650,9 @@ def plot_error(load,
         ax = fig.add_subplot(212)
 
         for hash in hashes:
-            for atom in images[hash]:
-                index = atom.index
+            atoms = images[hash]
+            no_of_atoms = len(atoms)
+            for index in range(no_of_atoms):
                 for k in range(3):
                     ax.plot(force_data[hash][index][k][0],
                             force_data[hash][index][k][1],
