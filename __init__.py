@@ -786,7 +786,6 @@ class Amp(Calculator):
                 images = aseio.Trajectory(images, 'r')
             elif extension == '.db':
                 images = aseio.read(images)
-
         no_of_images = len(images)
 
         if param.descriptor is None:  # pure atomic-coordinates scheme
@@ -818,7 +817,8 @@ class Amp(Calculator):
         images = dict_images.copy()
         del dict_images
         hashs = sorted(images.keys())
-        log(' %i unique images after hashing.' % len(hashs))
+        no_of_images = len(hashs)
+        log(' %i unique images after hashing.' % no_of_images)
         log(' ...hashing completed.', toc=True)
 
         self.elements = set([atom.symbol for hash in hashs
@@ -838,7 +838,7 @@ class Amp(Calculator):
 
         # all images are shared between cores for feed-forward and
         # back-propagation calculations
-        _mp.make_list_of_sub_images(hashs, images)
+        _mp.make_list_of_sub_images(no_of_images, hashs, images)
 
         io = IO(hashs, images,)  # utilities.IO object initialized.
 
@@ -848,17 +848,18 @@ class Amp(Calculator):
         else:  # fingerprinting scheme
             # Neighborlist for all images are calculated and saved
             log.tic()
-            snl = SaveNeighborLists(param.descriptor.cutoff, hashs,
-                                    images, self.dblabel, log, train_forces,
-                                    read_fingerprints, io, data_format)
+            snl = SaveNeighborLists(param.descriptor.cutoff, no_of_images,
+                                    hashs, images, self.dblabel, log,
+                                    train_forces, read_fingerprints, io,
+                                    data_format)
 
             gc.collect()
 
             # Fingerprints are calculated and saved
-            self.sfp = SaveFingerprints(self.fp, self.elements, hashs, images,
-                                        self.dblabel, train_forces,
-                                        read_fingerprints, snl, log, _mp, io,
-                                        data_format)
+            self.sfp = SaveFingerprints(self.fp, self.elements, no_of_images,
+                                        hashs, images, self.dblabel,
+                                        train_forces, read_fingerprints, snl,
+                                        log, _mp, io, data_format)
 
             gc.collect()
 
@@ -866,8 +867,6 @@ class Amp(Calculator):
             # from the json file.
             if param.fingerprints_range is None:
                 param.fingerprints_range = self.sfp.fingerprints_range
-
-        no_of_images = len(hashs)
 
         del hashs, images
 
@@ -1129,20 +1128,22 @@ class MultiProcess:
 
     ###########################################################################
 
-    def make_list_of_sub_images(self, hashs, images):
+    def make_list_of_sub_images(self, no_of_images, hashs, images):
         """
         Two lists are made each with one entry per core. The entry of the first
         list contains list of hashs to be calculated by that core, and the
         entry of the second list contains dictionary of images to be calculated
         by that core.
 
+        :param no_of_images: Total number of images.
+        :type no_of_images: int
         :param hashs: Unique keys, one key per image.
         :type hashs: list
         :param images: List of ASE atoms objects (the training set).
         :type images: list
         """
-        quotient = int(len(hashs) / self.no_procs)
-        remainder = len(hashs) - self.no_procs * quotient
+        quotient = int(no_of_images / self.no_procs)
+        remainder = no_of_images - self.no_procs * quotient
         list_sub_hashs = [None] * self.no_procs
         list_sub_images = [None] * self.no_procs
         count0 = 0
@@ -1462,6 +1463,8 @@ class SaveNeighborLists:
 
     :param cutoff: Cutoff radius, in Angstroms, around each atom.
     :type cutoff: float
+    :param no_of_images: Total number of images.
+    :type no_of_images: int
     :param hashs: Unique keys, one key per image.
     :type hashs: list
     :param images: List of ASE atoms objects (the training set).
@@ -1484,13 +1487,12 @@ class SaveNeighborLists:
     """
     ###########################################################################
 
-    def __init__(self, cutoff, hashs, images, label, log, train_forces,
-                 read_fingerprints, io, data_format):
+    def __init__(self, cutoff, no_of_images, hashs, images, label, log,
+                 train_forces, read_fingerprints, io, data_format):
 
         self.cutoff = cutoff
         self.images = images
         self.nl_data = {}
-        no_of_images = len(hashs)
 
         if train_forces is True:
             new_images = images
@@ -1583,6 +1585,8 @@ class SaveFingerprints:
     :type fp: object
     :param elements: List if elements in images.
     :type elements: list
+    :param no_of_images: Total number of images.
+    :type no_of_images: int
     :param hashs: Unique keys, one key per image.
     :type hashs: list
     :param images: List of ASE atoms objects (the training set).
@@ -1609,15 +1613,15 @@ class SaveFingerprints:
     """
     ###########################################################################
 
-    def __init__(self, fp, elements, hashs, images, label, train_forces,
-                 read_fingerprints, snl, log, _mp, io, data_format):
+    def __init__(self, fp, elements, no_of_images, hashs, images, label,
+                 train_forces, read_fingerprints, snl, log, _mp, io,
+                 data_format):
 
         self.Gs = fp.Gs
         self.train_forces = train_forces
         self.fp_data = {}
         self.der_fp_data = {}
         new_images = images
-        no_of_images = len(hashs)
 
         log('Calculating atomic fingerprints...')
         log.tic()
