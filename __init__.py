@@ -1657,8 +1657,10 @@ class SaveFingerprints:
         if len(new_images) != 0:
             log.tic('calculate_fps')
             new_hashs = sorted(new_images.keys())
+            no_of_new_images = len(new_hashs)
             # new images are shared between cores for fingerprint calculations
-            _mp.make_list_of_sub_images(new_hashs, new_images)
+            _mp.make_list_of_sub_images(no_of_new_images, new_hashs,
+                                        new_images)
 
             # Temporary files to hold child fingerprint calculations.
             childfiles = [tempfile.NamedTemporaryFile(prefix='fp-',
@@ -1778,9 +1780,11 @@ class SaveFingerprints:
             if len(new_images) != 0:
                 log.tic('calculate_der_fps')
                 new_hashs = sorted(new_images.keys())
+                no_of_new_images = len(new_hashs)
                 # new images are shared between cores for calculating
                 # fingerprint derivatives
-                _mp.make_list_of_sub_images(new_hashs, new_images)
+                _mp.make_list_of_sub_images(no_of_new_images, new_hashs,
+                                            new_images)
 
                 # Temporary files to hold child fingerprint calculations.
                 childfiles = [tempfile.NamedTemporaryFile(prefix='fp-',
