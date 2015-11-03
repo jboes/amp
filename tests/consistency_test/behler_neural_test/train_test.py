@@ -518,7 +518,7 @@ def test():
     for fortran in [False, True]:
         for cores in range(1, 5):
 
-            label = 'Fortran%s-%i' % (fortran, cores)
+            label = 'traintest/Fortran%s-%i' % (fortran, cores)
 
             calc = Amp(descriptor=Behler(cutoff=cutoff, Gs=Gs,),
                        regression=NeuralNetwork(hiddenlayers=hiddenlayers,

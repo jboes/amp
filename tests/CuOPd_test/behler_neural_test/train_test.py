@@ -158,7 +158,7 @@ def non_periodic_0th_bfgs_step_test():
     for fortran in [False, True]:
         for cores in range(1, 7):
 
-            label = '0thStepNonperiodFortran%s-%i' % (fortran, cores)
+            label = 'traintest/0thStepNonperiodFortran%s-%i' % (fortran, cores)
 
             calc = Amp(descriptor=Behler(cutoff=6.5, Gs=Gs,),
                        regression=NeuralNetwork(hiddenlayers=hiddenlayers,
@@ -338,7 +338,7 @@ def non_periodic_9th_bfgs_step_test():
     for fortran in [False, True]:
         for cores in range(1, 7):
 
-            label = '9thStepNonperiodFortran%s-%i' % (fortran, cores)
+            label = 'traintest/9thStepNonperiodFortran%s-%i' % (fortran, cores)
 
             calc = Amp(descriptor=Behler(cutoff=6.5, Gs=Gs,),
                        regression=NeuralNetwork(hiddenlayers=hiddenlayers,
@@ -485,7 +485,7 @@ def periodic_0th_bfgs_step_test():
     for fortran in [False, True]:
         for cores in range(1, 5):
 
-            label = '0thStepPeriodFortran%s-%i' % (fortran, cores)
+            label = 'traintest/0thStepPeriodFortran%s-%i' % (fortran, cores)
 
             calc = Amp(descriptor=Behler(cutoff=4., Gs=Gs,),
                        regression=NeuralNetwork(hiddenlayers=hiddenlayers,
@@ -628,7 +628,7 @@ def periodic_2nd_bfgs_step_test():
     for fortran in [False, True]:
         for cores in range(1, 5):
 
-            label = '2ndStepPeriodFortran%s-%i' % (fortran, cores)
+            label = 'traintest/2ndStepPeriodFortran%s-%i' % (fortran, cores)
 
             calc = Amp(descriptor=Behler(cutoff=4., Gs=Gs,),
                        regression=NeuralNetwork(hiddenlayers=hiddenlayers,

@@ -74,7 +74,7 @@ def test():
     for fortran in [False, True]:
         for cores in range(1, 7):
 
-            label = 'None-Fortran%s-%i' % (fortran, cores)
+            label = 'traintest/None-Fortran%s-%i' % (fortran, cores)
 
             calc = Amp(descriptor=None,
                        regression=NeuralNetwork(hiddenlayers=(2, 1),

@@ -124,7 +124,7 @@ def test():
                                                 weights=weights,
                                                 scalings=scalings,),
                        fortran=fortran,
-                       label='fortran%s-cores%i-'
+                       label='traintest/fortran%s-cores%i-'
                        % (fortran, cores))
 
             calc.train(images=images, energy_goal=10.**10.,
