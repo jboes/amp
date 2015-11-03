@@ -153,12 +153,15 @@ class NeuralNetwork:
                         if np.shape(self._weights[1])[1] != \
                                 self.hiddenlayers[0]:
                             raise RuntimeError(string2)
-                        for _ in range(2, len(self.hiddenlayers) + 1):
+                        _ = 2
+                        len_of_hiddenlayers = len(self.hiddenlayers)
+                        while _ < len_of_hiddenlayers + 1:
                             if np.shape(self._weights[_])[0] != \
                                     self.hiddenlayers[_ - 2] + 1 or \
                                     np.shape(self._weights[_])[1] != \
                                     self.hiddenlayers[_ - 1]:
                                 raise RuntimeError(string2)
+                            _ += 1
                     del string1
                     del string2
 
@@ -219,8 +222,11 @@ class NeuralNetwork:
                             if np.shape(self._weights[element][1])[1] \
                                     != self.hiddenlayers[element][0]:
                                 raise RuntimeError(string2)
-                            for _ in range(2, len(self.hiddenlayers
-                                                  [element]) + 1):
+
+                            _ = 2
+                            len_of_hiddenlayers = \
+                                len(self.hiddenlayers[element])
+                            while _ < len_of_hiddenlayers + 1:
                                 if (np.shape(self._weights
                                              [element][_])[0] !=
                                         self.hiddenlayers[
@@ -230,6 +236,7 @@ class NeuralNetwork:
                                         self.hiddenlayers
                                         [element][_ - 1]):
                                     raise RuntimeError(string2)
+                                _ += 1
             del string1
             del string2
 
@@ -283,14 +290,20 @@ class NeuralNetwork:
 
         if self.param.descriptor is None:  # pure atomic-coordinates scheme
             weight = self._weights
-            for j in range(len(weight)):
+            len_of_weight = len(weight)
+            j = 0
+            while j < len_of_weight:
                 self.W[j + 1] = np.delete(weight[j + 1], -1, 0)
+                j += 1
         else:  # fingerprinting scheme
             for element in self.elements:
-                weight = self._weights[element]
                 self.W[element] = {}
-                for j in range(len(weight)):
+                weight = self._weights[element]
+                len_of_weight = len(weight)
+                j = 0
+                while j < len_of_weight:
                     self.W[element][j + 1] = np.delete(weight[j + 1], -1, 0)
+                    j += 1
 
     ###########################################################################
 
@@ -310,7 +323,9 @@ class NeuralNetwork:
             self.ravel.to_dicts(param.regression._variables)
 
         if self.param.descriptor is None:  # pure atomic-coordinates scheme
-            for j in range(1, len(self._weights) + 1):
+            len_of_weights = len(self._weights)
+            j = 1
+            while j < len_of_weights + 1:
                 shape = np.shape(self._weights[j])
                 if j == 1:
                     self._weights[j] = \
@@ -335,10 +350,13 @@ class NeuralNetwork:
                                   -1,
                                   (shape[1] + 1) * [0],
                                   0)
+                j += 1
 
         else:  # fingerprinting scheme
             for element in self.elements:
-                for j in range(1, len(self._weights[element]) + 1):
+                len_of_weights = len(self._weights[element])
+                j = 1
+                while j < len_of_weights + 1:
                     shape = np.shape(self._weights[element][j])
                     if j == 1:
                         self._weights[element][j] = \
@@ -363,16 +381,23 @@ class NeuralNetwork:
                                       -1,
                                       (shape[1] + 1) * [0],
                                       0)
+                    j += 1
 
         if self.param.descriptor is None:  # pure atomic-coordinates scheme
-            for _ in range(len(self.hiddenlayers)):
+            len_of_hiddenlayers = len(self.hiddenlayers)
+            _ = 0
+            while _ < len_of_hiddenlayers:
                 self.hiddenlayers[_] += 1
+                _ += 1
             self.ravel = _RavelVariables(hiddenlayers=self.hiddenlayers,
                                          no_of_atoms=self.no_of_atoms)
         else:  # fingerprinting scheme
             for element in self.elements:
-                for _ in range(len(self.hiddenlayers[element])):
+                len_of_hiddenlayers = len(self.hiddenlayers[element])
+                _ = 0
+                while _ < len_of_hiddenlayers:
                     self.hiddenlayers[element][_] += 1
+                _ += 1
             self.ravel = _RavelVariables(hiddenlayers=self.hiddenlayers,
                                          elements=self.elements,
                                          Gs=param.descriptor.Gs)
@@ -423,9 +448,12 @@ class NeuralNetwork:
         layer = 1  # input layer
         net = {}  # excitation
         ohat = {}
-        temp = np.zeros((1, len(input) + 1))
-        for _ in range(len(input)):
+        len_of_input = len(input)
+        temp = np.zeros((1, len_of_input + 1))
+        _ = 0
+        while _ < len_of_input:
             temp[0, _] = input[_]
+            _ += 1
         temp[0, len(input)] = 1.0
         ohat[0] = temp
         net[1] = np.dot(ohat[0], weight[1])
@@ -436,8 +464,11 @@ class NeuralNetwork:
         elif self.activation == 'sigmoid':  # sigmoid activation
             o[1] = 1. / (1. + np.exp(-net[1]))
         temp = np.zeros((1, np.shape(o[1])[1] + 1))
-        for _ in range(np.shape(o[1])[1]):
+        bound = np.shape(o[1])[1]
+        _ = 0
+        while _ < bound:
             temp[0, _] = o[1][0, _]
+            _ += 1
         temp[0, np.shape(o[1])[1]] = 1.0
         ohat[1] = temp
         for hiddenlayer in hiddenlayers[1:]:
@@ -451,8 +482,11 @@ class NeuralNetwork:
                 # sigmoid activation
                 o[layer] = 1. / (1. + np.exp(-net[layer]))
             temp = np.zeros((1, np.size(o[layer]) + 1))
-            for _ in range(np.size(o[layer])):
+            bound = np.size(o[layer])
+            _ = 0
+            while _ < bound:
                 temp[0, _] = o[layer][0, _]
+                _ += 1
             temp[0, np.size(o[layer])] = 1.0
             ohat[layer] = temp
         layer += 1  # output layer
@@ -467,9 +501,12 @@ class NeuralNetwork:
 
         del hiddenlayers, weight, ohat, net
 
-        temp = np.zeros((1, len(input)))
-        for _ in range(len(input)):
+        len_of_input = len(input)
+        temp = np.zeros((1, len_of_input))
+        _ = 0
+        while _ < len_of_input:
             temp[0, _] = input[_]
+            _ += 1
 
         if self.param.descriptor is None:  # pure atomic-coordinates scheme
 
@@ -523,17 +560,18 @@ class NeuralNetwork:
             temp = np.dot(np.matrix(der_o[layer - 1]),
                           np.delete(weight[layer], -1, 0))
             der_o[layer] = [None] * np.size(o[layer])
-            count = 0
-            for j in range(np.size(o[layer])):
+            bound = np.size(o[layer])
+            j = 0
+            while j < bound:
                 if self.activation == 'linear':  # linear function
-                    der_o[layer][count] = float(temp[0, j])
+                    der_o[layer][j] = float(temp[0, j])
                 elif self.activation == 'sigmoid':  # sigmoid function
-                    der_o[layer][count] = float(temp[0, j]) * \
+                    der_o[layer][j] = float(temp[0, j]) * \
                         float(o[layer][0, j] * (1. - o[layer][0, j]))
                 elif self.activation == 'tanh':  # tanh function
-                    der_o[layer][count] = float(temp[0, j]) * \
+                    der_o[layer][j] = float(temp[0, j]) * \
                         float(1. - o[layer][0, j] * o[layer][0, j])
-                count += 1
+                j += 1
         layer += 1  # output layer
         temp = np.dot(np.matrix(der_o[layer - 1]),
                       np.delete(weight[layer], -1, 0))
@@ -589,7 +627,8 @@ class NeuralNetwork:
 
         N = len(o) - 2  # number of hiddenlayers
         D = {}
-        for k in range(1, N + 2):
+        k = 1
+        while k < N + 2:
             D[k] = np.zeros(shape=(np.size(o[k]), np.size(o[k])))
             for j in range(np.size(o[k])):
                 if self.activation == 'linear':  # linear
@@ -599,37 +638,48 @@ class NeuralNetwork:
                         float((1. - o[k][0, j]))
                 elif self.activation == 'tanh':  # tanh
                     D[k][j, j] = float(1. - o[k][0, j] * o[k][0, j])
+            k += 1
         # Calculating delta
         delta = {}
         # output layer
         delta[N + 1] = D[N + 1]
         # hidden layers
-        for k in range(N, 0, -1):  # backpropagate starting from output layer
+        k = N
+        while k > 0:  # backpropagate starting from output layer
             delta[k] = np.dot(D[k], np.dot(W[k + 1], delta[k + 1]))
+            k -= 1
         # Calculating ohat
         ohat = {}
-        for k in range(1, N + 2):
-            ohat[k - 1] = \
-                np.zeros(shape=(1, np.size(o[k - 1]) + 1))
-            for j in range(np.size(o[k - 1])):
+        k = 1
+        while k < N + 2:
+            ohat[k - 1] = np.zeros(shape=(1, np.size(o[k - 1]) + 1))
+            bound = np.size(o[k - 1])
+            j = 0
+            while j < bound:
                 ohat[k - 1][0, j] = o[k - 1][0, j]
+                j += 1
             ohat[k - 1][0, np.size(o[k - 1])] = 1.0
+            k += 1
 
         if self.param.descriptor is None:  # pure atomic-coordinates scheme
             partial_der_scalings_square_error['intercept'] = 1.
             partial_der_scalings_square_error['slope'] = float(o[N + 1])
-            for k in range(1, N + 2):
+            k = 1
+            while k < N + 2:
                 partial_der_weights_square_error[k] = \
                     float(self._scalings['slope']) * \
                     np.dot(np.matrix(ohat[k - 1]).T, np.matrix(delta[k]).T)
+                k += 1
         else:  # fingerprinting scheme
             partial_der_scalings_square_error[symbol]['intercept'] = 1.
             partial_der_scalings_square_error[symbol]['slope'] = \
                 float(o[N + 1])
-            for k in range(1, N + 2):
+            k = 1
+            while k < N + 2:
                 partial_der_weights_square_error[symbol][k] = \
                     float(self._scalings[symbol]['slope']) * \
                     np.dot(np.matrix(ohat[k - 1]).T, np.matrix(delta[k]).T)
+                k += 1
         partial_der_variables_square_error = \
             self.ravel.to_vector(partial_der_weights_square_error,
                                  partial_der_scalings_square_error)
@@ -688,7 +738,8 @@ class NeuralNetwork:
 
         N = len(o) - 2
         der_coordinates_D = {}
-        for k in range(1, N + 2):
+        k = 1
+        while k < N + 2:
             # Calculating coordinate derivative of D matrix
             der_coordinates_D[k] = \
                 np.zeros(shape=(np.size(o[k]), np.size(o[k])))
@@ -701,6 +752,7 @@ class NeuralNetwork:
                 elif self.activation == 'sigmoid':  # sigmoid
                     der_coordinates_D[k][j, j] = der_coordinates_o[k][j] - \
                         2. * o[k][0, j] * der_coordinates_o[k][j]
+            k += 1
         # Calculating coordinate derivative of delta
         der_coordinates_delta = {}
         # output layer
@@ -708,22 +760,26 @@ class NeuralNetwork:
         # hidden layers
         temp1 = {}
         temp2 = {}
-        for k in range(N, 0, -1):
+        k = N
+        while k > 0:
             temp1[k] = np.dot(W[k + 1], delta[k + 1])
             temp2[k] = np.dot(W[k + 1], der_coordinates_delta[k + 1])
             der_coordinates_delta[k] = \
                 np.dot(der_coordinates_D[k], temp1[k]) + np.dot(D[k], temp2[k])
+            k -= 1
         # Calculating coordinate derivative of ohat and
         # coordinates weights derivative of atomic_output
         der_coordinates_ohat = {}
         der_coordinates_weights_atomic_output = {}
-        for k in range(1, N + 2):
+        k = 1
+        while k < N + 2:
             der_coordinates_ohat[k - 1] = \
                 [None] * (1 + len(der_coordinates_o[k - 1]))
             count = 0
-            for j in range(len(der_coordinates_o[k - 1])):
+            bound = len(der_coordinates_o[k - 1])
+            while count < bound:
                 der_coordinates_ohat[k - 1][count] = \
-                    der_coordinates_o[k - 1][j]
+                    der_coordinates_o[k - 1][count]
                 count += 1
             der_coordinates_ohat[k - 1][count] = 0.
             der_coordinates_weights_atomic_output[k] = \
@@ -731,19 +787,24 @@ class NeuralNetwork:
                        np.matrix(delta[k]).T) + \
                 np.dot(np.matrix(ohat[k - 1]).T,
                        np.matrix(der_coordinates_delta[k]).T)
+            k += 1
 
         if self.param.descriptor is None:  # pure atomic-coordinates scheme
-            for k in range(1, N + 2):
+            k = 1
+            while k < N + 2:
                 partial_der_weights_square_error[k] = \
                     float(self._scalings['slope']) * \
                     der_coordinates_weights_atomic_output[k]
+                k += 1
             partial_der_scalings_square_error['slope'] = \
                 der_coordinates_o[N + 1][0]
         else:  # fingerprinting scheme
-            for k in range(1, N + 2):
+            k = 1
+            while k < N + 2:
                 partial_der_weights_square_error[n_symbol][k] = \
                     float(self._scalings[n_symbol]['slope']) * \
                     der_coordinates_weights_atomic_output[k]
+                k += 1
             partial_der_scalings_square_error[n_symbol]['slope'] = \
                 der_coordinates_o[N + 1][0]
         partial_der_variables_square_error = \
@@ -1008,21 +1069,29 @@ def make_weight_matrices(hiddenlayers, activation, no_of_atoms=None, Gs=None,
                                       nn_structure[1])) * \
             normalized_weight_range - \
             normalized_weight_range / 2.
-        for layer in range(len(list(nn_structure)) - 3):
+        len_of_hiddenlayers = len(list(nn_structure)) - 3
+        layer = 0
+        while layer < len_of_hiddenlayers:
             normalized_weight_range = weight_range / \
                 nn_structure[layer + 1]
             weight[layer + 2] = np.random.random(
                 (nn_structure[layer + 1] + 1,
                  nn_structure[layer + 2])) * \
                 normalized_weight_range - normalized_weight_range / 2.
+            layer += 1
         normalized_weight_range = weight_range / nn_structure[-2]
         weight[len(list(nn_structure)) - 1] = \
             np.random.random((nn_structure[-2] + 1, 1)) \
             * normalized_weight_range - normalized_weight_range / 2.
-        for _ in range(len(weight)):  # biases
+        len_of_weight = len(weight)
+        _ = 0
+        while _ < len_of_weight:  # biases
             size = weight[_ + 1][-1].size
-            for __ in range(size):
+            __ = 0
+            while __ < size:
                 weight[_ + 1][-1][__] = 0.
+                __ += 1
+            _ += 1
 
     else:
 
@@ -1042,21 +1111,30 @@ def make_weight_matrices(hiddenlayers, activation, no_of_atoms=None, Gs=None,
                                                    element][1])) * \
                 normalized_weight_range - \
                 normalized_weight_range / 2.
-            for layer in range(len(list(nn_structure[element])) - 3):
+            len_of_hiddenlayers = len(list(nn_structure[element])) - 3
+            layer = 0
+            while layer < len_of_hiddenlayers:
                 normalized_weight_range = weight_range / \
                     nn_structure[element][layer + 1]
                 weight[element][layer + 2] = np.random.random(
                     (nn_structure[element][layer + 1] + 1,
                      nn_structure[element][layer + 2])) * \
                     normalized_weight_range - normalized_weight_range / 2.
+                layer += 1
             normalized_weight_range = weight_range / nn_structure[element][-2]
             weight[element][len(list(nn_structure[element])) - 1] = \
                 np.random.random((nn_structure[element][-2] + 1, 1)) \
                 * normalized_weight_range - normalized_weight_range / 2.
-            for _ in range(len(weight[element])):  # biases
+
+            len_of_weight = len(weight[element])
+            _ = 0
+            while _ < len_of_weight:  # biases
                 size = weight[element][_ + 1][-1].size
-                for __ in range(size):
+                __ = 0
+                while __ < size:
                     weight[element][_ + 1][-1][__] = 0.
+                    __ += 1
+                _ += 1
 
     return weight
 
@@ -1080,18 +1158,26 @@ def make_scalings_matrices(images, activation, elements=None):
 
     :returns: scalings
     """
+    hashs = images.keys()
+    no_of_images = len(hashs)
+
     max_act_energy = max(image.get_potential_energy(apply_constraint=False)
                          for hash, image in images.items())
     min_act_energy = min(image.get_potential_energy(apply_constraint=False)
                          for hash, image in images.items())
 
-    for hash, image in images.items():
+    count = 0
+    while count < no_of_images:
+        hash = hashs[count]
+        image = images[hash]
+        no_of_atoms = len(image)
         if image.get_potential_energy(apply_constraint=False) == \
                 max_act_energy:
-            no_atoms_of_max_act_energy = len(image)
+            no_atoms_of_max_act_energy = no_of_atoms
         if image.get_potential_energy(apply_constraint=False) == \
                 min_act_energy:
-            no_atoms_of_min_act_energy = len(image)
+            no_atoms_of_min_act_energy = no_of_atoms
+        count += 1
 
     max_act_energy_per_atom = max_act_energy / no_atoms_of_max_act_energy
     min_act_energy_per_atom = min_act_energy / no_atoms_of_min_act_energy
@@ -1191,7 +1277,9 @@ class _RavelVariables:
         if self.no_of_atoms is None:  # fingerprinting scheme
 
             for element in elements:
-                for layer in range(1, len(hiddenlayers[element]) + 2):
+                len_of_hiddenlayers = len(hiddenlayers[element])
+                layer = 1
+                while layer < len_of_hiddenlayers + 2:
                     if layer == 1:
                         shape = \
                             (len(Gs[element]) + 1, hiddenlayers[element][0])
@@ -1207,6 +1295,7 @@ class _RavelVariables:
                                               'shape': shape,
                                               'size': size})
                     self.count += size
+                    layer += 1
 
             for element in elements:
                 self._scalingskeys.append({'key1': element,
@@ -1217,7 +1306,9 @@ class _RavelVariables:
 
         else:  # pure atomic-coordinates scheme
 
-            for layer in range(1, len(hiddenlayers) + 2):
+            len_of_hiddenlayers = len(hiddenlayers)
+            layer = 1
+            while layer < len_of_hiddenlayers + 2:
                 if layer == 1:
                     shape = (3 * no_of_atoms + 1, hiddenlayers[0])
                 elif layer == (len(hiddenlayers) + 1):
@@ -1230,6 +1321,7 @@ class _RavelVariables:
                                           'shape': shape,
                                           'size': size})
                 self.count += size
+                layer += 1
 
             self._scalingskeys.append({'key': 'intercept'})
             self._scalingskeys.append({'key': 'slope'})

@@ -92,9 +92,11 @@ class Behler:
         """
         home = self.atoms[index].position
 
-        fingerprint = [None] * len(self.Gs[symbol])
+        len_of_symmetries = len(self.Gs[symbol])
+        fingerprint = [None] * len_of_symmetries
         count = 0
-        for G in self.Gs[symbol]:
+        while count < len_of_symmetries:
+            G = self.Gs[symbol][count]
 
             if G['type'] == 'G2':
                 ridge = calculate_G2(n_symbols, Rs, G['element'], G['eta'],
@@ -140,10 +142,13 @@ class Behler:
                                    with respect to coordinate x_{i} of atom
                                    index m.
         """
+
+        len_of_symmetries = len(self.Gs[symbol])
         Rindex = self.atoms.positions[index]
-        der_fingerprint = [None] * len(self.Gs[symbol])
+        der_fingerprint = [None] * len_of_symmetries
         count = 0
-        for G in self.Gs[symbol]:
+        while count < len_of_symmetries:
+            G = self.Gs[symbol][count]
             if G['type'] == 'G2':
                 ridge = calculate_der_G2(
                     n_indices,
@@ -245,11 +250,16 @@ def calculate_G2(symbols, Rs, G_element, eta, cutoff, home, fortran):
                                           cutoff=cutoff, home=home)
     else:
         ridge = 0.  # One aspect of a fingerprint :)
-        for symbol, R in zip(symbols, Rs):
+        len_of_symbols = len(symbols)
+        count = 0
+        while count < len_of_symbols:
+            symbol = symbols[count]
+            R = Rs[count]
             if symbol == G_element:
                 Rij = np.linalg.norm(R - home)
                 ridge += (np.exp(-eta * (Rij ** 2.) / (cutoff ** 2.)) *
                           cutoff_fxn(Rij, cutoff))
+            count += 1
 
     return ridge
 
@@ -582,7 +592,13 @@ def calculate_der_G2(n_indices, symbols, Rs, G_element, eta, cutoff, a, Ra,
                                               ii=i)
     else:
         ridge = 0.  # One aspect of a fingerprint :)
-        for symbol, Rj, n_index in zip(symbols, Rs, n_indices):
+
+        len_of_symbols = len(symbols)
+        count = 0
+        while count < len_of_symbols:
+            symbol = symbols[count]
+            Rj = Rs[count]
+            n_index = n_indices[count]
             if symbol == G_element:
                 Raj = np.linalg.norm(Ra - Rj)
                 term1 = (-2. * eta * Raj * cutoff_fxn(Raj, cutoff) /
@@ -591,6 +607,7 @@ def calculate_der_G2(n_indices, symbols, Rs, G_element, eta, cutoff, a, Ra,
                 term2 = der_position(a, n_index, Ra, Rj, m, i)
                 ridge += np.exp(- eta * (Raj ** 2.) / (cutoff ** 2.)) * \
                     term1 * term2
+            count += 1
     return ridge
 
 ###############################################################################

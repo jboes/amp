@@ -269,9 +269,14 @@ def save_parameters(filename, param):
     :type param: dict
     """
     parameters = {}
-    for key in param.keys():
+    keys = param.keys()
+    len_of_keys = len(keys)
+    count = 0
+    while count < len_of_keys:
+        key = keys[count]
         if (key != 'regression') and (key != 'descriptor'):
             parameters[key] = param[key]
+        count += 1
 
     if param.descriptor is not None:
         parameters['Gs'] = param.descriptor.Gs
@@ -378,18 +383,25 @@ class IO:
         if data_type is 'neighborlists':
 
             hashs = data.keys()
+            no_of_images = len(hashs)
             if data_format is 'json':
                 # Reformatting data for saving
                 new_dict = {}
-                for hash in hashs:
+                count = 0
+                while count < no_of_images:
+                    hash = hashs[count]
                     image = self.images[hash]
                     new_dict[hash] = {}
-                    for index in range(len(image)):
+                    no_of_atoms = len(image)
+                    index = 0
+                    while index < no_of_atoms:
                         nl_value = data[hash][index]
                         new_dict[hash][index] = [[nl_value[0][i],
                                                   list(nl_value[1][i])]
                                                  for i in
                                                  range(len(nl_value[0]))]
+                        index += 1
+                    count += 1
                 with paropen(filename, 'wb') as outfile:
                     json.dump(new_dict, outfile)
                 del new_dict
@@ -402,18 +414,27 @@ class IO:
                 (image text, atom integer, nl_index integer,
                 neighbor_atom integer,
                 offset1 integer, offset2 integer, offset3 integer)''')
-                for hash in hashs:
+                count = 0
+                while count < no_of_images:
+                    hash = hashs[count]
                     image = self.images[hash]
-                    for index in range(len(image)):
+                    no_of_atoms = len(image)
+                    index = 0
+                    while index < no_of_atoms:
                         value0 = data[hash][index][0]
                         value1 = data[hash][index][1]
-                        for _ in range(len(value0)):
+                        len_of_neighbors = len(value0)
+                        _ = 0
+                        while _ < len_of_neighbors:
                             value = value1[_]
                             # Insert a row of data
                             row = (hash, index, _, value0[_], value[0],
                                    value[1], value[2])
                             c.execute('''INSERT INTO neighborlists VALUES
                             (?, ?, ?, ?, ?, ?, ?)''', row)
+                            _ += 1
+                        index += 1
+                    count += 1
                 # Save (commit) the changes
                 conn.commit()
                 conn.close()
@@ -436,15 +457,25 @@ class IO:
                 c.execute('''CREATE TABLE IF NOT EXISTS fingerprints
                 (image text, atom integer, fp_index integer, value real)''')
                 hashs = data.keys()
-                for hash in hashs:
+                no_of_images = len(hashs)
+                count = 0
+                while count < no_of_images:
+                    hash = hashs[count]
                     image = self.images[hash]
-                    for index in range(len(image)):
+                    no_of_atoms = len(image)
+                    index = 0
+                    while index < no_of_atoms:
                         value = data[hash][index]
-                        for _ in range(len(value)):
+                        no_of_neighbors = len(value)
+                        _ = 0
+                        while _ < no_of_neighbors:
                             # Insert a row of data
                             row = (hash, index, _, value[_])
                             c.execute('''INSERT INTO fingerprints VALUES
                             (?, ?, ?, ?)''', row)
+                            _ += 1
+                        index += 1
+                    count += 1
                 # Save (commit) the changes
                 conn.commit()
                 conn.close()
@@ -452,14 +483,22 @@ class IO:
         elif data_type is 'fingerprint_derivatives':
 
             hashs = data.keys()
+            no_of_images = len(hashs)
             if data_format is 'json':
                 new_dict = {}
-                for hash in hashs:
+                count0 = 0
+                while count0 < no_of_images:
+                    hash = hashs[count0]
                     new_dict[hash] = {}
                     pair_atom_keys = data[hash].keys()
-                    for pair_atom_key in pair_atom_keys:
+                    len_of_pair_atom_keys = len(pair_atom_keys)
+                    count1 = 0
+                    while count1 < len_of_pair_atom_keys:
+                        pair_atom_key = pair_atom_keys[count1]
                         new_dict[hash][str(pair_atom_key)] = \
                             data[hash][pair_atom_key]
+                        count1 += 1
+                    count0 += 1
                 try:
                     json.dump(new_dict, filename)
                     filename.flush()
@@ -476,18 +515,28 @@ class IO:
                 c.execute('''CREATE TABLE IF NOT EXISTS fingerprint_derivatives
                 (image text, atom integer, neighbor_atom integer,
                 direction integer, fp_index integer, value real)''')
-                for hash in hashs:
+                count0 = 0
+                while count0 < no_of_images:
+                    hash = hashs[count0]
                     pair_atom_keys = data[hash].keys()
-                    for pair_atom_key in pair_atom_keys:
+                    len_of_pair_atom_keys = len(pair_atom_keys)
+                    count1 = 0
+                    while count1 < len_of_pair_atom_keys:
+                        pair_atom_key = pair_atom_keys[count1]
                         n_index = pair_atom_key[0]
                         self_index = pair_atom_key[1]
                         i = pair_atom_key[2]
                         value = data[hash][pair_atom_key]
-                        for _ in range(len(value)):
+                        len_of_value = len(value)
+                        _ = 0
+                        while _ < len_of_value:
                             # Insert a row of data
                             row = (hash, self_index, n_index, i, _, value[_])
                             c.execute('''INSERT INTO fingerprint_derivatives
                             VALUES (?, ?, ?, ?, ?, ?)''', row)
+                            _ += 1
+                        count1 += 1
+                    count0 += 1
 
                 # Save (commit) the changes
                 conn.commit()
@@ -519,14 +568,21 @@ class IO:
                 fp = paropen(filename, 'rb')
                 loaded_data = json.load(fp)
                 hashs = loaded_data.keys()
-                for hash in hashs:
+                no_of_images = len(hashs)
+                count = 0
+                while count < no_of_images:
+                    hash = hashs[count]
                     data[hash] = {}
                     image = self.images[hash]
-                    for index in range(len(image)):
+                    no_of_atoms = len(image)
+                    index = 0
+                    while index < no_of_atoms:
                         nl_value = loaded_data[hash][str(index)]
                         nl_indices = [value[0] for value in nl_value]
                         nl_offsets = [value[1] for value in nl_value]
                         data[hash][index] = (nl_indices, nl_offsets,)
+                        index += 1
+                    count += 1
 
             elif data_format is 'db':
                 conn = sqlite3.connect(filename)
@@ -537,7 +593,9 @@ class IO:
                 for hash in hashs:
                     data[hash] = {}
                     image = self.images[hash]
-                    for index in range(len(image)):
+                    no_of_atoms = len(image)
+                    index = 0
+                    while index < no_of_atoms:
                         c.execute('''SELECT * FROM neighborlists WHERE image=?
                         AND atom=?''', (hash, index,))
                         rows = c.fetchall()
@@ -546,6 +604,7 @@ class IO:
                                       for nl_index in nl_indices
                                       for row in rows if row[2] == nl_index]
                         data[hash][index] = (nl_indices, nl_offsets,)
+                        index += 1
 
         elif data_type is 'fingerprints':
 
@@ -557,13 +616,20 @@ class IO:
                     filename.seek(0)
                     loaded_data = json.load(filename)
                 hashs = loaded_data.keys()
-                for hash in hashs:
+                no_of_images = len(hashs)
+                count = 0
+                while count < no_of_images:
+                    hash = hashs[count]
                     data[hash] = {}
                     image = self.images[hash]
-                    for index in range(len(image)):
+                    no_of_atoms = len(image)
+                    index = 0
+                    while index < no_of_atoms:
                         fp_value = loaded_data[hash][str(index)]
                         data[hash][index] = \
                             [float(value) for value in fp_value]
+                        index += 1
+                    count += 1
 
             elif data_format is 'db':
                 conn = sqlite3.connect(filename)
@@ -574,13 +640,16 @@ class IO:
                 for hash in hashs:
                     data[hash] = {}
                     image = self.images[hash]
-                    for index in range(len(image)):
+                    no_of_atoms = len(image)
+                    index = 0
+                    while index < no_of_atoms:
                         c.execute('''SELECT * FROM fingerprints
                         WHERE image=? AND atom=?''', (hash, index,))
                         rows2 = c.fetchall()
                         fp_value = [row[3] for fp_index in range(len(rows2))
                                     for row in rows2 if row[2] == fp_index]
                         data[hash][index] = fp_value
+                        index += 1
 
         elif data_type is 'fingerprint_derivatives':
 
@@ -592,14 +661,22 @@ class IO:
                     filename.seek(0)
                     loaded_data = json.load(filename)
                 hashs = loaded_data.keys()
-                for hash in hashs:
+                no_of_images = len(hashs)
+                count0 = 0
+                while count0 < no_of_images:
+                    hash = hashs[count0]
                     data[hash] = {}
                     image = self.images[hash]
                     pair_atom_keys = loaded_data[hash].keys()
-                    for pair_atom_key in pair_atom_keys:
+                    len_of_pair_atom_keys = len(pair_atom_keys)
+                    count1 = 0
+                    while count1 < len_of_pair_atom_keys:
+                        pair_atom_key = pair_atom_keys[count1]
                         fp_value = loaded_data[hash][pair_atom_key]
                         data[hash][eval(pair_atom_key)] = \
                             [float(value) for value in fp_value]
+                        count1 += 1
+                    count0 += 1
 
             elif data_format is 'db':
                 conn = sqlite3.connect(filename)
@@ -610,13 +687,16 @@ class IO:
                 for hash in hashs:
                     data[hash] = {}
                     image = self.images[hash]
-                    for self_index in range(len(image)):
+                    no_of_atoms = len(image)
+                    self_index = 0
+                    while self_index < no_of_atoms:
                         c.execute('''SELECT * FROM fingerprint_derivatives
                         WHERE image=? AND atom=?''', (hash, self_index,))
                         rows2 = c.fetchall()
                         nl_indices = set([row[2] for row in rows2])
                         for n_index in nl_indices:
-                            for i in range(3):
+                            i = 0
+                            while i < 3:
                                 c.execute('''SELECT * FROM
                                 fingerprint_derivatives
                                 WHERE image=? AND atom=? AND neighbor_atom=?
@@ -630,6 +710,8 @@ class IO:
                                      if row[4] == der_fp_index]
                                 data[hash][(n_index, self_index, i)] = \
                                     der_fp_values
+                                i += 1
+                        self_index += 1
 
                 # Save (commit) the changes
                 conn.commit()

@@ -325,11 +325,12 @@ def plot_parity(load,
     # Images is converted to dictionary form; key is hash of image.
     dict_images = {}
     for image in images:
-        key = hash_image(image)
-        dict_images[key] = image
+        hash = hash_image(image)
+        dict_images[hash] = image
     images = dict_images.copy()
     del dict_images
-    hashes = sorted(images.keys())
+    hashs = sorted(images.keys())
+    no_of_images = len(hashs)
 
     energy_data = {}
     # Reading energy script
@@ -344,11 +345,14 @@ def plot_parity(load,
 
     # calculating energies for images if json is not found
     if len(energy_data.keys()) == 0:
-        for hash in hashes:
+        count = 0
+        while count < no_of_images:
+            hash = hashs[count]
             atoms = images[hash]
             act_energy = atoms.get_potential_energy(apply_constraint=False)
             amp_energy = calc.get_potential_energy(atoms)
             energy_data[hash] = [act_energy, amp_energy]
+            count += 1
         # saving energy script
         try:
             json.dump(energy_data, energyscript)
@@ -357,9 +361,10 @@ def plot_parity(load,
         except AttributeError:
             with paropen(energyscript, 'wb') as outfile:
                 json.dump(energy_data, outfile)
+    del hash
 
-    min_act_energy = min([energy_data[hash][0] for hash in hashes])
-    max_act_energy = max([energy_data[hash][0] for hash in hashes])
+    min_act_energy = min([energy_data[hash][0] for hash in hashs])
+    max_act_energy = max([energy_data[hash][0] for hash in hashs])
 
     if plot_forces is None:
         fig = pyplot.figure(figsize=(5., 5.))
@@ -369,8 +374,11 @@ def plot_parity(load,
         ax = fig.add_subplot(211)
 
     # energy plot
-    for hash in hashes:
+    count = 0
+    while count < no_of_images:
+        hash = hashs[count]
         ax.plot(energy_data[hash][0], energy_data[hash][1], color)
+        count += 1
     # draw line
     ax.plot([min_act_energy, max_act_energy],
             [min_act_energy, max_act_energy],
@@ -390,28 +398,51 @@ def plot_parity(load,
         except IOError:
             pass
         else:
-            for hash in data.keys():
+            hashs = data.keys()
+            no_of_images = len(hashs)
+            count0 = 0
+            while count0 < no_of_images:
+                hash = hashs[count0]
                 force_data[hash] = {}
-                for index in data[hash].keys():
+                indices = data[hash].keys()
+                len_of_indices = len(indices)
+                count1 = 0
+                while count1 < len_of_indices:
+                    index = indices[count1]
                     force_data[hash][int(index)] = {}
-                    for k in data[hash][index].keys():
+                    ks = data[hash][index].keys()
+                    len_of_ks = len(ks)
+                    count2 = 0
+                    while count2 < len_of_ks:
+                        k = ks[count2]
                         force_data[hash][int(index)][int(k)] = \
                             data[hash][index][k]
+                        count2 += 1
+                    count1 += 1
+                count0 += 1
 
         # calculating forces for images if json is not found
         if len(force_data.keys()) == 0:
-            for hash in hashes:
+            count = 0
+            while count < no_of_images:
+                hash = hashs[count]
                 atoms = images[hash]
                 no_of_atoms = len(atoms)
                 force_data[hash] = {}
                 act_force = atoms.get_forces(apply_constraint=False)
                 atoms.set_calculator(calc)
                 amp_force = calc.get_forces(atoms)
-                for index in range(no_of_atoms):
+                index = 0
+                while index < no_of_atoms:
                     force_data[hash][index] = {}
-                    for k in range(3):
+                    k = 0
+                    while k < 3:
                         force_data[hash][index][k] = \
                             [act_force[index][k], amp_force[index][k]]
+                        k += 1
+                    index += 1
+                count += 1
+            del hash, k, index
 
             # saving force script
             try:
@@ -422,27 +453,34 @@ def plot_parity(load,
                 with paropen(forcescript, 'wb') as outfile:
                     json.dump(force_data, outfile)
 
-        min_act_force = min([force_data[hash][atom.index][k][0]
-                             for hash in hashes
-                             for atom in images[hash]
+        min_act_force = min([force_data[hash][index][k][0]
+                             for hash in hashs
+                             for index in range(len(images[hash]))
                              for k in range(3)])
-        max_act_force = max([force_data[hash][atom.index][k][0]
-                             for hash in hashes
-                             for atom in images[hash]
+        max_act_force = max([force_data[hash][index][k][0]
+                             for hash in hashs
+                             for index in range(len(images[hash]))
                              for k in range(3)])
 
         ##############################################################
         # force plot
         ax = fig.add_subplot(212)
 
-        for hash in hashes:
+        count = 0
+        while count < no_of_images:
+            hash = hashs[count]
             atoms = images[hash]
             no_of_atoms = len(atoms)
-            for index in range(no_of_atoms):
-                for k in range(3):
+            index = 0
+            while index < no_of_atoms:
+                k = 0
+                while k < 3:
                     ax.plot(force_data[hash][index][k][0],
                             force_data[hash][index][k][1],
                             color)
+                    k += 1
+                index += 1
+            count += 1
         # draw line
         ax.plot([min_act_force, max_act_force],
                 [min_act_force, max_act_force],
@@ -512,11 +550,12 @@ def plot_error(load,
     # Images is converted to dictionary form; key is hash of image.
     dict_images = {}
     for image in images:
-        key = hash_image(image)
-        dict_images[key] = image
+        hash = hash_image(image)
+        dict_images[hash] = image
     images = dict_images.copy()
     del dict_images
-    hashes = sorted(images.keys())
+    hashs = sorted(images.keys())
+    no_of_images = len(hashs)
 
     energy_data = {}
     # Reading energy script
@@ -531,13 +570,17 @@ def plot_error(load,
 
     # calculating errors for images if json is not found
     if len(energy_data.keys()) == 0:
-        for hash in hashes:
+        count = 0
+        while count < no_of_images:
+            hash = hashs[count]
             atoms = images[hash]
+            no_of_atoms = len(atoms)
             act_energy = atoms.get_potential_energy(apply_constraint=False)
             amp_energy = calc.get_potential_energy(atoms)
-            energy_error = abs(amp_energy - act_energy) / len(atoms)
-            act_energy_per_atom = act_energy / len(atoms)
+            energy_error = abs(amp_energy - act_energy) / no_of_atoms
+            act_energy_per_atom = act_energy / no_of_atoms
             energy_data[hash] = [act_energy_per_atom, energy_error]
+            count += 1
         # saving energy script
         try:
             json.dump(energy_data, energyscript)
@@ -549,13 +592,17 @@ def plot_error(load,
 
     # calculating energy per atom rmse
     energy_square_error = 0.
-    for hash in hashes:
+    count = 0
+    while count < no_of_images:
+        hash = hashs[count]
         energy_square_error += energy_data[hash][1] ** 2.
+        count += 1
+    del hash
 
-    energy_per_atom_rmse = np.sqrt(energy_square_error / len(hashes))
+    energy_per_atom_rmse = np.sqrt(energy_square_error / no_of_images)
 
-    min_act_energy = min([energy_data[hash][0] for hash in hashes])
-    max_act_energy = max([energy_data[hash][0] for hash in hashes])
+    min_act_energy = min([energy_data[hash][0] for hash in hashs])
+    max_act_energy = max([energy_data[hash][0] for hash in hashs])
 
     if plot_forces is None:
         fig = pyplot.figure(figsize=(5., 5.))
@@ -565,8 +612,11 @@ def plot_error(load,
         ax = fig.add_subplot(211)
 
     # energy plot
-    for hash in hashes:
+    count = 0
+    while count < no_of_images:
+        hash = hashs[count]
         ax.plot(energy_data[hash][0], energy_data[hash][1], color)
+        count += 1
     # draw horizontal line for rmse
     ax.plot([min_act_energy, max_act_energy],
             [energy_per_atom_rmse, energy_per_atom_rmse], 'r-', lw=1,)
@@ -590,29 +640,51 @@ def plot_error(load,
         except IOError:
             pass
         else:
-            for hash in data.keys():
+            hashs = data.keys()
+            no_of_images = len(hashs)
+            count0 = 0
+            while count0 < no_of_images:
+                hash = hashs[count0]
                 force_data[hash] = {}
-                for index in data[hash].keys():
+                indices = data[hash].keys()
+                len_of_indices = len(indices)
+                count1 = 0
+                while count1 < len_of_indices:
+                    index = indices[count1]
                     force_data[hash][int(index)] = {}
-                    for k in data[hash][index].keys():
+                    ks = data[hash][index].keys()
+                    len_of_ks = len(ks)
+                    count2 = 0
+                    while count2 < len_of_ks:
+                        k = ks[count2]
                         force_data[hash][int(index)][int(k)] = \
                             data[hash][index][k]
+                        count2 += 1
+                    count1 += 1
+                count0 += 1
 
         # calculating errors for images if json is not found
         if len(force_data.keys()) == 0:
-            for hash in hashes:
+            count = 0
+            while count < no_of_images:
+                hash = hashs[count]
                 atoms = images[hash]
                 no_of_atoms = len(atoms)
                 force_data[hash] = {}
                 act_force = atoms.get_forces(apply_constraint=False)
                 atoms.set_calculator(calc)
                 amp_force = calc.get_forces(atoms)
-                for index in range(no_of_atoms):
+                index = 0
+                while index < no_of_atoms:
                     force_data[hash][index] = {}
-                    for k in range(3):
+                    k = 0
+                    while k < 3:
                         force_data[hash][index][k] = \
                             [act_force[index][k],
                              abs(amp_force[index][k] - act_force[index][k])]
+                        k += 1
+                    index += 1
+                count += 1
 
             # saving force script
             try:
@@ -625,38 +697,52 @@ def plot_error(load,
 
         # calculating force rmse
         force_square_error = 0.
-        for hash in hashes:
+        count = 0
+        while count < no_of_images:
+            hash = hashs[count]
             atoms = images[hash]
             no_of_atoms = len(atoms)
-            for index in range(no_of_atoms):
-                for k in range(3):
+            index = 0
+            while index < no_of_atoms:
+                k = 0
+                while k < 3:
                     force_square_error += \
                         ((1.0 / 3.0) * force_data[hash][index][k][1] ** 2.) / \
                         no_of_atoms
+                    k += 1
+                index += 1
+        del hash, index, k
 
-        force_rmse = np.sqrt(force_square_error / len(hashes))
+        force_rmse = np.sqrt(force_square_error / no_of_images)
 
-        min_act_force = min([force_data[hash][atom.index][k][0]
-                             for hash in hashes
-                             for atom in images[hash]
+        min_act_force = min([force_data[hash][index][k][0]
+                             for hash in hashs
+                             for index in range(len(images[hash]))
                              for k in range(3)])
-        max_act_force = max([force_data[hash][atom.index][k][0]
-                             for hash in hashes
-                             for atom in images[hash]
+        max_act_force = max([force_data[hash][index][k][0]
+                             for hash in hashs
+                             for index in range(len(images[hash]))
                              for k in range(3)])
 
         ##############################################################
         # force plot
         ax = fig.add_subplot(212)
 
-        for hash in hashes:
+        count = 0
+        while count < no_of_images:
+            hash = hashs[count]
             atoms = images[hash]
             no_of_atoms = len(atoms)
-            for index in range(no_of_atoms):
-                for k in range(3):
+            index = 0
+            while index < no_of_atoms:
+                k = 0
+                while k < 3:
                     ax.plot(force_data[hash][index][k][0],
                             force_data[hash][index][k][1],
                             color)
+                    k += 1
+                index += 1
+            count += 1
         # draw horizontal line for rmse
         ax.plot([min_act_force, max_act_force],
                 [force_rmse, force_rmse],
