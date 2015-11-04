@@ -116,31 +116,34 @@ def test():
     # number of processes
 
     for fortran in [False, True]:
-        for cores in range(1, 7):
+        for data_format in ['db', 'json']:
+            for cores in range(1, 7):
 
-            calc = Amp(descriptor=None,
-                       regression=NeuralNetwork(hiddenlayers=(2, 1),
-                                                activation='tanh',
-                                                weights=weights,
-                                                scalings=scalings,),
-                       fortran=fortran,
-                       label='traintest/fortran%s-cores%i-'
-                       % (fortran, cores))
+                label = 'traintest/%s-%s-%i' % (fortran, data_format, cores)
 
-            calc.train(images=images, energy_goal=10.**10.,
-                       force_goal=10.**10., force_coefficient=0.04,
-                       cores=cores, read_fingerprints=False)
+                calc = Amp(descriptor=None,
+                           regression=NeuralNetwork(hiddenlayers=(2, 1),
+                                                    activation='tanh',
+                                                    weights=weights,
+                                                    scalings=scalings,),
+                           fortran=fortran,
+                           label=label,)
 
-            # Check for consistency between the two models
-            assert (abs(calc.cost_function - cost_function) <
-                    10.**(-5.)), \
-                'The calculated value of cost function is wrong!'
-            assert (abs(calc.energy_per_atom_rmse - energy_per_atom_rmse) <
-                    10.**(-5.)), \
-                'The calculated value of energy per atom RMSE is wrong!'
-            assert (abs(calc.force_rmse - force_rmse) <
-                    10 ** (-5)), \
-                'The calculated value of force RMSE is wrong!'
+                calc.train(images=images, energy_goal=10.**10.,
+                           force_goal=10.**10., force_coefficient=0.04,
+                           cores=cores, read_fingerprints=False,
+                           data_format=data_format)
+
+                # Check for consistency between the two models
+                assert (abs(calc.cost_function - cost_function) <
+                        10.**(-5.)), \
+                    'The calculated value of cost function is wrong!'
+                assert (abs(calc.energy_per_atom_rmse - energy_per_atom_rmse) <
+                        10.**(-5.)), \
+                    'The calculated value of energy per atom RMSE is wrong!'
+                assert (abs(calc.force_rmse - force_rmse) <
+                        10 ** (-5)), \
+                    'The calculated value of force RMSE is wrong!'
 
 ###############################################################################
 

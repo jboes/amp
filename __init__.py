@@ -1661,40 +1661,48 @@ class SaveFingerprints:
             # new images are shared between cores for fingerprint calculations
             _mp.make_list_of_sub_images(no_of_new_images, new_hashs,
                                         new_images)
+            del new_hashs
 
-            # Temporary files to hold child fingerprint calculations.
-            childfiles = [tempfile.NamedTemporaryFile(prefix='fp-',
-                                                      suffix='.json')
-                          for _ in range(_mp.no_procs)]
-            _ = 0
-            while _ < _mp.no_procs:
-                log('  Processor %i calculations stored in file %s.'
-                    % (_, childfiles[_].name))
-                _ += 1
+            if data_format is 'json':
+                # Temporary files to hold child fingerprint calculations.
+                childfiles = [tempfile.NamedTemporaryFile(prefix='fp-',
+                                                          suffix='.json')
+                              for _ in range(_mp.no_procs)]
+                _ = 0
+                while _ < _mp.no_procs:
+                    log('  Processor %i calculations stored in file %s.'
+                        % (_, childfiles[_].name))
+                    _ += 1
 
-            task_args = (fp, label, childfiles, io)
+            elif data_format is 'db':
+                filename = make_filename(label, 'fingerprints.db')
+                childfiles = [filename] * _mp.no_procs
+
+            task_args = (fp, label, childfiles, io, data_format)
             _mp.share_fingerprints_task_between_cores(
                 task=_calculate_fingerprints, _args=task_args)
 
-            log(' Calculated %i new images.' % len(new_images),
+            log(' Calculated %i new images.' % no_of_new_images,
                 toc='calculate_fps')
-            log.tic('read_fps')
-            log(' Reading calculated child-fingerprints...')
-            for f in childfiles:
-                _, self.fp_data = io.read(f, 'fingerprints', self.fp_data,
-                                          'json')
-            log(' ...child-fingerprints read.', toc='read_fps')
-            del new_hashs
 
-        if len(new_images) != 0:
-            log.tic('save_fps')
-            log(' Saving fingerprints...')
+            log.tic('read_fps')
+            log(' Reading calculated fingerprints...')
             if data_format is 'json':
-                filename = make_filename(label, 'fingerprints.json')
+                for filename in childfiles:
+                    _, self.fp_data = io.read(filename, 'fingerprints',
+                                              self.fp_data, data_format)
             elif data_format is 'db':
                 filename = make_filename(label, 'fingerprints.db')
-            io.save(filename, 'fingerprints', self.fp_data, data_format)
-            log(' ...fingerprints saved to %s.' % filename, toc='save_fps')
+                _, self.fp_data = io.read(filename, 'fingerprints',
+                                          self.fp_data, data_format)
+            log(' ...fingerprints read.', toc='read_fps')
+
+            if data_format is 'json':
+                log.tic('save_fps')
+                log(' Saving fingerprints...')
+                filename = make_filename(label, 'fingerprints.json')
+                io.save(filename, 'fingerprints', self.fp_data, data_format)
+                log(' ...fingerprints saved to %s.' % filename, toc='save_fps')
 
         fingerprint_values = {}
         for element in elements:
@@ -1785,47 +1793,61 @@ class SaveFingerprints:
                 # fingerprint derivatives
                 _mp.make_list_of_sub_images(no_of_new_images, new_hashs,
                                             new_images)
+                del new_hashs
 
-                # Temporary files to hold child fingerprint calculations.
-                childfiles = [tempfile.NamedTemporaryFile(prefix='fp-',
-                                                          suffix='.json')
-                              for _ in range(_mp.no_procs)]
-                _ = 0
-                while _ < _mp.no_procs:
-                    log('  Processor %i calculations stored in file %s.'
-                        % (_, childfiles[_].name))
-                    _ += 1
+                if data_format is 'json':
+                    # Temporary files to hold child fingerprint calculations.
+                    childfiles = [tempfile.NamedTemporaryFile(prefix='fp-',
+                                                              suffix='.json')
+                                  for _ in range(_mp.no_procs)]
+                    _ = 0
+                    while _ < _mp.no_procs:
+                        log('  Processor %i calculations stored in file %s.'
+                            % (_, childfiles[_].name))
+                        _ += 1
 
-                task_args = (fp, snl, label, childfiles, io)
+                elif data_format is 'db':
+                    filename = make_filename(label,
+                                             'fingerprint-derivatives.db')
+                    childfiles = [filename] * _mp.no_procs
+
+                task_args = (fp, snl, label, childfiles, io, data_format)
                 _mp.share_fingerprints_task_between_cores(
                     task=_calculate_der_fingerprints,
                     _args=task_args)
 
-                log(' Calculated %i new images.' % len(new_images),
+                log(' Calculated %i new images.' % no_of_new_images,
                     toc='calculate_der_fps')
 
                 log.tic('read_der_fps')
-                log(' Reading child-fingerprint-derivatives...')
-                for f in childfiles:
-                    _, self.der_fp_data = io.read(f, 'fingerprint_derivatives',
-                                                  self.der_fp_data,
-                                                  'json')
-                log(' ...child-fingerprint-derivatives are read.',
-                    toc='read_der_fps')
-
-                log.tic('save_der_fps')
+                log(' Reading calculated fingerprint-derivatives...')
                 if data_format is 'json':
-                    filename = make_filename(label,
-                                             'fingerprint-derivatives.json')
+                    for filename in childfiles:
+                        _, self.der_fp_data = \
+                            io.read(filename,
+                                    'fingerprint_derivatives',
+                                    self.der_fp_data,
+                                    data_format)
                 elif data_format is 'db':
                     filename = make_filename(label,
                                              'fingerprint-derivatives.db')
-                io.save(filename, 'fingerprint_derivatives', self.der_fp_data,
-                        data_format)
-                log(' ...fingerprint derivatives calculated and saved to %s.'
-                    % filename, toc='save_der_fps')
+                    _, self.der_fp_data = io.read(filename,
+                                                  'fingerprint_derivatives',
+                                                  self.der_fp_data,
+                                                  data_format)
 
-                del new_hashs
+                log(' ...fingerprint-derivatives are read.',
+                    toc='read_der_fps')
+
+                if data_format is 'json':
+                    log.tic('save_der_fps')
+                    filename = make_filename(label,
+                                             'fingerprint-derivatives.json')
+                    io.save(filename, 'fingerprint_derivatives',
+                            self.der_fp_data, data_format)
+                    log(''' ...fingerprint-derivatives calculated and saved to
+                    %s.''' % filename, toc='save_der_fps')
+
             del new_images
         del images
 
@@ -2080,7 +2102,8 @@ class CostFxnandDer:
 ###############################################################################
 
 
-def _calculate_fingerprints(proc_no, hashs, images, fp, label, childfiles, io):
+def _calculate_fingerprints(proc_no, hashs, images, fp, label, childfiles, io,
+                            data_format):
     """
     Function to be called on all processes simultaneously for calculating
     fingerprints.
@@ -2099,6 +2122,8 @@ def _calculate_fingerprints(proc_no, hashs, images, fp, label, childfiles, io):
     :type childfiles: file
     :param io: utilities.IO class for reading/saving data.
     :type io: object
+    :param data_format: Format of saved data. Can be either "json" or "db".
+    :type data_format: str
     """
     fingerprints = {}
     no_of_images = len(hashs)
@@ -2129,7 +2154,7 @@ def _calculate_fingerprints(proc_no, hashs, images, fp, label, childfiles, io):
             index += 1
         count += 1
 
-    io.save(childfiles[proc_no], 'fingerprints', fingerprints, 'json')
+    io.save(childfiles[proc_no], 'fingerprints', fingerprints, data_format)
 
     del hashs, images
 
@@ -2137,7 +2162,7 @@ def _calculate_fingerprints(proc_no, hashs, images, fp, label, childfiles, io):
 
 
 def _calculate_der_fingerprints(proc_no, hashs, images, fp,
-                                snl, label, childfiles, io):
+                                snl, label, childfiles, io, data_format):
     """
     Function to be called on all processes simultaneously for calculating
     derivatives of fingerprints.
@@ -2156,6 +2181,8 @@ def _calculate_der_fingerprints(proc_no, hashs, images, fp,
     :type childfiles: file
     :param io: utilities.IO class for reading/saving data.
     :type io: object
+    :param data_format: Format of saved data. Can be either "json" or "db".
+    :type data_format: str
     """
     data = {}
 
@@ -2211,7 +2238,7 @@ def _calculate_der_fingerprints(proc_no, hashs, images, fp,
             self_index += 1
         count += 1
 
-    io.save(childfiles[proc_no], 'fingerprint_derivatives', data, 'json')
+    io.save(childfiles[proc_no], 'fingerprint_derivatives', data, data_format)
 
     del hashs, images, data
 
