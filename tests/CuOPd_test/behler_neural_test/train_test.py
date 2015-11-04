@@ -171,8 +171,7 @@ def non_periodic_0th_bfgs_step_test():
 
                 calc.train(images=images, energy_goal=10.**10.,
                            force_goal=10.**10., force_coefficient=0.04,
-                           cores=cores, read_fingerprints=False,
-                           data_format=data_format)
+                           cores=cores, data_format=data_format)
 
                 assert (abs(calc.cost_function - 7144.30292363230) <
                         10.**(-5.)), \
@@ -354,8 +353,7 @@ def non_periodic_9th_bfgs_step_test():
 
                 calc.train(images=images, energy_goal=14.115,
                            force_goal=144.007, force_coefficient=0.04,
-                           cores=cores, read_fingerprints=False,
-                           data_format=data_format)
+                           cores=cores, data_format=data_format)
 
                 assert (abs(calc.cost_function - 5143.710215976742) <
                         10.**(-6.)), \
@@ -504,8 +502,7 @@ def periodic_0th_bfgs_step_test():
 
                 calc.train(images=images, energy_goal=10.**10.,
                            force_goal=10.**10, force_coefficient=0.04,
-                           cores=cores, read_fingerprints=False,
-                           data_format=data_format)
+                           cores=cores, data_format=data_format)
 
                 assert (abs(calc.cost_function - 8005.262570965399) <
                         10.**(-7.)), \
@@ -650,8 +647,7 @@ def periodic_2nd_bfgs_step_test():
 
                 calc.train(images=images, energy_goal=5.14,
                            force_goal=136.10, force_coefficient=0.04,
-                           cores=cores, read_fingerprints=False,
-                           data_format=data_format)
+                           cores=cores, data_format=data_format)
 
                 assert (abs(calc.cost_function - 2301.384892179139) <
                         10.**(-6.)), \

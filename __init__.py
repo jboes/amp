@@ -689,7 +689,6 @@ class Amp(Calculator):
             force_coefficient=None,
             cores=None,
             optimizer=optimizer,
-            read_fingerprints=True,
             overwrite=False,
             data_format='db',
             global_search=SimulatedAnnealing(temperature=70,
@@ -721,10 +720,6 @@ class Amp(Calculator):
                           scipy's fmin_bfgs, but any optimizer that behaves in
                           the same way will do.
         :type optimizer: object
-        :param read_fingerprints: Determines whether or not the code should
-                                  read fingerprints already calculated and
-                                  saved in the script directory.
-        :type read_fingerprints: bool
         :param overwrite: If a trained output file with the same name exists,
                           overwrite it.
         :type overwrite: bool
@@ -850,16 +845,15 @@ class Amp(Calculator):
             log.tic()
             snl = SaveNeighborLists(param.descriptor.cutoff, no_of_images,
                                     hashs, images, self.dblabel, log,
-                                    train_forces, read_fingerprints, io,
-                                    data_format)
+                                    train_forces, io, data_format)
 
             gc.collect()
 
             # Fingerprints are calculated and saved
             self.sfp = SaveFingerprints(self.fp, self.elements, no_of_images,
                                         hashs, images, self.dblabel,
-                                        train_forces, read_fingerprints, snl,
-                                        log, _mp, io, data_format)
+                                        train_forces, snl, log, _mp, io,
+                                        data_format)
 
             gc.collect()
 
@@ -1476,10 +1470,6 @@ class SaveNeighborLists:
     :type log: Logger object
     :param train_forces: Determining whether forces are also trained or not.
     :type train_forces: bool
-    :param read_fingerprints: Determines whether or not the code should read
-                              fingerprints already calculated and saved in the
-                              script directory.
-    :type read_fingerprints: bool
     :param io: utilities.IO class for reading/saving data.
     :type io: object
     :param data_format: Format of saved data. Can be either "json" or "db".
@@ -1488,7 +1478,7 @@ class SaveNeighborLists:
     ###########################################################################
 
     def __init__(self, cutoff, no_of_images, hashs, images, label, log,
-                 train_forces, read_fingerprints, io, data_format):
+                 train_forces, io, data_format):
 
         self.cutoff = cutoff
         self.images = images
@@ -1498,31 +1488,27 @@ class SaveNeighborLists:
             new_images = images
             log('Calculating neighborlist for each atom...')
             log.tic()
-            if read_fingerprints:
-                if data_format is 'json':
-                    filename = make_filename(label, 'neighborlists.json')
-                elif data_format is 'db':
-                    filename = make_filename(label, 'neighborlists.db')
-                if not os.path.exists(filename):
-                    log(' No saved neighborlist file found.')
-                else:
-                    old_hashs, self.nl_data = io.read(filename,
-                                                      'neighborlists',
-                                                      self.nl_data,
-                                                      data_format)
-                    log(' Saved neighborlist file %s loaded with %i entries.'
-                        % (filename, len(old_hashs)))
-                    new_images = {}
-                    count = 0
-                    while count < no_of_images:
-                        hash = hashs[count]
-                        if hash not in old_hashs:
-                            new_images[hash] = images[hash]
-                        count += 1
-                    del old_hashs
+            if data_format is 'json':
+                filename = make_filename(label, 'neighborlists.json')
+            elif data_format is 'db':
+                filename = make_filename(label, 'neighborlists.db')
+            if not os.path.exists(filename):
+                log(' No saved neighborlist file found.')
             else:
-                log(' Neighborlists in the script directory (if any) will not '
-                    'be used.')
+                old_hashs, self.nl_data = io.read(filename,
+                                                  'neighborlists',
+                                                  self.nl_data,
+                                                  data_format)
+                log(' Saved neighborlist file %s loaded with %i entries.'
+                    % (filename, len(old_hashs)))
+                new_images = {}
+                count = 0
+                while count < no_of_images:
+                    hash = hashs[count]
+                    if hash not in old_hashs:
+                        new_images[hash] = images[hash]
+                    count += 1
+                del old_hashs
 
             log(' Calculating %i of %i neighborlists.'
                 % (len(new_images), len(images)))
@@ -1595,10 +1581,6 @@ class SaveFingerprints:
     :type label: str
     :param train_forces: Determining whether forces are also trained or not.
     :type train_forces: bool
-    :param read_fingerprints: Determines whether or not the code should read
-                              fingerprints already calculated and saved in the
-                              script directory.
-    :type read_fingerprints: bool
     :param snl: SaveNeighborLists object.
     :type snl: object
     :param log: Write function at which to log data. Note this must be a
@@ -1614,8 +1596,7 @@ class SaveFingerprints:
     ###########################################################################
 
     def __init__(self, fp, elements, no_of_images, hashs, images, label,
-                 train_forces, read_fingerprints, snl, log, _mp, io,
-                 data_format):
+                 train_forces, snl, log, _mp, io, data_format):
 
         self.Gs = fp.Gs
         self.train_forces = train_forces
@@ -1625,34 +1606,29 @@ class SaveFingerprints:
 
         log('Calculating atomic fingerprints...')
         log.tic()
-
-        if read_fingerprints:
-
-            if data_format is 'json':
-                filename = make_filename(label, 'fingerprints.json')
-            elif data_format is 'db':
-                filename = make_filename(label, 'fingerprints.db')
-            if not os.path.exists(filename):
-                log('No saved fingerprint file found.')
-            else:
-                log.tic('read_fps')
-                log(' Reading fingerprints from %s...' % filename)
-                old_hashs, self.fp_data = io.read(filename, 'fingerprints',
-                                                  self.fp_data, data_format)
-                log(' ...fingerprints read', toc='read_fps')
-                new_images = {}
-
-                count = 0
-                while count < no_of_images:
-                    hash = hashs[count]
-                    if hash not in old_hashs:
-                        new_images[hash] = images[hash]
-                    count += 1
-                log(' Calculating %i of %i fingerprints. (%i exist in file.)'
-                    % (len(new_images), len(images), len(old_hashs)))
-                del old_hashs
+        if data_format is 'json':
+            filename = make_filename(label, 'fingerprints.json')
+        elif data_format is 'db':
+            filename = make_filename(label, 'fingerprints.db')
+        if not os.path.exists(filename):
+            log('No saved fingerprint file found.')
         else:
-            log(' Pre-calculated fingerprints (if any) will not be used.')
+            log.tic('read_fps')
+            log(' Reading fingerprints from %s...' % filename)
+            old_hashs, self.fp_data = io.read(filename, 'fingerprints',
+                                              self.fp_data, data_format)
+            log(' ...fingerprints read', toc='read_fps')
+            new_images = {}
+
+            count = 0
+            while count < no_of_images:
+                hash = hashs[count]
+                if hash not in old_hashs:
+                    new_images[hash] = images[hash]
+                count += 1
+            log(' Calculating %i of %i fingerprints. (%i exist in file.)'
+                % (len(new_images), len(images), len(old_hashs)))
+            del old_hashs
 
         if len(new_images) != 0:
             log.tic('calculate_fps')
@@ -1747,43 +1723,37 @@ class SaveFingerprints:
             log('Calculating derivatives of atomic fingerprints '
                 'with respect to coordinates...')
             log.tic('fp_forces')
-
-            if read_fingerprints:
-                if data_format is 'json':
-                    filename = make_filename(label,
-                                             'fingerprint-derivatives.json')
-                elif data_format is 'db':
-                    filename = make_filename(label,
-                                             'fingerprint-derivatives.db')
-                if not os.path.exists(filename):
-                    log('Either no saved fingerprint-derivatives file found '
-                        'or it cannot be read.')
-                else:
-                    log.tic('read_der_fps')
-                    log(' Reading fingerprint derivatives from file %s' %
-                        filename)
-                    old_hashs, self.der_fp_data = \
-                        io.read(filename, 'fingerprint_derivatives',
-                                self.der_fp_data, data_format)
-                    log(' ...fingerprint derivatives read.',
-                        toc='read_der_fps')
-
-                    new_images = {}
-                    count = 0
-                    while count < no_of_images:
-                        hash = hashs[count]
-                        if hash not in old_hashs:
-                            new_images[hash] = images[hash]
-                        count += 1
-
-                    log(' Calculating %i of %i fingerprint derivatives. '
-                        '(%i exist in file.)'
-                        % (len(new_images), len(images), len(old_hashs)))
-                    del old_hashs
-
+            if data_format is 'json':
+                filename = make_filename(label,
+                                         'fingerprint-derivatives.json')
+            elif data_format is 'db':
+                filename = make_filename(label,
+                                         'fingerprint-derivatives.db')
+            if not os.path.exists(filename):
+                log('Either no saved fingerprint-derivatives file found '
+                    'or it cannot be read.')
             else:
-                log(' Pre-calculated fingerprint derivatives (if any) will '
-                    'not be used.')
+                log.tic('read_der_fps')
+                log(' Reading fingerprint derivatives from file %s' %
+                    filename)
+                old_hashs, self.der_fp_data = \
+                    io.read(filename, 'fingerprint_derivatives',
+                            self.der_fp_data, data_format)
+                log(' ...fingerprint derivatives read.',
+                    toc='read_der_fps')
+
+                new_images = {}
+                count = 0
+                while count < no_of_images:
+                    hash = hashs[count]
+                    if hash not in old_hashs:
+                        new_images[hash] = images[hash]
+                    count += 1
+
+                log(' Calculating %i of %i fingerprint derivatives. '
+                    '(%i exist in file.)'
+                    % (len(new_images), len(images), len(old_hashs)))
+                del old_hashs
 
             if len(new_images) != 0:
                 log.tic('calculate_der_fps')

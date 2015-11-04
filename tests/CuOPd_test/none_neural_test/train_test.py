@@ -131,8 +131,7 @@ def test():
 
                 calc.train(images=images, energy_goal=10.**10.,
                            force_goal=10.**10., force_coefficient=0.04,
-                           cores=cores, read_fingerprints=False,
-                           data_format=data_format)
+                           cores=cores, data_format=data_format)
 
                 # Check for consistency between the two models
                 assert (abs(calc.cost_function - cost_function) <

@@ -532,7 +532,7 @@ def test():
 
                 calc.train(images=images, energy_goal=10.**10.,
                            force_goal=10.**10., cores=cores,
-                           read_fingerprints=False, data_format=data_format)
+                           data_format=data_format)
 
                 if count == 0:
                     reference_cost_function = calc.cost_function
