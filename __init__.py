@@ -1544,10 +1544,6 @@ class SaveNeighborLists:
                         self_index += 1
                     count += 1
 
-                if data_format is 'json':
-                    filename = make_filename(label, 'neighborlists.json')
-                elif data_format is 'db':
-                    filename = make_filename(label, 'neighborlists.db')
                 io.save(filename, 'neighborlists', self.nl_data, data_format)
                 log(' ...neighborlists calculated and saved to %s.' %
                     filename, toc=True)
@@ -1651,7 +1647,6 @@ class SaveFingerprints:
                     _ += 1
 
             elif data_format is 'db':
-                filename = make_filename(label, 'fingerprints.db')
                 childfiles = [filename] * _mp.no_procs
 
             task_args = (fp, label, childfiles, io, data_format)
@@ -1664,11 +1659,10 @@ class SaveFingerprints:
             log.tic('read_fps')
             log(' Reading calculated fingerprints...')
             if data_format is 'json':
-                for filename in childfiles:
-                    _, self.fp_data = io.read(filename, 'fingerprints',
+                for f in childfiles:
+                    _, self.fp_data = io.read(f, 'fingerprints',
                                               self.fp_data, data_format)
             elif data_format is 'db':
-                filename = make_filename(label, 'fingerprints.db')
                 _, self.fp_data = io.read(filename, 'fingerprints',
                                           self.fp_data, data_format)
             log(' ...fingerprints read.', toc='read_fps')
@@ -1676,7 +1670,6 @@ class SaveFingerprints:
             if data_format is 'json':
                 log.tic('save_fps')
                 log(' Saving fingerprints...')
-                filename = make_filename(label, 'fingerprints.json')
                 io.save(filename, 'fingerprints', self.fp_data, data_format)
                 log(' ...fingerprints saved to %s.' % filename, toc='save_fps')
 
@@ -1777,8 +1770,6 @@ class SaveFingerprints:
                         _ += 1
 
                 elif data_format is 'db':
-                    filename = make_filename(label,
-                                             'fingerprint-derivatives.db')
                     childfiles = [filename] * _mp.no_procs
 
                 task_args = (fp, snl, label, childfiles, io, data_format)
@@ -1792,15 +1783,13 @@ class SaveFingerprints:
                 log.tic('read_der_fps')
                 log(' Reading calculated fingerprint-derivatives...')
                 if data_format is 'json':
-                    for filename in childfiles:
+                    for f in childfiles:
                         _, self.der_fp_data = \
-                            io.read(filename,
+                            io.read(f,
                                     'fingerprint_derivatives',
                                     self.der_fp_data,
                                     data_format)
                 elif data_format is 'db':
-                    filename = make_filename(label,
-                                             'fingerprint-derivatives.db')
                     _, self.der_fp_data = io.read(filename,
                                                   'fingerprint_derivatives',
                                                   self.der_fp_data,
@@ -1811,8 +1800,6 @@ class SaveFingerprints:
 
                 if data_format is 'json':
                     log.tic('save_der_fps')
-                    filename = make_filename(label,
-                                             'fingerprint-derivatives.json')
                     io.save(filename, 'fingerprint_derivatives',
                             self.der_fp_data, data_format)
                     log(''' ...fingerprint-derivatives calculated and saved to
