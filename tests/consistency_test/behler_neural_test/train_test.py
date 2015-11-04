@@ -519,7 +519,7 @@ def test():
         for data_format in ['db', 'json']:
             for cores in range(1, 5):
 
-                label = 'traintest/%s-%s-%i' % (fortran, data_format, cores)
+                label = 'consistbp/%s-%s-%i' % (fortran, data_format, cores)
 
                 calc = Amp(descriptor=Behler(cutoff=cutoff, Gs=Gs,),
                            regression=NeuralNetwork(hiddenlayers=hiddenlayers,

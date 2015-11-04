@@ -119,7 +119,7 @@ def test():
         for data_format in ['db', 'json']:
             for cores in range(1, 7):
 
-                label = 'traintest/%s-%s-%i' % (fortran, data_format, cores)
+                label = 'CuOPdnone/%s-%s-%i' % (fortran, data_format, cores)
 
                 calc = Amp(descriptor=None,
                            regression=NeuralNetwork(hiddenlayers=(2, 1),

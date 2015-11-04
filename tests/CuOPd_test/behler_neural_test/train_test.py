@@ -159,7 +159,7 @@ def non_periodic_0th_bfgs_step_test():
         for data_format in ['db', 'json']:
             for cores in range(1, 7):
 
-                label = 'traintest0/%s-%s-%i' % (fortran, data_format, cores)
+                label = 'CuOPdbp/0/%s-%s-%i' % (fortran, data_format, cores)
 
                 calc = Amp(descriptor=Behler(cutoff=6.5, Gs=Gs,),
                            regression=NeuralNetwork(hiddenlayers=hiddenlayers,
@@ -341,7 +341,7 @@ def non_periodic_9th_bfgs_step_test():
         for data_format in ['db', 'json']:
             for cores in range(1, 7):
 
-                label = 'traintest1/%s-%s-%i' % (fortran, data_format, cores)
+                label = 'CuOPdbp/1/%s-%s-%i' % (fortran, data_format, cores)
 
                 calc = Amp(descriptor=Behler(cutoff=6.5, Gs=Gs,),
                            regression=NeuralNetwork(hiddenlayers=hiddenlayers,
@@ -490,7 +490,7 @@ def periodic_0th_bfgs_step_test():
         for data_format in ['db', 'json']:
             for cores in range(1, 5):
 
-                label = 'traintest2/%s-%s-%i' % (fortran, data_format, cores)
+                label = 'CuOPdbp/2/%s-%s-%i' % (fortran, data_format, cores)
 
                 calc = Amp(descriptor=Behler(cutoff=4., Gs=Gs,),
                            regression=NeuralNetwork(hiddenlayers=hiddenlayers,
@@ -635,7 +635,7 @@ def periodic_2nd_bfgs_step_test():
         for data_format in ['db', 'json']:
             for cores in range(1, 5):
 
-                label = 'traintest3/%s-%s-%i' % (fortran, data_format, cores)
+                label = 'CuOPdbp/3/%s-%s-%i' % (fortran, data_format, cores)
 
                 calc = Amp(descriptor=Behler(cutoff=4., Gs=Gs,),
                            regression=NeuralNetwork(hiddenlayers=hiddenlayers,
