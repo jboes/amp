@@ -466,9 +466,9 @@ class IO:
                     index = 0
                     while index < no_of_atoms:
                         value = data[hash][index]
-                        no_of_neighbors = len(value)
+                        len_of_fingerprints = len(value)
                         _ = 0
-                        while _ < no_of_neighbors:
+                        while _ < len_of_fingerprints:
                             # Insert a row of data
                             row = (hash, index, _, value[_])
                             c.execute('''INSERT INTO fingerprints VALUES

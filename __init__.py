@@ -2788,24 +2788,24 @@ def ravel_neighborlists_and_der_fingerprints_of_images(hashs,
                 n_count += 1
             list_of_no_of_neighbors.append(count)
             self_index += 1
-        del hash
+        del hash, self_index
         _ += 1
 
     raveled_neighborlists = [n_index for hash in hashs
-                             for self_atom in images[hash]
+                             for self_index in range(len(images[hash]))
                              for n_index, n_offset in
-                             zip(snl.nl_data[hash][self_atom.index][0],
-                                 snl.nl_data[hash][self_atom.index][1])
+                             zip(snl.nl_data[hash][self_index][0],
+                                 snl.nl_data[hash][self_index][1])
                              if (n_offset[0] == 0 and n_offset[1] == 0 and
                                  n_offset[2] == 0)]
 
     raveled_der_fingerprints = \
-        [sfp.der_fp_data[hash][(n_index, self_atom.index, i)]
+        [sfp.der_fp_data[hash][(n_index, self_index, i)]
          for hash in hashs
-         for self_atom in images[hash]
+         for self_index in range(len(images[hash]))
          for n_index, n_offset in
-         zip(snl.nl_data[hash][self_atom.index][0],
-             snl.nl_data[hash][self_atom.index][1])
+         zip(snl.nl_data[hash][self_index][0],
+             snl.nl_data[hash][self_index][1])
          if (n_offset[0] == 0 and n_offset[1] == 0 and
              n_offset[2] == 0) for i in range(3)]
 
