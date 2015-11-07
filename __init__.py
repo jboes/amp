@@ -2287,9 +2287,6 @@ def _calculate_der_fingerprints(proc_no, hashs, images, fp, snl, childfiles,
     :param ncursor: Cursor connecting to neighborlists database in the
                     save_memory mode.
     :type ncursor: object
-    :param fdcursor: Cursor connecting to fingerprint_derivatives database in
-                     the save_memory mode.
-    :type fdcursor: object
     """
     if save_memory:
         fdconn = sqlite3.connect(childfiles[proc_no].name)
