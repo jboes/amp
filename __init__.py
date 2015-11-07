@@ -125,7 +125,7 @@ class SimulatedAnnealing:
                          self.costfxn.energy_coefficient,
                          self.costfxn.force_coefficient,
                          self.costfxn.train_forces, len_of_variables,
-                         calculate_gradient)
+                         calculate_gradient, self.costfxn.save_memory,)
             (energy_square_error, force_square_error, _) = \
                 self.costfxn._mp.share_cost_function_task_between_cores(
                 task=_calculate_cost_function_python,
@@ -153,6 +153,7 @@ class SimulatedAnnealing:
             newvariables = variables + _steps
             calculate_gradient = False
             self.costfxn.param.regression._variables = newvariables
+
             if self.costfxn.fortran:
                 task_args = (self.costfxn.param, calculate_gradient)
                 (energy_square_error, force_square_error, _) = \
@@ -165,11 +166,12 @@ class SimulatedAnnealing:
                              self.costfxn.energy_coefficient,
                              self.costfxn.force_coefficient,
                              self.costfxn.train_forces, len_of_variables,
-                             calculate_gradient)
+                             calculate_gradient, self.costfxn.save_memory)
                 (energy_square_error, force_square_error, _) = \
                     self.costfxn._mp.share_cost_function_task_between_cores(
                     task=_calculate_cost_function_python,
                     _args=task_args, len_of_variables=len_of_variables)
+
             new_square_error = \
                 self.costfxn.energy_coefficient * energy_square_error + \
                 self.costfxn.force_coefficient * force_square_error
@@ -534,6 +536,7 @@ class Amp(Calculator):
 
                 input = (atoms.positions).ravel()
                 _ = self.reg.get_energy(input,)
+                del _
                 self_index = 0
                 while self_index < no_of_atoms:
                     self.reg.reset_forces()
@@ -599,6 +602,7 @@ class Amp(Calculator):
                         count += 1
 
                     __ = self.reg.get_energy(scaled_indexfp, index, symbol)
+                    del __
                     index += 1
 
                 self_index = 0
@@ -694,7 +698,8 @@ class Amp(Calculator):
             global_search=SimulatedAnnealing(temperature=70,
                                              steps=2000),
             perturb_variables=None,
-            extend_variables=True):
+            extend_variables=True,
+            save_memory=True,):
         """
         Fits a variable set to the data, by default using the "fmin_bfgs"
         optimizer. The optimizer takes as input a cost function to reduce and
@@ -713,6 +718,12 @@ class Amp(Calculator):
                            converged. The default value is in unit of eV/Ang.
                            If 'force_goal = None', forces will not be trained.
         :type force_goal: float
+        :param overfitting_constraint: Multiplier of the weights norm penalty
+                                       term.
+        :type overfitting_constraint: float
+        :param force_coefficient: Coefficient of the force contribution in the
+                                  cost function.
+        :type force_coefficient: float
         :param cores: Number of cores to parallelize over. If not specified,
                       attempts to determine from environment.
         :type cores: int
@@ -739,7 +750,11 @@ class Amp(Calculator):
                                  extend the number of variables if convergence
                                  does not happen.
         :type extend_variables: bool
+        :param save_memory: If True, memory efficient mode will be used.
+        :type save_memory: bool
         """
+        if save_memory:
+            data_format = 'db'
         param = self.parameters
         filename = make_filename(self.label, 'trained-parameters.json')
         if (not overwrite) and os.path.exists(filename):
@@ -803,12 +818,13 @@ class Amp(Calculator):
         count = 0
         while count < no_of_images:
             image = images[count]
-            key = hash_image(image)
-            if key in dict_images.keys():
+            hash = hash_image(image)
+            if hash in dict_images.keys():
                 log('Warning: Duplicate image (based on identical hash).'
-                    ' Was this expected? Hash: %s' % key)
-            dict_images[key] = image
+                    ' Was this expected? Hash: %s' % hash)
+            dict_images[hash] = image
             count += 1
+        del hash
         images = dict_images.copy()
         del dict_images
         hashs = sorted(images.keys())
@@ -845,15 +861,15 @@ class Amp(Calculator):
             log.tic()
             snl = SaveNeighborLists(param.descriptor.cutoff, no_of_images,
                                     hashs, images, self.dblabel, log,
-                                    train_forces, io, data_format)
+                                    train_forces, io, data_format, save_memory)
 
             gc.collect()
 
             # Fingerprints are calculated and saved
             self.sfp = SaveFingerprints(self.fp, self.elements, no_of_images,
                                         hashs, images, self.dblabel,
-                                        train_forces, snl, log, _mp, io,
-                                        data_format)
+                                        train_forces, snl, log,
+                                        _mp, io, data_format, save_memory)
 
             gc.collect()
 
@@ -877,7 +893,8 @@ class Amp(Calculator):
                                   snl,
                                   self.reg.elements,
                                   train_forces,
-                                  log,)
+                                  log,
+                                  save_memory,)
 #            del _mp.list_sub_images, _mp.list_sub_hashs
 
         costfxn = CostFxnandDer(
@@ -893,6 +910,7 @@ class Amp(Calculator):
             self.overfitting_constraint,
             force_coefficient,
             self.fortran,
+            save_memory,
             self.sfp,
             snl,)
 
@@ -938,6 +956,7 @@ class Amp(Calculator):
                     self.overfitting_constraint,
                     force_coefficient,
                     self.fortran,
+                    save_memory,
                     self.sfp,
                     snl,)
 
@@ -1015,7 +1034,7 @@ class Amp(Calculator):
                     task_args = (self.reg, param, self.sfp, snl,
                                  energy_coefficient, force_coefficient,
                                  train_forces, no_of_variables,
-                                 calculate_gradient)
+                                 calculate_gradient, save_memory,)
                     (energy_square_error,
                      force_square_error,
                      ___) = \
@@ -1047,7 +1066,7 @@ class Amp(Calculator):
                     task_args = (self.reg, param, self.sfp, snl,
                                  energy_coefficient, force_coefficient,
                                  train_forces, no_of_variables,
-                                 calculate_gradient)
+                                 calculate_gradient, save_memory,)
                     (energy_square_error,
                      force_square_error,
                      ___) = \
@@ -1213,7 +1232,8 @@ class MultiProcess:
                           snl,
                           elements,
                           train_forces,
-                          log,):
+                          log,
+                          save_memory,):
         """
         Reshape data of images into lists.
 
@@ -1231,6 +1251,8 @@ class MultiProcess:
         :param log: Write function at which to log data. Note this must be a
                     callable function.
         :type log: Logger object
+        :param save_memory: If True, memory efficient mode will be used.
+        :type save_memory: bool
         """
         log('Re-shaping images data to send to fortran90...')
         log.tic()
@@ -1270,7 +1292,7 @@ class MultiProcess:
                 self.raveled_fingerprints_of_images[x] = \
                     ravel_fingerprints_of_images(self.list_sub_hashs[x],
                                                  self.list_sub_images[x],
-                                                 sfp)
+                                                 sfp, save_memory,)
                 x += 1
         else:
             self.atomic_positions_of_images = {}
@@ -1306,7 +1328,8 @@ class MultiProcess:
                         self.list_sub_hashs[x],
                         self.list_sub_images[x],
                         sfp,
-                        snl)
+                        snl,
+                        save_memory,)
                     x += 1
 
         log(' ...data re-shaped.', toc=True)
@@ -1474,15 +1497,16 @@ class SaveNeighborLists:
     :type io: object
     :param data_format: Format of saved data. Can be either "json" or "db".
     :type data_format: str
+    :param save_memory: If True, memory efficient mode will be used.
+    :type save_memory: bool
     """
     ###########################################################################
 
     def __init__(self, cutoff, no_of_images, hashs, images, label, log,
-                 train_forces, io, data_format):
+                 train_forces, io, data_format, save_memory):
 
         self.cutoff = cutoff
         self.images = images
-        self.nl_data = {}
 
         if train_forces is True:
             new_images = images
@@ -1492,15 +1516,32 @@ class SaveNeighborLists:
                 filename = make_filename(label, 'neighborlists.json')
             elif data_format is 'db':
                 filename = make_filename(label, 'neighborlists.db')
+            self.ncursor = None
+            if save_memory:
+                nconn = sqlite3.connect(filename)
+                self.ncursor = nconn.cursor()
+                # Create table
+                self.ncursor.execute('''CREATE TABLE IF NOT EXISTS
+                neighborlists (image text, atom integer, nl_index integer,
+                neighbor_atom integer,
+                offset1 integer, offset2 integer, offset3 integer)''')
+            else:
+                self.nl_data = {}
             if not os.path.exists(filename):
                 log(' No saved neighborlist file found.')
             else:
-                old_hashs, self.nl_data = io.read(filename,
-                                                  'neighborlists',
-                                                  self.nl_data,
-                                                  data_format)
-                log(' Saved neighborlist file %s loaded with %i entries.'
-                    % (filename, len(old_hashs)))
+                if save_memory:
+                    self.ncursor.execute("SELECT image FROM neighborlists")
+                    old_hashs = set([_ for _ in self.ncursor])
+                else:
+                    log.tic('read_neighbors')
+                    old_hashs, self.nl_data = io.read(filename,
+                                                      'neighborlists',
+                                                      self.nl_data,
+                                                      data_format)
+                    log(' Saved neighborlist file %s loaded with %i entries.'
+                        % (filename, len(old_hashs)), toc='read_neighbors')
+
                 new_images = {}
                 count = 0
                 while count < no_of_images:
@@ -1510,10 +1551,12 @@ class SaveNeighborLists:
                     count += 1
                 del old_hashs
 
-            log(' Calculating %i of %i neighborlists.'
-                % (len(new_images), len(images)))
+            log(' Calculating %i of %i neighborlists (%i exist in file).'
+                % (len(new_images), len(images),
+                   len(images) - len(new_images)))
 
             if len(new_images) != 0:
+                log.tic('calculate_neighbors')
                 new_hashs = sorted(new_images.keys())
                 no_of_new_images = len(new_hashs)
                 count = 0
@@ -1521,34 +1564,69 @@ class SaveNeighborLists:
                     hash = new_hashs[count]
                     image = new_images[hash]
                     no_of_atoms = len(image)
-                    self.nl_data[hash] = {}
                     nl = NeighborList(cutoffs=([self.cutoff / 2.] *
                                                no_of_atoms),
                                       self_interaction=False,
                                       bothways=True, skin=0.)
                     # FIXME: Is update necessary?
                     nl.update(image)
-                    self_index = 0
-                    while self_index < no_of_atoms:
-                        neighbor_indices, neighbor_offsets = \
-                            nl.get_neighbors(self_index)
-                        if len(neighbor_offsets) == 0:
-                            n_self_offsets = [[0, 0, 0]]
-                        else:
-                            n_self_offsets = \
-                                np.vstack(([[0, 0, 0]], neighbor_offsets))
-                        n_self_indices = np.append(self_index,
-                                                   neighbor_indices)
-                        self.nl_data[hash][self_index] = \
-                            (n_self_indices, n_self_offsets,)
-                        self_index += 1
+
+                    if save_memory:
+                        self_index = 0
+                        while self_index < no_of_atoms:
+                            neighbor_indices, neighbor_offsets = \
+                                nl.get_neighbors(self_index)
+                            if len(neighbor_offsets) == 0:
+                                n_self_offsets = [[0, 0, 0]]
+                            else:
+                                n_self_offsets = \
+                                    np.vstack(([[0, 0, 0]],
+                                               neighbor_offsets))
+                            n_self_indices = np.append(self_index,
+                                                       neighbor_indices)
+                            len_of_neighbors = len(n_self_indices)
+                            _ = 0
+                            while _ < len_of_neighbors:
+                                value = n_self_offsets[_]
+                                # Insert a row of data
+                                row = (hash, self_index, _,
+                                       n_self_indices[_], value[0],
+                                       value[1], value[2])
+                                self.ncursor.execute('''INSERT INTO
+                                neighborlists VALUES (?, ?, ?, ?, ?, ?, ?)''',
+                                                     row)
+                                _ += 1
+                            self_index += 1
+
+                    else:
+                        self.nl_data[hash] = {}
+                        self_index = 0
+                        while self_index < no_of_atoms:
+                            neighbor_indices, neighbor_offsets = \
+                                nl.get_neighbors(self_index)
+                            if len(neighbor_offsets) == 0:
+                                n_self_offsets = [[0, 0, 0]]
+                            else:
+                                n_self_offsets = \
+                                    np.vstack(([[0, 0, 0]], neighbor_offsets))
+                            n_self_indices = np.append(self_index,
+                                                       neighbor_indices)
+                            self.nl_data[hash][self_index] = \
+                                (n_self_indices, n_self_offsets,)
+                            self_index += 1
+
                     count += 1
-
-                io.save(filename, 'neighborlists', self.nl_data, data_format)
-                log(' ...neighborlists calculated and saved to %s.' %
-                    filename, toc=True)
-
                 del new_hashs
+
+                if save_memory:
+                    nconn.commit()
+                else:
+                    io.save(filename, 'neighborlists', self.nl_data,
+                            data_format)
+
+                log(' ...neighborlists calculated and saved to %s.' %
+                    filename, toc='calculate_neighbors')
+
             del new_images
         del images, self.images
 
@@ -1588,16 +1666,16 @@ class SaveFingerprints:
     :type io: object
     :param data_format: Format of saved data. Can be either "json" or "db".
     :type data_format: str
+    :param save_memory: If True, memory efficient mode will be used.
+    :type save_memory: bool
     """
     ###########################################################################
 
     def __init__(self, fp, elements, no_of_images, hashs, images, label,
-                 train_forces, snl, log, _mp, io, data_format):
+                 train_forces, snl, log, _mp, io, data_format, save_memory):
 
         self.Gs = fp.Gs
         self.train_forces = train_forces
-        self.fp_data = {}
-        self.der_fp_data = {}
         new_images = images
 
         log('Calculating atomic fingerprints...')
@@ -1606,25 +1684,39 @@ class SaveFingerprints:
             filename = make_filename(label, 'fingerprints.json')
         elif data_format is 'db':
             filename = make_filename(label, 'fingerprints.db')
+        self.fcursor = None
+        if save_memory:
+            fconn = sqlite3.connect(filename)
+            self.fcursor = fconn.cursor()
+            # Create table
+            self.fcursor.execute('''CREATE TABLE IF NOT EXISTS fingerprints
+            (image text, atom integer, fp_index integer, value real)''')
+        else:
+            self.fp_data = {}
         if not os.path.exists(filename):
             log('No saved fingerprint file found.')
         else:
-            log.tic('read_fps')
-            log(' Reading fingerprints from %s...' % filename)
-            old_hashs, self.fp_data = io.read(filename, 'fingerprints',
-                                              self.fp_data, data_format)
-            log(' ...fingerprints read', toc='read_fps')
-            new_images = {}
+            if save_memory:
+                self.fcursor.execute("SELECT image FROM fingerprints")
+                old_hashs = set([_ for _ in self.fcursor])
+            else:
+                log.tic('read_fps')
+                old_hashs, self.fp_data = io.read(filename, 'fingerprints',
+                                                  self.fp_data, data_format)
+                log(' Saved fingerprints file %s loaded with %i entries.'
+                    % (filename, len(old_hashs)), toc='read_fps')
 
+            new_images = {}
             count = 0
             while count < no_of_images:
                 hash = hashs[count]
                 if hash not in old_hashs:
                     new_images[hash] = images[hash]
                 count += 1
-            log(' Calculating %i of %i fingerprints. (%i exist in file.)'
-                % (len(new_images), len(images), len(old_hashs)))
             del old_hashs
+
+        log(' Calculating %i of %i fingerprints (%i exist in file).'
+            % (len(new_images), len(images), len(images) - len(new_images)))
 
         if len(new_images) != 0:
             log.tic('calculate_fps')
@@ -1635,21 +1727,22 @@ class SaveFingerprints:
                                         new_images)
             del new_hashs
 
+            # Temporary files to hold child fingerprint calculations.
             if data_format is 'json':
-                # Temporary files to hold child fingerprint calculations.
                 childfiles = [tempfile.NamedTemporaryFile(prefix='fp-',
                                                           suffix='.json')
                               for _ in range(_mp.no_procs)]
-                _ = 0
-                while _ < _mp.no_procs:
-                    log('  Processor %i calculations stored in file %s.'
-                        % (_, childfiles[_].name))
-                    _ += 1
-
             elif data_format is 'db':
-                childfiles = [filename] * _mp.no_procs
+                childfiles = [tempfile.NamedTemporaryFile(prefix='fp-',
+                                                          suffix='.db')
+                              for _ in range(_mp.no_procs)]
+            _ = 0
+            while _ < _mp.no_procs:
+                log('  Processor %i calculations stored in file %s.'
+                    % (_, childfiles[_].name))
+                _ += 1
 
-            task_args = (fp, label, childfiles, io, data_format)
+            task_args = (fp, childfiles, io, data_format, save_memory,)
             _mp.share_fingerprints_task_between_cores(
                 task=_calculate_fingerprints, _args=task_args)
 
@@ -1658,20 +1751,21 @@ class SaveFingerprints:
 
             log.tic('read_fps')
             log(' Reading calculated fingerprints...')
-            if data_format is 'json':
+            if save_memory:
                 for f in childfiles:
-                    _, self.fp_data = io.read(f, 'fingerprints',
+                    _fconn = sqlite3.connect(f.name)
+                    _fcursor = _fconn.cursor()
+                    for row in _fcursor.execute("SELECT * FROM fingerprints"):
+                        self.fcursor.execute('''INSERT INTO fingerprints
+                        VALUES (?, ?, ?, ?)''', row)
+                fconn.commit()
+            else:
+                for f in childfiles:
+                    _, self.fp_data = io.read(f.name, 'fingerprints',
                                               self.fp_data, data_format)
-            elif data_format is 'db':
-                _, self.fp_data = io.read(filename, 'fingerprints',
-                                          self.fp_data, data_format)
-            log(' ...fingerprints read.', toc='read_fps')
-
-            if data_format is 'json':
-                log.tic('save_fps')
-                log(' Saving fingerprints...')
                 io.save(filename, 'fingerprints', self.fp_data, data_format)
-                log(' ...fingerprints saved to %s.' % filename, toc='save_fps')
+            log(' ...child fingerprints read and saved to %s.' % filename,
+                toc='read_fps')
 
         fingerprint_values = {}
         for element in elements:
@@ -1693,8 +1787,15 @@ class SaveFingerprints:
                 len_of_fingerprint = len(self.Gs[symbol])
                 _ = 0
                 while _ < len_of_fingerprint:
-                    fingerprint_values[symbol][_].append(
-                        self.fp_data[hash][index][_])
+                    if save_memory:
+                        self.fcursor.execute('''SELECT * FROM fingerprints
+                        WHERE image=? AND atom=? AND fp_index=?''',
+                                             (hash, index, _))
+                        row = self.fcursor.fetchall()
+                        fingerprint_values[symbol][_].append(row[0][3])
+                    else:
+                        fingerprint_values[symbol][_].append(
+                            self.fp_data[hash][index][_])
                     _ += 1
                 index += 1
             count += 1
@@ -1713,27 +1814,41 @@ class SaveFingerprints:
 
         if train_forces is True:
             new_images = images
-            log('Calculating derivatives of atomic fingerprints '
-                'with respect to coordinates...')
-            log.tic('fp_forces')
+            log('''Calculating derivatives of atomic fingerprints
+                with respect to coordinates...''')
+            log.tic()
             if data_format is 'json':
                 filename = make_filename(label,
                                          'fingerprint-derivatives.json')
             elif data_format is 'db':
                 filename = make_filename(label,
                                          'fingerprint-derivatives.db')
-            if not os.path.exists(filename):
-                log('Either no saved fingerprint-derivatives file found '
-                    'or it cannot be read.')
+            self.fdcursor = None
+            if save_memory:
+                fdconn = sqlite3.connect(filename)
+                self.fdcursor = fdconn.cursor()
+                # Create table
+                self.fdcursor.execute('''CREATE TABLE IF NOT EXISTS
+                fingerprint_derivatives
+                (image text, atom integer, neighbor_atom integer,
+                 direction integer, fp_index integer, value real)''')
             else:
-                log.tic('read_der_fps')
-                log(' Reading fingerprint derivatives from file %s' %
-                    filename)
-                old_hashs, self.der_fp_data = \
-                    io.read(filename, 'fingerprint_derivatives',
-                            self.der_fp_data, data_format)
-                log(' ...fingerprint derivatives read.',
-                    toc='read_der_fps')
+                self.der_fp_data = {}
+            if not os.path.exists(filename):
+                log('No saved fingerprint-derivatives file found.')
+            else:
+                if save_memory:
+                    self.fdcursor.execute(
+                        "SELECT image FROM fingerprint_derivatives")
+                    old_hashs = set([_ for _ in self.fdcursor])
+                else:
+                    log.tic('read_der_fps')
+                    old_hashs, self.der_fp_data = \
+                        io.read(filename, 'fingerprint_derivatives',
+                                self.der_fp_data, data_format)
+                    log(' Saved fingerprint derivatives file %s loaded '
+                        'with %i entries.' % (filename, len(old_hashs)),
+                        toc='read_der_fps')
 
                 new_images = {}
                 count = 0
@@ -1742,11 +1857,12 @@ class SaveFingerprints:
                     if hash not in old_hashs:
                         new_images[hash] = images[hash]
                     count += 1
-
-                log(' Calculating %i of %i fingerprint derivatives. '
-                    '(%i exist in file.)'
-                    % (len(new_images), len(images), len(old_hashs)))
                 del old_hashs
+
+            log(' Calculating %i of %i fingerprint derivatives '
+                '(%i exist in file).'
+                % (len(new_images), len(images),
+                   len(images) - len(new_images)))
 
             if len(new_images) != 0:
                 log.tic('calculate_der_fps')
@@ -1758,21 +1874,23 @@ class SaveFingerprints:
                                             new_images)
                 del new_hashs
 
+                # Temporary files to hold child fingerprint calculations.
                 if data_format is 'json':
-                    # Temporary files to hold child fingerprint calculations.
                     childfiles = [tempfile.NamedTemporaryFile(prefix='fp-',
                                                               suffix='.json')
                                   for _ in range(_mp.no_procs)]
-                    _ = 0
-                    while _ < _mp.no_procs:
-                        log('  Processor %i calculations stored in file %s.'
-                            % (_, childfiles[_].name))
-                        _ += 1
-
                 elif data_format is 'db':
-                    childfiles = [filename] * _mp.no_procs
+                    childfiles = [tempfile.NamedTemporaryFile(prefix='fp-',
+                                                              suffix='.db')
+                                  for _ in range(_mp.no_procs)]
+                _ = 0
+                while _ < _mp.no_procs:
+                    log('  Processor %i calculations stored in file %s.'
+                        % (_, childfiles[_].name))
+                    _ += 1
 
-                task_args = (fp, snl, label, childfiles, io, data_format)
+                task_args = (fp, snl, childfiles, io, data_format, save_memory,
+                             snl.ncursor,)
                 _mp.share_fingerprints_task_between_cores(
                     task=_calculate_der_fingerprints,
                     _args=task_args)
@@ -1782,28 +1900,27 @@ class SaveFingerprints:
 
                 log.tic('read_der_fps')
                 log(' Reading calculated fingerprint-derivatives...')
-                if data_format is 'json':
+                if save_memory:
+                    for f in childfiles:
+                        _fdconn = sqlite3.connect(f.name)
+                        _fdcursor = _fdconn.cursor()
+                        for row in _fdcursor.execute('''SELECT * FROM
+                        fingerprint_derivatives'''):
+                            self.fdcursor.execute('''INSERT INTO
+                            fingerprint_derivatives
+                            VALUES (?, ?, ?, ?, ?, ?)''', row)
+                    fdconn.commit()
+                else:
                     for f in childfiles:
                         _, self.der_fp_data = \
-                            io.read(f,
+                            io.read(f.name,
                                     'fingerprint_derivatives',
                                     self.der_fp_data,
                                     data_format)
-                elif data_format is 'db':
-                    _, self.der_fp_data = io.read(filename,
-                                                  'fingerprint_derivatives',
-                                                  self.der_fp_data,
-                                                  data_format)
-
-                log(' ...fingerprint-derivatives are read.',
-                    toc='read_der_fps')
-
-                if data_format is 'json':
-                    log.tic('save_der_fps')
                     io.save(filename, 'fingerprint_derivatives',
                             self.der_fp_data, data_format)
-                    log(''' ...fingerprint-derivatives calculated and saved to
-                    %s.''' % filename, toc='save_der_fps')
+                log(''' ...child fingerprint-derivatives read and saved to
+                %s.''' % filename, toc='read_der_fps')
 
             del new_images
         del images
@@ -1851,6 +1968,8 @@ class CostFxnandDer:
     :type force_coefficient: float
     :param fortran: If True, will use the fortran subroutines, else will not.
     :type fortran: bool
+    :param save_memory: If True, memory efficient mode will be used.
+    :type save_memory: bool
     :param sfp: SaveFingerprints object.
     :type sfp: object
     :param snl: SaveNeighborLists object.
@@ -1860,23 +1979,24 @@ class CostFxnandDer:
 
     def __init__(self, reg, param, no_of_images, label, log, energy_goal,
                  force_goal, train_forces, _mp, overfitting_constraint,
-                 force_coefficient, fortran, sfp=None, snl=None,):
+                 force_coefficient, fortran, save_memory, sfp=None, snl=None,):
 
         self.reg = reg
         self.param = param
+        self.no_of_images = no_of_images
         self.label = label
         self.log = log
         self.energy_goal = energy_goal
         self.force_goal = force_goal
-        self.sfp = sfp
-        self.snl = snl
         self.train_forces = train_forces
-        self.steps = 0
         self._mp = _mp
         self.overfitting_constraint = overfitting_constraint
         self.force_coefficient = force_coefficient
         self.fortran = fortran
-        self.no_of_images = no_of_images
+        self.save_memory = save_memory
+        self.sfp = sfp
+        self.snl = snl
+        self.steps = 0
 
         if param.descriptor is not None:  # pure atomic-coordinates scheme
             self.cutoff = param.descriptor.cutoff
@@ -1920,7 +2040,8 @@ class CostFxnandDer:
             task_args = (self.reg, self.param, self.sfp, self.snl,
                          self.energy_coefficient, self.force_coefficient,
                          self.train_forces, len_of_variables,
-                         calculate_gradient)
+                         calculate_gradient,
+                         self.save_memory,)
             (energy_square_error,
              force_square_error,
              self.der_variables_square_error) = \
@@ -2040,7 +2161,7 @@ class CostFxnandDer:
                 task_args = (self.reg, self.param, self.sfp, self.snl,
                              self.energy_coefficient, self.force_coefficient,
                              self.train_forces, len_of_variables,
-                             calculate_gradient)
+                             calculate_gradient, self.save_memory,)
                 (energy_square_error,
                  force_square_error,
                  self.der_variables_square_error) = \
@@ -2059,8 +2180,8 @@ class CostFxnandDer:
 ###############################################################################
 
 
-def _calculate_fingerprints(proc_no, hashs, images, fp, label, childfiles, io,
-                            data_format):
+def _calculate_fingerprints(proc_no, hashs, images, fp, childfiles, io,
+                            data_format, save_memory,):
     """
     Function to be called on all processes simultaneously for calculating
     fingerprints.
@@ -2073,21 +2194,28 @@ def _calculate_fingerprints(proc_no, hashs, images, fp, label, childfiles, io,
     :type images: list
     :param fp: Fingerprint object.
     :type fp: object
-    :param label: Prefix name used for all files.
-    :type label: str
     :param childfiles: Temporary files
     :type childfiles: file
     :param io: utilities.IO class for reading/saving data.
     :type io: object
     :param data_format: Format of saved data. Can be either "json" or "db".
     :type data_format: str
+    :param save_memory: If True, memory efficient mode will be used.
+    :type save_memory: bool
     """
-    fingerprints = {}
+    if save_memory:
+        fconn = sqlite3.connect(childfiles[proc_no].name)
+        fcursor = fconn.cursor()
+        # Create table
+        fcursor.execute('''CREATE TABLE IF NOT EXISTS fingerprints
+        (image text, atom integer, fp_index integer, value real)''')
+
+    data = {}
     no_of_images = len(hashs)
     count = 0
     while count < no_of_images:
         hash = hashs[count]
-        fingerprints[hash] = {}
+        data[hash] = {}
         atoms = images[hash]
         no_of_atoms = len(atoms)
         fp.initialize(atoms)
@@ -2107,19 +2235,33 @@ def _calculate_fingerprints(proc_no, hashs, images, fp, label, childfiles, io,
                   np.dot(n_offset, atoms.get_cell())
                   for n_index, n_offset in zip(n_indices, n_offsets)]
             indexfp = fp.get_fingerprint(index, symbol, n_symbols, Rs)
-            fingerprints[hash][index] = indexfp
+            if save_memory:
+                len_of_indexfp = len(indexfp)
+                _ = 0
+                while _ < len_of_indexfp:
+                    # Insert a row of data
+                    row = (hash, index, _, indexfp[_])
+                    fcursor.execute('''INSERT INTO fingerprints VALUES
+                    (?, ?, ?, ?)''', row)
+                    _ += 1
+            else:
+                data[hash][index] = indexfp
             index += 1
         count += 1
 
-    io.save(childfiles[proc_no], 'fingerprints', fingerprints, data_format)
+    if save_memory:
+        fconn.commit()
+        fconn.close()
+    else:
+        io.save(childfiles[proc_no].name, 'fingerprints', data, data_format)
 
-    del hashs, images
+    del hashs, images, data
 
 ###############################################################################
 
 
-def _calculate_der_fingerprints(proc_no, hashs, images, fp,
-                                snl, label, childfiles, io, data_format):
+def _calculate_der_fingerprints(proc_no, hashs, images, fp, snl, childfiles,
+                                io, data_format, save_memory, ncursor):
     """
     Function to be called on all processes simultaneously for calculating
     derivatives of fingerprints.
@@ -2132,17 +2274,32 @@ def _calculate_der_fingerprints(proc_no, hashs, images, fp,
     :type images: list
     :param fp: Fingerprint object.
     :type fp: object
-    :param label: Prefix name used for all files.
-    :type label: str
+    :param snl: SaveNeighborLists object.
+    :type snl: object
     :param childfiles: Temporary files
     :type childfiles: file
     :param io: utilities.IO class for reading/saving data.
     :type io: object
     :param data_format: Format of saved data. Can be either "json" or "db".
     :type data_format: str
+    :param save_memory: If True, memory efficient mode will be used.
+    :type save_memory: bool
+    :param ncursor: Cursor connecting to neighborlists database in the
+                    save_memory mode.
+    :type ncursor: object
+    :param fdcursor: Cursor connecting to fingerprint_derivatives database in
+                     the save_memory mode.
+    :type fdcursor: object
     """
-    data = {}
+    if save_memory:
+        fdconn = sqlite3.connect(childfiles[proc_no].name)
+        fdcursor = fdconn.cursor()
+        # Create table
+        fdcursor.execute('''CREATE TABLE IF NOT EXISTS fingerprint_derivatives
+        (image text, atom integer, neighbor_atom integer,
+         direction integer, fp_index integer, value real)''')
 
+    data = {}
     no_of_images = len(hashs)
     count = 0
     while count < no_of_images:
@@ -2158,10 +2315,22 @@ def _calculate_der_fingerprints(proc_no, hashs, images, fp,
         _nl.update(atoms)
         self_index = 0
         while self_index < no_of_atoms:
-            n_self_indices = snl.nl_data[hash][self_index][0]
-            n_self_offsets = snl.nl_data[hash][self_index][1]
-            n_symbols = [atoms[n_index].symbol for n_index in n_self_indices]
+            if save_memory:
+                ncursor.execute('''SELECT * FROM neighborlists WHERE
+                image=? AND atom=?''', (hash, self_index))
+                rows = ncursor.fetchall()
+                n_self_indices = [row[3]
+                                  for _ in range(len(rows))
+                                  for row in rows if row[2] == _]
+                n_self_offsets = [[row[4], row[5], row[6]]
+                                  for _ in range(len(rows))
+                                  for row in rows if row[2] == _]
+            else:
+                n_self_indices = snl.nl_data[hash][self_index][0]
+                n_self_offsets = snl.nl_data[hash][self_index][1]
             len_of_n_self_indices = len(n_self_indices)
+            n_symbols = [atoms[n_index].symbol for n_index in n_self_indices]
+
             n_count = 0
             while n_count < len_of_n_self_indices:
                 n_symbol = n_symbols[n_count]
@@ -2189,13 +2358,30 @@ def _calculate_der_fingerprints(proc_no, hashs, images, fp,
                             neighbor_indices,
                             neighbor_symbols,
                             Rs, self_index, i)
-                        data[hash][(n_index, self_index, i)] = der_indexfp
+                        if save_memory:
+                            len_of_der_indexfp = len(der_indexfp)
+                            _ = 0
+                            while _ < len_of_der_indexfp:
+                                # Insert a row of data
+                                row = (hash, self_index, n_index, i, _,
+                                       der_indexfp[_])
+                                fdcursor.execute('''INSERT INTO
+                                fingerprint_derivatives
+                                VALUES (?, ?, ?, ?, ?, ?)''', row)
+                                _ += 1
+                        else:
+                            data[hash][(n_index, self_index, i)] = der_indexfp
                         i += 1
                 n_count += 1
             self_index += 1
         count += 1
 
-    io.save(childfiles[proc_no], 'fingerprint_derivatives', data, data_format)
+    if save_memory:
+        fdconn.commit()
+        fdconn.close()
+    else:
+        io.save(childfiles[proc_no].name, 'fingerprint_derivatives',
+                data, data_format)
 
     del hashs, images, data
 
@@ -2209,6 +2395,10 @@ def _calculate_cost_function_fortran(param, calculate_gradient, queue):
 
     :param param: ASE dictionary.
     :type param: dict
+    :param calculate_gradient: Determines whether or not gradient of the cost
+                               function with respect to variables should also
+                               be calculated.
+    :type calculate_gradient: bool
     :param queue: multiprocessing queue.
     :type queue: object
     """
@@ -2233,7 +2423,7 @@ def _calculate_cost_function_python(hashs, images, reg, param, sfp,
                                     snl, energy_coefficient,
                                     force_coefficient, train_forces,
                                     len_of_variables, calculate_gradient,
-                                    queue):
+                                    save_memory, queue):
     """
     Function to be called on all processes simultaneously for calculating cost
     function and its derivative with respect to variables in python.
@@ -2264,6 +2454,8 @@ def _calculate_cost_function_python(hashs, images, reg, param, sfp,
                                function with respect to variables should also
                                be calculated.
     :type calculate_gradient: bool
+    :param save_memory: If True, memory efficient mode will be used.
+    :type save_memory: bool
     :param queue: multiprocessing queue.
     :type queue: object
     """
@@ -2295,11 +2487,21 @@ def _calculate_cost_function_python(hashs, images, reg, param, sfp,
             index = 0
             while index < no_of_atoms:
                 symbol = atoms[index].symbol
-                indexfp = sfp.fp_data[hash][index]
+                if save_memory:
+                    sfp.fcursor.execute('''SELECT * FROM fingerprints WHERE
+                    image=? AND atom=?''', (hash, index))
+                    rows = sfp.fcursor.fetchall()
+                    indexfp = [row[3]
+                               for _ in range(len(rows))
+                               for row in rows
+                               if row[2] == _]
+                else:
+                    indexfp = sfp.fp_data[hash][index]
+                len_of_indexfp = len(indexfp)
                 # fingerprints are scaled to [-1, 1] range
-                scaled_indexfp = [None] * len(indexfp)
+                scaled_indexfp = [None] * len_of_indexfp
                 count = 0
-                while count < len(indexfp):
+                while count < len_of_indexfp:
                     if (sfp.fingerprints_range[symbol][count][1] -
                             sfp.fingerprints_range[symbol][count][0]) > \
                             (10.**(-8.)):
@@ -2363,12 +2565,23 @@ def _calculate_cost_function_python(hashs, images, reg, param, sfp,
                         i += 1
 
                 else:  # fingerprinting scheme
-
-                    n_self_indices = snl.nl_data[hash][self_index][0]
-                    n_self_offsets = snl.nl_data[hash][self_index][1]
+                    if save_memory:
+                        snl.ncursor.execute('''SELECT * FROM neighborlists WHERE
+                        image=? AND atom=?''', (hash, self_index))
+                        rows = snl.ncursor.fetchall()
+                        n_self_indices = [row[3]
+                                          for _ in range(len(rows))
+                                          for row in rows if row[2] == _]
+                        n_self_offsets = [[row[4], row[5], row[6]]
+                                          for _ in range(len(rows))
+                                          for row in rows if row[2] == _]
+                    else:
+                        n_self_indices = snl.nl_data[hash][self_index][0]
+                        n_self_offsets = snl.nl_data[hash][self_index][1]
+                    len_of_n_self_indices = len(n_self_indices)
                     n_symbols = [atoms[n_index].symbol
                                  for n_index in n_self_indices]
-                    len_of_n_self_indices = len(n_self_indices)
+
                     n_count = 0
                     while n_count < len_of_n_self_indices:
                         n_symbol = n_symbols[n_count]
@@ -2380,11 +2593,27 @@ def _calculate_cost_function_python(hashs, images, reg, param, sfp,
                                 n_offset[2] == 0:
                             i = 0
                             while i < 3:
-                                der_indexfp = \
-                                    sfp.der_fp_data[hash][(n_index,
-                                                           self_index,
-                                                           i)]
+                                if save_memory:
+                                    sfp.fdcursor.execute('''SELECT * FROM
+                                    fingerprint_derivatives
+                                    WHERE image=? AND atom=? AND
+                                    neighbor_atom=? AND direction=?''',
+                                                         (hash,
+                                                          self_index,
+                                                          n_index, i))
+                                    rows = sfp.fdcursor.fetchall()
+                                    der_indexfp = \
+                                        [row[5]
+                                         for der_fp_index in range(len(rows))
+                                         for row in rows
+                                         if row[4] == der_fp_index]
+                                else:
+                                    der_indexfp = \
+                                        sfp.der_fp_data[hash][(n_index,
+                                                               self_index,
+                                                               i)]
                                 len_of_der_indexfp = len(der_indexfp)
+
                                 # fingerprint derivatives are scaled
                                 scaled_der_indexfp = \
                                     [None] * len_of_der_indexfp
@@ -2727,7 +2956,7 @@ def send_data_to_fortran(sfp, elements, train_forces,
 ##############################################################################
 
 
-def ravel_fingerprints_of_images(hashs, images, sfp):
+def ravel_fingerprints_of_images(hashs, images, sfp, save_memory,):
     """
     Reshape fingerprints of all images into a matrix.
 
@@ -2737,11 +2966,25 @@ def ravel_fingerprints_of_images(hashs, images, sfp):
     :type images: dict
     :param sfp: SaveFingerprints object.
     :type sfp: object
+    :param save_memory: If True, memory efficient mode will be used.
+    :type save_memory: bool
     """
-
-    raveled_fingerprints = [sfp.fp_data[hash][index]
-                            for hash in hashs
-                            for index in range(len(images[hash]))]
+    if save_memory:
+        raveled_fingerprints = []
+        for hash in hashs:
+            for index in range(len(images[hash])):
+                sfp.fcursor.execute('''SELECT * FROM fingerprints WHERE
+                image=? AND atom=?''', (hash, index))
+                rows = sfp.fcursor.fetchall()
+                indexfp = [row[3]
+                           for _ in range(len(rows))
+                           for row in rows
+                           if row[2] == _]
+                raveled_fingerprints.append(indexfp)
+    else:
+        raveled_fingerprints = [sfp.fp_data[hash][index]
+                                for hash in hashs
+                                for index in range(len(images[hash]))]
 
     del hashs, images
 
@@ -2750,8 +2993,8 @@ def ravel_fingerprints_of_images(hashs, images, sfp):
 ###############################################################################
 
 
-def ravel_neighborlists_and_der_fingerprints_of_images(hashs,
-                                                       images, sfp, snl):
+def ravel_neighborlists_and_der_fingerprints_of_images(hashs, images, sfp,
+                                                       snl, save_memory,):
     """
     Reshape neighborlists and derivatives of fingerprints of all images into a
     matrix.
@@ -2764,10 +3007,14 @@ def ravel_neighborlists_and_der_fingerprints_of_images(hashs,
     :type sfp: object
     :param snl: SaveNeighborLists object.
     :type snl: object
+    :param save_memory: If True, memory efficient mode will be used.
+    :type save_memory: bool
     """
     # Only neighboring atoms of type II (within the main cell) needs to be sent
     # to fortran for force training
     list_of_no_of_neighbors = []
+    raveled_neighborlists = []
+    raveled_der_fingerprints = []
     no_of_images = len(hashs)
     _ = 0
     while _ < no_of_images:
@@ -2776,38 +3023,53 @@ def ravel_neighborlists_and_der_fingerprints_of_images(hashs,
         no_of_atoms = len(atoms)
         self_index = 0
         while self_index < no_of_atoms:
-            n_self_offsets = snl.nl_data[hash][self_index][1]
+            if save_memory:
+                snl.ncursor.execute('''SELECT * FROM neighborlists WHERE
+                image=? AND atom=?''', (hash, self_index,))
+                rows = snl.ncursor.fetchall()
+                n_self_indices = [row[3]
+                                  for __ in range(len(rows))
+                                  for row in rows if row[2] == __]
+                n_self_offsets = [[row[4], row[5], row[6]]
+                                  for __ in range(len(rows))
+                                  for row in rows if row[2] == __]
+            else:
+                n_self_indices = snl.nl_data[hash][self_index][0]
+                n_self_offsets = snl.nl_data[hash][self_index][1]
             len_of_n_self_offsets = len(n_self_offsets)
+
             count = 0
             n_count = 0
             while n_count < len_of_n_self_offsets:
+                n_index = n_self_indices[n_count]
                 n_offset = n_self_offsets[n_count]
                 if n_offset[0] == 0 and n_offset[1] == 0 and n_offset[2] == 0:
+                    raveled_neighborlists.append(n_index)
+                    for i in range(3):
+                        if save_memory:
+                            sfp.fdcursor.execute('''SELECT * FROM
+                            fingerprint_derivatives WHERE image=? AND atom=?
+                            AND neighbor_atom=? AND direction=?''',
+                                                 (hash,
+                                                  self_index,
+                                                  n_index, i))
+                            rows = sfp.fdcursor.fetchall()
+                            der_indexfp = [row[5]
+                                           for __ in range(len(rows))
+                                           for row in rows
+                                           if row[4] == __]
+                        else:
+                            der_indexfp = sfp.der_fp_data[hash][(n_index,
+                                                                 self_index,
+                                                                 i)]
+                        raveled_der_fingerprints.append(der_indexfp)
                     count += 1
                 del n_offset
                 n_count += 1
             list_of_no_of_neighbors.append(count)
             self_index += 1
-        del hash, self_index
+        del hash
         _ += 1
-
-    raveled_neighborlists = [n_index for hash in hashs
-                             for self_index in range(len(images[hash]))
-                             for n_index, n_offset in
-                             zip(snl.nl_data[hash][self_index][0],
-                                 snl.nl_data[hash][self_index][1])
-                             if (n_offset[0] == 0 and n_offset[1] == 0 and
-                                 n_offset[2] == 0)]
-
-    raveled_der_fingerprints = \
-        [sfp.der_fp_data[hash][(n_index, self_index, i)]
-         for hash in hashs
-         for self_index in range(len(images[hash]))
-         for n_index, n_offset in
-         zip(snl.nl_data[hash][self_index][0],
-             snl.nl_data[hash][self_index][1])
-         if (n_offset[0] == 0 and n_offset[1] == 0 and
-             n_offset[2] == 0) for i in range(3)]
 
     del hashs, images
 

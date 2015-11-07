@@ -75,7 +75,7 @@ SumSquareErrorForces = 0.
 for _ in square_error_forces:
     SumSquareErrorForces += _
 
-energy_per_atom_rmse = np.sqrt(SumSquareErrorEnergy / 5)
+energy_rmse = np.sqrt(SumSquareErrorEnergy / 5)
 force_rmse = np.sqrt(SumSquareErrorForces / 5)
 
 ###############################################################################
@@ -117,32 +117,37 @@ def test():
 
     for fortran in [False, True]:
         for data_format in ['db', 'json']:
-            for cores in range(1, 7):
+            for save_memory in [True, False]:
+                for cores in range(1, 7):
 
-                label = 'CuOPdnone/%s-%s-%i' % (fortran, data_format, cores)
+                    label = 'CuOPdnone/%s-%s-%s-%i' % (fortran, data_format,
+                                                       save_memory, cores)
 
-                calc = Amp(descriptor=None,
-                           regression=NeuralNetwork(hiddenlayers=(2, 1),
-                                                    activation='tanh',
-                                                    weights=weights,
-                                                    scalings=scalings,),
-                           fortran=fortran,
-                           label=label,)
+                    calc = Amp(descriptor=None,
+                               regression=NeuralNetwork(
+                                   hiddenlayers=(2, 1),
+                                   activation='tanh',
+                                   weights=weights,
+                                   scalings=scalings,),
+                               fortran=fortran,
+                               label=label,)
 
-                calc.train(images=images, energy_goal=10.**10.,
-                           force_goal=10.**10., force_coefficient=0.04,
-                           cores=cores, data_format=data_format)
+                    calc.train(images=images, energy_goal=10.**10.,
+                               force_goal=10.**10., force_coefficient=0.04,
+                               cores=cores, data_format=data_format,
+                               save_memory=save_memory)
 
-                # Check for consistency between the two models
-                assert (abs(calc.cost_function - cost_function) <
-                        10.**(-5.)), \
-                    'The calculated value of cost function is wrong!'
-                assert (abs(calc.energy_per_atom_rmse - energy_per_atom_rmse) <
-                        10.**(-5.)), \
-                    'The calculated value of energy per atom RMSE is wrong!'
-                assert (abs(calc.force_rmse - force_rmse) <
-                        10 ** (-5)), \
-                    'The calculated value of force RMSE is wrong!'
+                    # Check for consistency between the two models
+                    assert (abs(calc.cost_function - cost_function) <
+                            10.**(-5.)), \
+                        'The calculated value of cost function is wrong!'
+                    assert (abs(calc.energy_per_atom_rmse - energy_rmse) <
+                            10.**(-5.)), \
+                        'The calculated value of energy per atom RMSE is \
+                        wrong!'
+                    assert (abs(calc.force_rmse - force_rmse) <
+                            10 ** (-5)), \
+                        'The calculated value of force RMSE is wrong!'
 
 ###############################################################################
 
