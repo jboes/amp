@@ -1,20 +1,9 @@
-""" This package contains different machine-learning calculators.
-
-Developed by Andrew Peterson and Alireza Khorshidi (July 2015)
-School of Engineering, Brown University, Providence, RI, USA, 02912
-Andrew_Peterson@brown.edu
-Alireza_Khorshidi@brown.edu
-
-See the accompanying license file for details.
-"""
-###############################################################################
-
+import numpy as np
 from ase.calculators.calculator import Calculator
 from ase.data import atomic_numbers
 from ase.parallel import paropen
 import os
 from ase import io as aseio
-import numpy as np
 import tempfile
 import warnings
 from datetime import datetime
@@ -27,7 +16,7 @@ from utilities import *
 from descriptor import *
 from regression import *
 try:
-    from . import fmodules  # version 3 of fmodules
+    from amp import fmodules  # version 3 of fmodules
     fmodules_version = 3
 except ImportError:
     fmodules = None

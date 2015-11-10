@@ -1,11 +1,7 @@
-#!/usr/bin/env python
-"""
-Script that contains neural network regression method.
-"""
 import numpy as np
 from collections import OrderedDict
 try:
-    from .. import fmodules
+    from amp import fmodules
 except ImportError:
     fmodules = None
 

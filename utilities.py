@@ -1,8 +1,4 @@
 #!/usr/bin/env python
-"""This module contains utilities for use with various aspects of the
-Amp calculators."""
-
-###############################################################################
 
 import numpy as np
 import hashlib

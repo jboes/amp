@@ -1,22 +1,8 @@
-"""
-Tools for analysis of output. Currently only contains a tool to make a
-plot of convergence.
-
-This can be imported or run directly as a module as
-
-    python -m amp.analysis <file-to-analyze>
-
-"""
-
-###############################################################################
-
 import numpy as np
 import os
 from ase import io
 from ase.parallel import paropen
 import json
-from . import Amp
-from .utilities import hash_image
 from matplotlib import rcParams
 from matplotlib import pyplot
 from matplotlib.backends.backend_pdf import PdfPages
@@ -313,6 +299,9 @@ def plot_parity(load,
     if plot_forces is not None:
         forcescript = os.path.join('force-' + base_filename + '.json')
 
+    from amp import Amp
+    from amp.utilities import hash_image
+
     calc = Amp(load=load)
 
     if isinstance(images, str):
@@ -537,6 +526,9 @@ def plot_error(load,
 
     if plot_forces is not None:
         forcescript = os.path.join('force-' + base_filename + '.json')
+
+    from amp import Amp
+    from amp.utilities import hash_image
 
     calc = Amp(load=load)
 

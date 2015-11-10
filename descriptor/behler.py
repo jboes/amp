@@ -1,12 +1,8 @@
-#!/usr/bin/env python
-"""
-Script that contains Behler-Parrinello local environment descriptor.
-"""
 import numpy as np
-from ..utilities import FingerprintsError
 from ase.data import atomic_numbers
+from amp.utilities import FingerprintsError
 try:
-    from .. import fmodules
+    from amp import fmodules
 except ImportError:
     fmodules = None
 
