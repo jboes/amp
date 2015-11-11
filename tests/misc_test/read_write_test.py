@@ -42,47 +42,40 @@ def test():
     for image in images:
         ff.write(image)
 
-    for data_format in ['db', 'json']:
+    for data_format in ['json']:
 
         calc = Amp(label='calc', regression=NeuralNetwork(hiddenlayers=(5, 5)))
-        calc.train(images, global_search=None, extend_variables=False,
-                   data_format=data_format)
+        calc.train(images, data_format=data_format)
 
         # Test that we cannot overwrite. (Strange code here
         # because we *want* it to raise an exception...)
         try:
-            calc.train(images, global_search=None, extend_variables=False,
-                       data_format=data_format)
+            calc.train(images, data_format=data_format)
         except IOError:
             pass
         else:
             raise RuntimeError('Code allowed to overwrite!')
 
         # Test that we can manually overwrite.
-        calc.train(images, overwrite=True, global_search=None,
-                   extend_variables=False, data_format=data_format)
+        calc.train(images, overwrite=True, data_format=data_format)
 
         # New directory calculator.
         calc = Amp(label='testdir/calc',
                    regression=NeuralNetwork(hiddenlayers=(5, 5)))
-        calc.train(images, global_search=None, extend_variables=False,
-                   data_format=data_format)
+        calc.train(images, data_format=data_format)
 
         # Open existing, save under new name.
         calc = Amp(load='calc',
                         label='calc2')
-        calc.train(images, global_search=None, extend_variables=False,
-                   data_format=data_format)
+        calc.train(images, data_format=data_format)
 
         # Change label and re-train
         calc.set_label('calc_new/calc')
-        calc.train(images, global_search=None, extend_variables=False,
-                   data_format=data_format)
+        calc.train(images, data_format=data_format)
 
         # Open existing without specifying new name.
         calc = Amp(load='calc')
-        calc.train(images, global_search=None, extend_variables=False,
-                   data_format=data_format)
+        calc.train(images, data_format=data_format)
 
         os.chdir(pwd)
 
