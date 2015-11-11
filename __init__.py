@@ -688,7 +688,7 @@ class Amp(Calculator):
                                              steps=2000),
             perturb_variables=None,
             extend_variables=True,
-            save_memory=True,):
+            save_memory=False,):
         """
         Fits a variable set to the data, by default using the "fmin_bfgs"
         optimizer. The optimizer takes as input a cost function to reduce and
@@ -831,6 +831,11 @@ class Amp(Calculator):
 
         if param.descriptor is not None:  # fingerprinting scheme
             param = self.fp.log(log, param, self.elements)
+
+        if param.regression._variables is None:
+            variables_exist = False
+        else:
+            variables_exist = True
         param = self.reg.log(log, param, self.elements, images)
 
         # "MultiProcess" object is initialized
@@ -905,8 +910,7 @@ class Amp(Calculator):
 
         gc.collect()
 
-        if (param.regression.global_search is True) and \
-                (global_search is not None):
+        if (variables_exist is False) and (global_search is not None):
             log('\n' + 'Starting global search...')
             gs = global_search
             gs.initialize(param.regression._variables, log, costfxn)
