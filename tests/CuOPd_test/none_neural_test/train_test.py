@@ -13,6 +13,7 @@ from ase import Atoms, Atom
 from ase.calculators.emt import EMT
 from amp import Amp
 from amp.regression import NeuralNetwork
+from amp import SimulatedAnnealing
 
 ###############################################################################
 # Making the list of images
@@ -115,39 +116,52 @@ def test():
     # Testing pure-python and fortran versions of behler-neural on different
     # number of processes
 
-    for fortran in [False, True]:
-        for data_format in ['db', 'json']:
-            for save_memory in [True, False]:
-                for cores in range(1, 7):
+    for global_search in [None, 'SA']:
+        for fortran in [False, True]:
+            for extend_variables in [False, True]:
+                for data_format in ['db', 'json']:
+                    for save_memory in [True, False]:
+                        for cores in range(1, 7):
 
-                    label = 'CuOPdnone/%s-%s-%s-%i' % (fortran, data_format,
-                                                       save_memory, cores)
+                            string = 'CuOPdnone/%s-%s-%s-%s-%s-%i'
+                            label = string % (global_search, fortran,
+                                              extend_variables, data_format,
+                                              save_memory, cores)
 
-                    calc = Amp(descriptor=None,
-                               regression=NeuralNetwork(
-                                   hiddenlayers=(2, 1),
-                                   activation='tanh',
-                                   weights=weights,
-                                   scalings=scalings,),
-                               fortran=fortran,
-                               label=label,)
+                            if global_search is 'SA':
+                                global_search = \
+                                    SimulatedAnnealing(temperature=10, steps=5)
 
-                    calc.train(images=images, energy_goal=10.**10.,
-                               force_goal=10.**10., force_coefficient=0.04,
-                               cores=cores, data_format=data_format,
-                               save_memory=save_memory)
+                            calc = Amp(descriptor=None,
+                                       regression=NeuralNetwork(
+                                           hiddenlayers=(2, 1),
+                                           activation='tanh',
+                                           weights=weights,
+                                           scalings=scalings,),
+                                       fortran=fortran,
+                                       label=label,)
 
-                    # Check for consistency between the two models
-                    assert (abs(calc.cost_function - cost_function) <
-                            10.**(-5.)), \
-                        'The calculated value of cost function is wrong!'
-                    assert (abs(calc.energy_per_atom_rmse - energy_rmse) <
-                            10.**(-5.)), \
-                        'The calculated value of energy per atom RMSE is \
-                        wrong!'
-                    assert (abs(calc.force_rmse - force_rmse) <
-                            10 ** (-5)), \
-                        'The calculated value of force RMSE is wrong!'
+                            calc.train(images=images, energy_goal=10.**10.,
+                                       force_goal=10.**10.,
+                                       force_coefficient=0.04,
+                                       cores=cores, data_format=data_format,
+                                       save_memory=save_memory,
+                                       global_search=global_search,
+                                       extend_variables=extend_variables)
+
+                            # Check for consistency between the two models
+                            assert (abs(calc.cost_function - cost_function) <
+                                    10.**(-5.)), \
+                                'The calculated value of cost function is \
+                                wrong!'
+                            assert (abs(calc.energy_per_atom_rmse -
+                                        energy_rmse) <
+                                    10.**(-5.)), \
+                                'The calculated value of energy per atom RMSE \
+                            is wrong!'
+                            assert (abs(calc.force_rmse - force_rmse) <
+                                    10 ** (-5)), \
+                                'The calculated value of force RMSE is wrong!'
 
 ###############################################################################
 

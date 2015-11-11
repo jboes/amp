@@ -16,6 +16,7 @@ from ase.calculators.emt import EMT
 from amp import Amp
 from amp.descriptor import Behler
 from amp.regression import NeuralNetwork
+from amp import SimulatedAnnealing
 
 ###############################################################################
 # The test function for non-periodic systems
@@ -155,46 +156,60 @@ def non_periodic_0th_bfgs_step_test():
     # Testing pure-python and fortran versions of behler-neural on different
     # number of processes
 
-    for fortran in [False, True]:
-        for data_format in ['db', 'json']:
-            for save_memory in [True, False]:
-                for cores in range(1, 7):
+    for global_search in [None, 'SA']:
+        for fortran in [False, True]:
+            for extend_variables in [False, True]:
+                for data_format in ['db', 'json']:
+                    for save_memory in [True, False]:
+                        for cores in range(1, 7):
 
-                    label = 'CuOPdbp/0/%s-%s-%s-%i' % (fortran, data_format,
-                                                     save_memory, cores)
+                            string = 'CuOPdbp/0/%s-%s-%s-%s-%s-%i'
+                            label = string % (global_search, fortran,
+                                              extend_variables, data_format,
+                                              save_memory, cores)
 
-                    calc = Amp(descriptor=Behler(cutoff=6.5, Gs=Gs,),
-                               regression=NeuralNetwork(
-                               hiddenlayers=hiddenlayers,
-                               weights=weights,
-                               scalings=scalings,
-                               activation='sigmoid',),
-                               fortran=fortran,
-                               label=label)
+                            if global_search is 'SA':
+                                global_search = \
+                                    SimulatedAnnealing(temperature=10, steps=5)
 
-                    calc.train(images=images, energy_goal=10.**10.,
-                               force_goal=10.**10., force_coefficient=0.04,
-                               cores=cores, data_format=data_format,
-                               save_memory=save_memory)
+                            calc = Amp(descriptor=Behler(cutoff=6.5, Gs=Gs,),
+                                       regression=NeuralNetwork(
+                                       hiddenlayers=hiddenlayers,
+                                       weights=weights,
+                                       scalings=scalings,
+                                       activation='sigmoid',),
+                                       fortran=fortran,
+                                       label=label)
 
-                    assert (abs(calc.cost_function - 7144.3029236323) <
-                            10.**(-5.)), \
-                        'The calculated value of cost function is wrong!'
+                            calc.train(images=images, energy_goal=10.**10.,
+                                       force_goal=10.**10.,
+                                       force_coefficient=0.04,
+                                       cores=cores, data_format=data_format,
+                                       save_memory=save_memory,
+                                       global_search=global_search,
+                                       extend_variables=extend_variables)
 
-                    assert (abs(calc.energy_per_atom_rmse - 24.3147240647693) <
-                            10.**(-7.)), \
-                        'The calculated value of energy per atom RMSE is \
-                            wrong!'
+                            assert (abs(calc.cost_function - 7144.3029236323) <
+                                    10.**(-5.)), \
+                                'The calculated value of cost function is \
+                                wrong!'
 
-                    assert (abs(calc.force_rmse - 144.7113314827651) <
-                            10 ** (-7)), \
-                        'The calculated value of force RMSE is wrong!'
+                            assert (abs(calc.energy_per_atom_rmse -
+                                        24.3147240647693) <
+                                    10.**(-7.)), \
+                                'The calculated value of energy per atom RMSE \
+                                is wrong!'
 
-                    for _ in range(len(correct_der_cost_fxn)):
-                        assert(abs(calc.der_variables_cost_function[_] -
-                                   correct_der_cost_fxn[_] < 10 ** (-10))), \
-                            'The calculated value of cost function derivative \
-                            is wrong!'
+                            assert (abs(calc.force_rmse - 144.7113314827651) <
+                                    10 ** (-7)), \
+                                'The calculated value of force RMSE is wrong!'
+
+                            for _ in range(len(correct_der_cost_fxn)):
+                                assert(abs(calc.der_variables_cost_function[
+                                    _] - correct_der_cost_fxn[_] <
+                                    10 ** (-10))), \
+                                    'The calculated value of cost function \
+                                derivative is wrong!'
 
 ###############################################################################
 ###############################################################################
@@ -341,46 +356,60 @@ def non_periodic_9th_bfgs_step_test():
     # Testing pure-python and fortran versions of behler-neural on different
     # number of processes
 
-    for fortran in [False, True]:
-        for data_format in ['db', 'json']:
-            for save_memory in [True, False]:
-                for cores in range(1, 7):
+    for global_search in [None, 'SA']:
+        for fortran in [False, True]:
+            for extend_variables in [False, True]:
+                for data_format in ['db', 'json']:
+                    for save_memory in [True, False]:
+                        for cores in range(1, 7):
 
-                    label = 'CuOPdbp/1/%s-%s-%s-%i' % (fortran, data_format,
-                                                     save_memory, cores)
+                            string = 'CuOPdbp/1/%s-%s-%s-%s-%s-%i'
+                            label = string % (global_search, fortran,
+                                              extend_variables, data_format,
+                                              save_memory, cores)
 
-                    calc = Amp(descriptor=Behler(cutoff=6.5, Gs=Gs,),
-                               regression=NeuralNetwork(
-                               hiddenlayers=hiddenlayers,
-                               weights=weights,
-                               scalings=scalings,
-                               activation='sigmoid',),
-                               fortran=fortran,
-                               label=label)
+                            if global_search is 'SA':
+                                global_search = \
+                                    SimulatedAnnealing(temperature=10, steps=5)
 
-                    calc.train(images=images, energy_goal=14.115,
-                               force_goal=144.007, force_coefficient=0.04,
-                               cores=cores, data_format=data_format,
-                               save_memory=save_memory)
+                            calc = Amp(descriptor=Behler(cutoff=6.5, Gs=Gs,),
+                                       regression=NeuralNetwork(
+                                       hiddenlayers=hiddenlayers,
+                                       weights=weights,
+                                       scalings=scalings,
+                                       activation='sigmoid',),
+                                       fortran=fortran,
+                                       label=label)
 
-                    assert (abs(calc.cost_function - 5143.710215976742) <
-                            10.**(-6.)), \
-                        'The calculated value of cost function is wrong!'
+                            calc.train(images=images, energy_goal=14.115,
+                                       force_goal=144.007,
+                                       force_coefficient=0.04,
+                                       cores=cores, data_format=data_format,
+                                       save_memory=save_memory,
+                                       global_search=global_search,
+                                       extend_variables=extend_variables)
 
-                    assert (abs(calc.energy_per_atom_rmse -
-                                14.11476828359897) < 10.**(-7.)), \
-                        'The calculated value of energy per atom RMSE is \
-                            wrong!'
+                            assert (abs(calc.cost_function -
+                                        5143.710215976742) <
+                                    10.**(-6.)), \
+                                'The calculated value of cost function is \
+                                wrong!'
 
-                    assert (abs(calc.force_rmse - 144.00654147430743) <
-                            10 ** (-7.)), \
-                        'The calculated value of force RMSE is wrong!'
-
-                    for _ in range(len(correct_der_cost_fxn)):
-                        assert(abs(calc.der_variables_cost_function[_] -
-                                   correct_der_cost_fxn[_] < 10 ** (-5))), \
-                            'The calculated value of cost function derivative \
+                            assert (abs(calc.energy_per_atom_rmse -
+                                        14.11476828359897) < 10.**(-7.)), \
+                                'The calculated value of energy per atom RMSE \
                             is wrong!'
+
+                            assert (abs(calc.force_rmse - 144.00654147430743) <
+                                    10 ** (-7.)), \
+                                'The calculated value of force RMSE is wrong!'
+
+                            for _ in range(len(correct_der_cost_fxn)):
+                                assert(abs(calc.der_variables_cost_function[
+                                    _] - correct_der_cost_fxn[_] <
+                                    10 ** (-5))), \
+                                    'The calculated value of cost function \
+                                derivative is wrong!'
 
 ###############################################################################
 ###############################################################################
@@ -494,46 +523,60 @@ def periodic_0th_bfgs_step_test():
     # Testing pure-python and fortran versions of behler-neural on different
     # number of processes
 
-    for fortran in [False, True]:
-        for data_format in ['db', 'json']:
-            for save_memory in [True, False]:
-                for cores in range(1, 5):
+    for global_search in [None, 'SA']:
+        for fortran in [False, True]:
+            for extend_variables in [False, True]:
+                for data_format in ['db', 'json']:
+                    for save_memory in [True, False]:
+                        for cores in range(1, 5):
 
-                    label = 'CuOPdbp/2/%s-%s-%s-%i' % (fortran, data_format,
-                                                       save_memory, cores)
+                            string = 'CuOPdbp/2/%s-%s-%s-%s-%s-%i'
+                            label = string % (global_search, fortran,
+                                              extend_variables, data_format,
+                                              save_memory, cores)
 
-                    calc = Amp(descriptor=Behler(cutoff=4., Gs=Gs,),
-                               regression=NeuralNetwork(
-                               hiddenlayers=hiddenlayers,
-                               weights=weights,
-                               scalings=scalings,
-                               activation='tanh',),
-                               fortran=fortran,
-                               label=label)
+                            if global_search is 'SA':
+                                global_search = \
+                                    SimulatedAnnealing(temperature=10, steps=5)
 
-                    calc.train(images=images, energy_goal=10.**10.,
-                               force_goal=10.**10, force_coefficient=0.04,
-                               cores=cores, data_format=data_format,
-                               save_memory=save_memory)
+                            calc = Amp(descriptor=Behler(cutoff=4., Gs=Gs,),
+                                       regression=NeuralNetwork(
+                                       hiddenlayers=hiddenlayers,
+                                       weights=weights,
+                                       scalings=scalings,
+                                       activation='tanh',),
+                                       fortran=fortran,
+                                       label=label)
 
-                    assert (abs(calc.cost_function - 8005.262570965399) <
-                            10.**(-7.)), \
-                        'The calculated value of cost function is wrong!'
+                            calc.train(images=images, energy_goal=10.**10.,
+                                       force_goal=10.**10,
+                                       force_coefficient=0.04,
+                                       cores=cores, data_format=data_format,
+                                       save_memory=save_memory,
+                                       global_search=global_search,
+                                       extend_variables=extend_variables)
 
-                    assert (abs(calc.energy_per_atom_rmse - 43.7357980979198) <
-                            10.**(-8.)), \
-                        'The calculated value of energy per atom RMSE is \
-                            wrong!'
+                            assert (abs(calc.cost_function -
+                                        8005.262570965399) <
+                                    10.**(-7.)), \
+                                'The calculated value of cost function is \
+                                wrong!'
 
-                    assert (abs(calc.force_rmse - 137.44097112273843) <
-                            10 ** (-8.)), \
-                        'The calculated value of force RMSE is wrong!'
-
-                    for _ in range(len(correct_der_cost_fxn)):
-                        assert(abs(calc.der_variables_cost_function[_] -
-                                   correct_der_cost_fxn[_] < 10 ** (-8))), \
-                            'The calculated value of cost function derivative \
+                            assert (abs(calc.energy_per_atom_rmse -
+                                        43.7357980979198) < 10.**(-8.)), \
+                                'The calculated value of energy per atom RMSE \
                             is wrong!'
+
+                            assert (abs(calc.force_rmse - 137.44097112273843) <
+                                    10 ** (-8.)), \
+                                'The calculated value of force RMSE is wrong!'
+
+                            for _ in range(len(correct_der_cost_fxn)):
+                                assert(abs(calc.der_variables_cost_function[
+                                    _] -
+                                    correct_der_cost_fxn[_] < 10 ** (-8))), \
+                                    'The calculated value of cost function \
+                                   derivative is wrong!'
 
 ###############################################################################
 ###############################################################################
@@ -643,46 +686,61 @@ def periodic_2nd_bfgs_step_test():
     # Testing pure-python and fortran versions of behler-neural on different
     # number of processes
 
-    for fortran in [False, True]:
-        for data_format in ['db', 'json']:
-            for save_memory in [True, False]:
-                for cores in range(1, 5):
+    for global_search in [None, 'SA']:
+        for fortran in [False, True]:
+            for extend_variables in [False, True]:
+                for data_format in ['db', 'json']:
+                    for save_memory in [True, False]:
+                        for cores in range(1, 5):
 
-                    label = 'CuOPdbp/3/%s-%s-%s-%i' % (fortran, data_format,
-                                                       save_memory, cores)
+                            string = 'CuOPdbp/3/%s-%s-%s-%s-%s-%i'
+                            label = string % (global_search, fortran,
+                                              extend_variables, data_format,
+                                              save_memory, cores)
 
-                    calc = Amp(descriptor=Behler(cutoff=4., Gs=Gs,),
-                               regression=NeuralNetwork(
-                               hiddenlayers=hiddenlayers,
-                               weights=weights,
-                               scalings=scalings,
-                               activation='tanh',),
-                               fortran=fortran,
-                               label=label)
+                            if global_search is 'SA':
+                                global_search = \
+                                    SimulatedAnnealing(temperature=10, steps=5)
 
-                    calc.train(images=images, energy_goal=5.14,
-                               force_goal=136.10, force_coefficient=0.04,
-                               cores=cores, data_format=data_format,
-                               save_memory=save_memory)
+                            calc = Amp(descriptor=Behler(cutoff=4., Gs=Gs,),
+                                       regression=NeuralNetwork(
+                                       hiddenlayers=hiddenlayers,
+                                       weights=weights,
+                                       scalings=scalings,
+                                       activation='tanh',),
+                                       fortran=fortran,
+                                       label=label)
 
-                    assert (abs(calc.cost_function - 2301.384892179139) <
-                            10.**(-6.)), \
-                        'The calculated value of cost function is wrong!'
+                            calc.train(images=images, energy_goal=5.14,
+                                       force_goal=136.10,
+                                       force_coefficient=0.04,
+                                       cores=cores, data_format=data_format,
+                                       save_memory=save_memory,
+                                       global_search=global_search,
+                                       extend_variables=extend_variables)
 
-                    assert (abs(calc.energy_per_atom_rmse - 5.13539878419966) <
-                            10.**(-8.)), \
-                        'The calculated value of energy per atom RMSE is \
-                            wrong!'
+                            assert (abs(calc.cost_function -
+                                        2301.384892179139) <
+                                    10.**(-6.)), \
+                                'The calculated value of cost function is \
+                                wrong!'
 
-                    assert (abs(calc.force_rmse - 136.08416299484367) <
-                            10 ** (-8.)), \
-                        'The calculated value of force RMSE is wrong!'
+                            assert (abs(calc.energy_per_atom_rmse -
+                                        5.13539878419966) <
+                                    10.**(-8.)), \
+                                'The calculated value of energy per atom RMSE \
+                                is wrong!'
 
-                    for _ in range(len(correct_der_cost_fxn)):
-                        assert(abs(calc.der_variables_cost_function[_] -
-                                   correct_der_cost_fxn[_] < 10 ** (-7))), \
-                            'The calculated value of cost function derivative \
-                            is wrong!'
+                            assert (abs(calc.force_rmse - 136.08416299484367) <
+                                    10 ** (-8.)), \
+                                'The calculated value of force RMSE is wrong!'
+
+                            for _ in range(len(correct_der_cost_fxn)):
+                                assert(abs(calc.der_variables_cost_function[
+                                    _] - correct_der_cost_fxn[_] <
+                                    10 ** (-7))), \
+                                    'The calculated value of cost function \
+                            derivative is wrong!'
 
 ###############################################################################
 ###############################################################################
