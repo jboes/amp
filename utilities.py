@@ -596,6 +596,7 @@ class IO:
                         AND atom=?''', (hash, index,))
                         rows = c.fetchall()
                         nl_indices = set([row[2] for row in rows])
+                        nl_indices = sorted(nl_indices)
                         nl_offsets = [[row[3], row[4], row[5]]
                                       for nl_index in nl_indices
                                       for row in rows if row[2] == nl_index]
@@ -690,6 +691,7 @@ class IO:
                         WHERE image=? AND atom=?''', (hash, self_index,))
                         rows2 = c.fetchall()
                         nl_indices = set([row[2] for row in rows2])
+                        nl_indices = sorted(nl_indices)
                         for n_index in nl_indices:
                             i = 0
                             while i < 3:

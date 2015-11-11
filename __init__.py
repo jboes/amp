@@ -959,6 +959,8 @@ class Amp(Calculator):
             except ConvergenceOccurred:
                 converged = True
 
+            param = costfxn.param
+
             if extend_variables is False:
                 break
             else:
