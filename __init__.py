@@ -832,7 +832,7 @@ class Amp(Calculator):
         if param.descriptor is not None:  # fingerprinting scheme
             param = self.fp.log(log, param, self.elements)
 
-        if param.regression._variables is None:
+        if not (param.regression._weights or param.regression._variables):
             variables_exist = False
         else:
             variables_exist = True

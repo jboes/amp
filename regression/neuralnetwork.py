@@ -393,7 +393,7 @@ class NeuralNetwork:
                 _ = 0
                 while _ < len_of_hiddenlayers:
                     self.hiddenlayers[element][_] += 1
-                _ += 1
+                    _ += 1
             self.ravel = _RavelVariables(hiddenlayers=self.hiddenlayers,
                                          elements=self.elements,
                                          Gs=param.descriptor.Gs)
