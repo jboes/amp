@@ -45,37 +45,44 @@ def test():
     for data_format in ['json']:
 
         calc = Amp(label='calc', regression=NeuralNetwork(hiddenlayers=(5, 5)))
-        calc.train(images, data_format=data_format)
+        calc.train(images, data_format=data_format,
+                   energy_goal=0.01, force_goal=10.,)
 
         # Test that we cannot overwrite. (Strange code here
         # because we *want* it to raise an exception...)
         try:
-            calc.train(images, data_format=data_format)
+            calc.train(images, data_format=data_format,
+                       energy_goal=0.01, force_goal=10.,)
         except IOError:
             pass
         else:
             raise RuntimeError('Code allowed to overwrite!')
 
         # Test that we can manually overwrite.
-        calc.train(images, overwrite=True, data_format=data_format)
+        calc.train(images, overwrite=True, data_format=data_format,
+                   energy_goal=0.01, force_goal=10.,)
 
         # New directory calculator.
         calc = Amp(label='testdir/calc',
                    regression=NeuralNetwork(hiddenlayers=(5, 5)))
-        calc.train(images, data_format=data_format)
+        calc.train(images, data_format=data_format,
+                   energy_goal=0.01, force_goal=10.,)
 
         # Open existing, save under new name.
         calc = Amp(load='calc',
                         label='calc2')
-        calc.train(images, data_format=data_format)
+        calc.train(images, data_format=data_format,
+                   energy_goal=0.01, force_goal=10.,)
 
         # Change label and re-train
         calc.set_label('calc_new/calc')
-        calc.train(images, data_format=data_format)
+        calc.train(images, data_format=data_format,
+                   energy_goal=0.01, force_goal=10.,)
 
         # Open existing without specifying new name.
         calc = Amp(load='calc')
-        calc.train(images, data_format=data_format)
+        calc.train(images, data_format=data_format,
+                   energy_goal=0.01, force_goal=10.,)
 
         os.chdir(pwd)
 
