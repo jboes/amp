@@ -59,6 +59,7 @@ def test():
                                        descriptor=descriptor,
                                        regression=regression,
                                        fortran=fortran,)
+                            # Should start with new variables
                             calc.train(images,
                                        energy_goal=0.01, force_goal=10.,
                                        global_search=global_search,
@@ -85,6 +86,7 @@ def test():
                                     'Code allowed to overwrite!')
 
                             # Test that we can manually overwrite.
+                            # Should start with existing variables
                             calc.train(images,
                                        energy_goal=0.01, force_goal=10.,
                                        global_search=global_search,
@@ -99,6 +101,7 @@ def test():
                                        descriptor=descriptor,
                                        regression=regression,
                                        fortran=fortran,)
+                            # Should start with new variables
                             calc.train(images,
                                        energy_goal=0.01, force_goal=10.,
                                        global_search=global_search,
@@ -113,6 +116,7 @@ def test():
                                        descriptor=descriptor,
                                        regression=regression,
                                        fortran=fortran,)
+                            # Should start with existing variables
                             calc.train(images,
                                        energy_goal=0.01, force_goal=10.,
                                        global_search=global_search,
@@ -123,6 +127,7 @@ def test():
 
                             # Change label and re-train
                             calc.set_label('calc_new/calc')
+                            # Should start with existing variables
                             calc.train(images,
                                        energy_goal=0.01, force_goal=10.,
                                        global_search=global_search,
@@ -136,6 +141,7 @@ def test():
                                        descriptor=descriptor,
                                        regression=regression,
                                        fortran=fortran,)
+                            # Should start with existing variables
                             calc.train(images,
                                        energy_goal=0.01, force_goal=10.,
                                        global_search=global_search,
