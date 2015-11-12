@@ -1,4 +1,9 @@
 #!/usr/bin/env python
+# SBATCH --time=01:29:00
+# SBATCH --nodes=1
+# SBATCH -J train_test
+# SBATCH --ntasks-per-node=1
+# SBATCH --partition=batch
 
 import os
 
@@ -6,8 +11,11 @@ from ase.structure import molecule
 from ase.calculators.emt import EMT
 from ase import Atoms
 from amp import Amp
+from amp import SimulatedAnnealing
 from amp.regression import NeuralNetwork
+from amp.descriptor import Behler
 from ase.io import PickleTrajectory
+import shutil
 
 ###############################################################################
 
@@ -32,59 +40,119 @@ def make_training_images():
 
 
 def test():
-    pwd = os.getcwd()
-    testdir = 'read_write_test'
-    os.mkdir(testdir)
-    os.chdir(testdir)
 
     images = make_training_images()
-    ff = PickleTrajectory('images.traj', 'w')
-    for image in images:
-        ff.write(image)
 
-    for data_format in ['json']:
+    for descriptor in [None, Behler()]:
+        for global_search in [None, SimulatedAnnealing(temperature=10,
+                                                       steps=5)]:
+            for data_format in ['json', 'db']:
+                for save_memory in [False, ]:
+                    for fortran in [False, True]:
+                        for cores in range(1, 4):
 
-        calc = Amp(label='calc', regression=NeuralNetwork(hiddenlayers=(5, 5)))
-        calc.train(images, data_format=data_format,
-                   energy_goal=0.01, force_goal=10.,)
+                            print (descriptor, global_search, data_format,
+                                   save_memory, fortran, cores)
 
-        # Test that we cannot overwrite. (Strange code here
-        # because we *want* it to raise an exception...)
-        try:
-            calc.train(images, data_format=data_format,
-                       energy_goal=0.01, force_goal=10.,)
-        except IOError:
-            pass
-        else:
-            raise RuntimeError('Code allowed to overwrite!')
+                            pwd = os.getcwd()
+                            testdir = 'read_write_test'
+                            os.mkdir(testdir)
+                            os.chdir(testdir)
 
-        # Test that we can manually overwrite.
-        calc.train(images, overwrite=True, data_format=data_format,
-                   energy_goal=0.01, force_goal=10.,)
+                            regression = NeuralNetwork(hiddenlayers=(5, 5,))
 
-        # New directory calculator.
-        calc = Amp(label='testdir/calc',
-                   regression=NeuralNetwork(hiddenlayers=(5, 5)))
-        calc.train(images, data_format=data_format,
-                   energy_goal=0.01, force_goal=10.,)
+                            calc = Amp(label='calc',
+                                       descriptor=descriptor,
+                                       regression=regression,
+                                       fortran=fortran,)
+                            calc.train(images,
+                                       energy_goal=0.01, force_goal=10.,
+                                       global_search=global_search,
+                                       extend_variables=True,
+                                       data_format=data_format,
+                                       save_memory=save_memory,
+                                       cores=cores,)
 
-        # Open existing, save under new name.
-        calc = Amp(load='calc',
-                        label='calc2')
-        calc.train(images, data_format=data_format,
-                   energy_goal=0.01, force_goal=10.,)
+                            # Test that we cannot overwrite. (Strange code
+                            # here because we *want* it to raise an
+                            # exception...)
+                            try:
+                                calc.train(images,
+                                           energy_goal=0.01, force_goal=10.,
+                                           global_search=global_search,
+                                           extend_variables=True,
+                                           data_format=data_format,
+                                           save_memory=save_memory,
+                                           cores=cores,)
+                            except IOError:
+                                pass
+                            else:
+                                raise RuntimeError(
+                                    'Code allowed to overwrite!')
 
-        # Change label and re-train
-        calc.set_label('calc_new/calc')
-        calc.train(images, data_format=data_format,
-                   energy_goal=0.01, force_goal=10.,)
+                            # Test that we can manually overwrite.
+                            calc.train(images,
+                                       energy_goal=0.01, force_goal=10.,
+                                       global_search=global_search,
+                                       extend_variables=True,
+                                       data_format=data_format,
+                                       save_memory=save_memory,
+                                       overwrite=True,
+                                       cores=cores,)
 
-        # Open existing without specifying new name.
-        calc = Amp(load='calc')
-        calc.train(images, data_format=data_format,
-                   energy_goal=0.01, force_goal=10.,)
+                            # New directory calculator.
+                            calc = Amp(label='testdir/calc',
+                                       descriptor=descriptor,
+                                       regression=regression,
+                                       fortran=fortran,)
+                            calc.train(images,
+                                       energy_goal=0.01, force_goal=10.,
+                                       global_search=global_search,
+                                       extend_variables=True,
+                                       data_format=data_format,
+                                       save_memory=save_memory,
+                                       cores=cores,)
 
-        os.chdir(pwd)
+                            # Open existing, save under new name.
+                            calc = Amp(load='calc',
+                                       label='calc2',
+                                       descriptor=descriptor,
+                                       regression=regression,
+                                       fortran=fortran,)
+                            calc.train(images,
+                                       energy_goal=0.01, force_goal=10.,
+                                       global_search=global_search,
+                                       extend_variables=True,
+                                       data_format=data_format,
+                                       save_memory=save_memory,
+                                       cores=cores,)
+
+                            # Change label and re-train
+                            calc.set_label('calc_new/calc')
+                            calc.train(images,
+                                       energy_goal=0.01, force_goal=10.,
+                                       global_search=global_search,
+                                       extend_variables=True,
+                                       data_format=data_format,
+                                       save_memory=save_memory,
+                                       cores=cores,)
+
+                            # Open existing without specifying new name.
+                            calc = Amp(load='calc',
+                                       descriptor=descriptor,
+                                       regression=regression,
+                                       fortran=fortran,)
+                            calc.train(images,
+                                       energy_goal=0.01, force_goal=10.,
+                                       global_search=global_search,
+                                       extend_variables=True,
+                                       data_format=data_format,
+                                       save_memory=save_memory,
+                                       cores=cores,)
+
+                            os.chdir(pwd)
+                            shutil.rmtree(testdir, ignore_errors=True)
+                            del calc, regression
 
 ###############################################################################
 
