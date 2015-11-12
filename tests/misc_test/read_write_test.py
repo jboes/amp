@@ -1,9 +1,4 @@
 #!/usr/bin/env python
-# SBATCH --time=01:29:00
-# SBATCH --nodes=1
-# SBATCH -J train_test
-# SBATCH --ntasks-per-node=1
-# SBATCH --partition=batch
 
 import os
 
@@ -14,7 +9,6 @@ from amp import Amp
 from amp import SimulatedAnnealing
 from amp.regression import NeuralNetwork
 from amp.descriptor import Behler
-from ase.io import PickleTrajectory
 import shutil
 
 ###############################################################################
@@ -47,7 +41,7 @@ def test():
         for global_search in [None, SimulatedAnnealing(temperature=10,
                                                        steps=5)]:
             for data_format in ['json', 'db']:
-                for save_memory in [False, ]:
+                for save_memory in [False,]:
                     for fortran in [False, True]:
                         for cores in range(1, 4):
 
