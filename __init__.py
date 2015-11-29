@@ -686,7 +686,7 @@ class Amp(Calculator):
             cores=None,
             optimizer=optimizer,
             overwrite=False,
-            data_format='db',
+            data_format='json',
             global_search=SimulatedAnnealing(temperature=70,
                                              steps=2000),
             perturb_variables=None,
