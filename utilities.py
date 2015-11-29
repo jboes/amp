@@ -6,7 +6,7 @@ import time
 import os
 import json
 import sqlite3
-from ase import io
+from ase import io as aseio
 from ase.parallel import paropen
 
 ###############################################################################
@@ -30,9 +30,9 @@ def randomize_images(images, fraction=0.8):
     if type(images) == str:
         extension = os.path.splitext(images)[1]
         if extension == '.traj':
-            images = io.Trajectory(images, 'r')
+            images = aseio.Trajectory(images, 'r')
         elif extension == '.db':
-            images = io.read(images)
+            images = aseio.read(images)
         file_opened = True
 
     trainingsize = int(fraction * len(images))

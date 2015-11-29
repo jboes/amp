@@ -9,12 +9,15 @@ import warnings
 from datetime import datetime
 import multiprocessing as mp
 import gc
+import sqlite3
 from collections import OrderedDict
 from scipy.optimize import fmin_bfgs as optimizer
 from ase.calculators.neighborlist import NeighborList
-from utilities import *
-from descriptor import *
-from regression import *
+from utilities import make_filename, load_parameters, ConvergenceOccurred, IO
+from utilities import TrainingConvergenceError, ExtrapolateError, hash_image
+from utilities import Logger, save_parameters
+from descriptor import Behler
+from regression import NeuralNetwork
 try:
     from amp import fmodules  # version 3 of fmodules
     fmodules_version = 3
