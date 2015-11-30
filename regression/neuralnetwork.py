@@ -811,7 +811,7 @@ class NeuralNetwork:
 
     ###########################################################################
 
-    def log(self, log, param, elements, images):
+    def log(self, log, param, elements, images, fingerprints_range=None):
         """
         Prints out in the log file and generates variables if do not already
         exist.
@@ -825,6 +825,14 @@ class NeuralNetwork:
         :type elements: list of str
         :param images: ASE atoms objects (the training set).
         :type images: dict
+        :param fingerprints_range: Range of fingerprints of each chemical
+                                    species. Should be fed as a dictionary of
+                                    chemical species and a list of minimum and
+                                    maximun, e.g:
+
+                                   >>> fingerprints_range={"Pd": [0.31, 0.59], "O":[0.56, 0.72]}
+
+        :type fingerprints_range: dict
 
         :returns: Object containing regression's properties.
         """
@@ -897,7 +905,8 @@ class NeuralNetwork:
                                                      self.activation,
                                                      None,
                                                      param.descriptor.Gs,
-                                                     self.elements,)
+                                                     self.elements,
+                                                     fingerprints_range,)
 
         else:
             log('Initial weights already present.')
@@ -990,7 +999,7 @@ class NeuralNetwork:
 
 
 def make_weight_matrices(hiddenlayers, activation, no_of_atoms=None, Gs=None,
-                         elements=None):
+                         elements=None, fingerprints_range=None):
     """
     Generates random weight arrays from variables.
 
@@ -1040,13 +1049,20 @@ def make_weight_matrices(hiddenlayers, activation, no_of_atoms=None, Gs=None,
     :param elements: List of atom symbols; used in the fingerprinting scheme
                      only.
     :type elements: list of str
+    :param fingerprints_range: Range of fingerprints of each chemical species.
+                               Should be fed as a dictionary of chemical
+                               species and a list of minimum and maximun, e.g:
+
+                               >>> fingerprints_range={"Pd": [0.31, 0.59], "O":[0.56, 0.72]}
+
+    :type fingerprints_range: dict
 
     :returns: weights
     """
     if activation == 'linear':
-        weight_range = 0.3
+        arg_range = 0.3
     else:
-        weight_range = 3.
+        arg_range = 3.
 
     weight = {}
     nn_structure = {}
@@ -1060,25 +1076,25 @@ def make_weight_matrices(hiddenlayers, activation, no_of_atoms=None, Gs=None,
                 [3 * no_of_atoms] +
                 [layer for layer in hiddenlayers] + [1])
         weight = {}
-        normalized_weight_range = weight_range / (3 * no_of_atoms)
+        normalized_arg_range = arg_range / (3 * no_of_atoms)
         weight[1] = np.random.random((3 * no_of_atoms + 1,
                                       nn_structure[1])) * \
-            normalized_weight_range - \
-            normalized_weight_range / 2.
+            normalized_arg_range - \
+            normalized_arg_range / 2.
         len_of_hiddenlayers = len(list(nn_structure)) - 3
         layer = 0
         while layer < len_of_hiddenlayers:
-            normalized_weight_range = weight_range / \
+            normalized_arg_range = arg_range / \
                 nn_structure[layer + 1]
             weight[layer + 2] = np.random.random(
                 (nn_structure[layer + 1] + 1,
                  nn_structure[layer + 2])) * \
-                normalized_weight_range - normalized_weight_range / 2.
+                normalized_arg_range - normalized_arg_range / 2.
             layer += 1
-        normalized_weight_range = weight_range / nn_structure[-2]
+        normalized_arg_range = arg_range / nn_structure[-2]
         weight[len(list(nn_structure)) - 1] = \
             np.random.random((nn_structure[-2] + 1, 1)) \
-            * normalized_weight_range - normalized_weight_range / 2.
+            * normalized_arg_range - normalized_arg_range / 2.
         len_of_weight = len(weight)
         _ = 0
         while _ < len_of_weight:  # biases
@@ -1092,35 +1108,55 @@ def make_weight_matrices(hiddenlayers, activation, no_of_atoms=None, Gs=None,
     else:
 
         for element in sorted(elements):
+            len_of_fps = len(Gs[element])
             if isinstance(hiddenlayers[element], int):
-                nn_structure[element] = ([len(Gs[element])] +
-                                         [hiddenlayers[element]] +
-                                         [1])
+                nn_structure[element] = ([len_of_fps] +
+                                         [hiddenlayers[element]] + [1])
             else:
                 nn_structure[element] = (
-                    [len(Gs[element])] +
+                    [len_of_fps] +
                     [layer for layer in hiddenlayers[element]] + [1])
             weight[element] = {}
-            normalized_weight_range = weight_range / len(Gs[element])
-            weight[element][1] = np.random.random((len(Gs[element]) + 1,
-                                                   nn_structure[
-                                                   element][1])) * \
-                normalized_weight_range - \
-                normalized_weight_range / 2.
+
+            weight[element][1] = np.random.random((len_of_fps + 1,
+                                                   nn_structure[element][1]))
+
+            # modifying weights according to the range of fingerprints
+            i = 0
+            while i < len_of_fps:
+                fp_range = fingerprints_range[element][i][1] - \
+                    fingerprints_range[element][i][0]
+                if fp_range > (10.**(-8.)):
+                    j = 0
+                    while j < nn_structure[element][1]:
+                        weight[element][1][len_of_fps, j] += \
+                            weight[element][1][i, j] * \
+                            (- 1. - 2. * fingerprints_range[element][i][0] /
+                             fp_range)
+                        weight[element][1][i, j] = \
+                            weight[element][1][i, j] * (2. / fp_range)
+                        j += 1
+                i += 1
+
+            # dividing weights by the number of inputs
+            normalized_arg_range = arg_range / len_of_fps
+            weight[element][1] = weight[element][1] * normalized_arg_range - \
+                normalized_arg_range / 2.
+
             len_of_hiddenlayers = len(list(nn_structure[element])) - 3
             layer = 0
             while layer < len_of_hiddenlayers:
-                normalized_weight_range = weight_range / \
+                normalized_arg_range = arg_range / \
                     nn_structure[element][layer + 1]
                 weight[element][layer + 2] = np.random.random(
                     (nn_structure[element][layer + 1] + 1,
                      nn_structure[element][layer + 2])) * \
-                    normalized_weight_range - normalized_weight_range / 2.
+                    normalized_arg_range - normalized_arg_range / 2.
                 layer += 1
-            normalized_weight_range = weight_range / nn_structure[element][-2]
+            normalized_arg_range = arg_range / nn_structure[element][-2]
             weight[element][len(list(nn_structure[element])) - 1] = \
                 np.random.random((nn_structure[element][-2] + 1, 1)) \
-                * normalized_weight_range - normalized_weight_range / 2.
+                * normalized_arg_range - normalized_arg_range / 2.
 
             len_of_weight = len(weight[element])
             _ = 0

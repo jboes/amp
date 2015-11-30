@@ -70,20 +70,12 @@ def test():
                             ('Pd', OrderedDict([('intercept', 1.6),
                                                 ('slope', 2.5)]))])
 
-    fingerprints_range = {"O": [[0.21396177208585404, 2.258090276328769],
-                                [0.0, 2.1579067008202975],
-                                [0.0, 0.0]],
-                          "Pd": [[0.0, 1.4751761770313006],
-                                 [0.0, 0.697686078889583],
-                                 [0.0, 0.37848964715610417]]}
-
     ###########################################################################
 
     calc = Amp(descriptor=Behler(cutoff=6.5, Gs=Gs,),
                regression=NeuralNetwork(hiddenlayers=hiddenlayers,
                                         weights=weights,
-                                        scalings=scalings,),
-               fingerprints_range=fingerprints_range,)
+                                        scalings=scalings,),)
 
     atoms.set_calculator(calc)
 
