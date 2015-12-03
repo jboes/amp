@@ -747,6 +747,11 @@ class Amp(Calculator):
         if param.descriptor is not None:  # fingerprinting scheme
             param = self.fp.log(log, param, self.elements)
 
+        if not (param.regression._weights or param.regression._variables):
+            variables_exist = False
+        else:
+            variables_exist = True
+
         # "MultiProcess" object is initialized
         _mp = MultiProcess(self.fortran, no_procs=cores)
 
@@ -819,11 +824,6 @@ class Amp(Calculator):
             snl,)
 
         gc.collect()
-
-        if not (param.regression._weights or param.regression._variables):
-            variables_exist = False
-        else:
-            variables_exist = True
 
         if (variables_exist is False) and (global_search is not None):
             log('\n' + 'Starting global search...')
