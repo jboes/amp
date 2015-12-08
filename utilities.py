@@ -331,7 +331,7 @@ def make_filename(label, base_filename):
     if not label:
         filename = base_filename
     else:
-        filename = os.path.join(label + '-' + base_filename)
+        filename = os.path.join(label + base_filename)
 
     return filename
 
