@@ -160,7 +160,7 @@ def non_periodic_0th_bfgs_step_test():
         for fortran in [False, True]:
             for extend_variables in [False, True]:
                 for data_format in ['db', 'json']:
-                    for save_memory in [True, False]:
+                    for save_memory in [False]:
                         for cores in range(1, 7):
 
                             string = 'CuOPdbp/0/%s-%s-%s-%s-%s-%i'
@@ -360,7 +360,7 @@ def non_periodic_9th_bfgs_step_test():
         for fortran in [False, True]:
             for extend_variables in [False, True]:
                 for data_format in ['db', 'json']:
-                    for save_memory in [True, False]:
+                    for save_memory in [False]:
                         for cores in range(1, 7):
 
                             string = 'CuOPdbp/1/%s-%s-%s-%s-%s-%i'
@@ -527,7 +527,7 @@ def periodic_0th_bfgs_step_test():
         for fortran in [False, True]:
             for extend_variables in [False, True]:
                 for data_format in ['db', 'json']:
-                    for save_memory in [True, False]:
+                    for save_memory in [False]:
                         for cores in range(1, 5):
 
                             string = 'CuOPdbp/2/%s-%s-%s-%s-%s-%i'
@@ -690,7 +690,7 @@ def periodic_2nd_bfgs_step_test():
         for fortran in [False, True]:
             for extend_variables in [False, True]:
                 for data_format in ['db', 'json']:
-                    for save_memory in [True, False]:
+                    for save_memory in [False]:
                         for cores in range(1, 5):
 
                             string = 'CuOPdbp/3/%s-%s-%s-%s-%s-%i'
