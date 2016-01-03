@@ -1,14 +1,14 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
  
-!     Fortran Version = 4
+!     Fortran Version = 3
       subroutine check_version(version, warning) 
       implicit none
     
       integer :: version, warning
 !f2py         intent(in) :: version
 !f2py         intent(out) :: warning
-      if (version .NE. 4) then
+      if (version .NE. 3) then
           warning = 1
       else
           warning = 0
@@ -121,7 +121,7 @@
       unraveled_atomic_numbers_of_images(:)
       integer, allocatable:: unraveled_atomic_numbers(:)
       double precision:: amp_energy, real_energy, atomic_amp_energy
-      double precision:: force
+      double precision:: force, temp
       integer:: i, index, j, p, k, q, l, m, &
       len_of_fingerprint, symbol, element, image_no, no_of_atoms, &
       len_of_input
@@ -157,6 +157,7 @@
         allocate(unraveled_der_fingerprints_of_images(no_of_images))
         call unravel_atomic_numbers()
         call unravel_fingerprints()
+        call scale_fingerprints()
       end if
       if (train_forces .eqv. .true.) then
            allocate(unraveled_real_forces(no_of_images))
@@ -165,6 +166,7 @@
               call unravel_neighborlists()
               call &
               unravel_der_fingerprints()
+              call scale_der_fingerprints()
           end if
       end if
 
@@ -645,6 +647,39 @@
       end do
       
       end subroutine unravel_fingerprints
+      
+ !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+      subroutine scale_fingerprints()
+
+      do image_no = 1, no_of_images
+        do index = 1, size(unraveled_fingerprints_of_images(&
+        image_no)%onedarray)
+            do element = 1, no_of_elements
+                if (unraveled_atomic_numbers_of_images(&
+                image_no)%onedarray(index)== &
+                elements_numbers(element)) then
+                    exit
+                end if
+            end do    
+            do l = 1, len_fingerprints_of_elements(element)
+                if ((max_fingerprints(element, l) - &
+                min_fingerprints(element, l)) .GT. &
+                (10.0d0 ** (-8.0d0))) then
+                    temp = unraveled_fingerprints_of_images(&
+                    image_no)%onedarray(index)%onedarray(l)
+                    temp = -1.0d0 + 2.0d0 * &
+                    (temp - min_fingerprints(element, l)) / &
+                    (max_fingerprints(element, l) - &
+                    min_fingerprints(element, l))
+                    unraveled_fingerprints_of_images(&
+                    image_no)%onedarray(index)%onedarray(l) = temp
+                endif
+            end do
+        end do
+      end do
+      
+      end subroutine scale_fingerprints
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -699,6 +734,54 @@
       end do
       
       end subroutine unravel_der_fingerprints
+
+ !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+      subroutine scale_der_fingerprints()
+
+      do image_no = 1, no_of_images
+        do self_index = 1, size(unraveled_der_fingerprints_of_images(&
+        image_no)%onedarray)
+            allocate(n_self_indices(size(&
+            unraveled_neighborlists(image_no)%onedarray(&
+            self_index)%onedarray)))
+            do p = 1, size(unraveled_neighborlists(image_no)%onedarray(&
+            self_index)%onedarray)
+                n_self_indices(p) = unraveled_neighborlists(&
+                image_no)%onedarray(self_index)%onedarray(p)
+            end do
+            do n_index = 1, size(n_self_indices)
+                do n_symbol = 1, no_of_elements
+                if (unraveled_atomic_numbers_of_images(&
+                image_no)%onedarray(n_self_indices(n_index)) == &
+                elements_numbers(n_symbol)) then
+                    exit
+                end if
+                end do
+                do p = 1, 3
+                    do q = 1, len_fingerprints_of_elements(n_symbol)
+                        if ((max_fingerprints(n_symbol, q) - &
+                        min_fingerprints(n_symbol, q)) .GT. &
+                        (10.0d0 ** (-8.0d0))) then
+                            temp = &
+                            unraveled_der_fingerprints_of_images(&
+                            image_no)%onedarray(self_index)%onedarray(&
+                            n_index)%twodarray(p, q)
+                            temp = 2.0d0 * temp / &
+                            (max_fingerprints(n_symbol, q) - &
+                            min_fingerprints(n_symbol, q))
+                            unraveled_der_fingerprints_of_images(&
+                            image_no)%onedarray(self_index)%onedarray(&
+                            n_index)%twodarray(p, q) = temp
+                        endif
+                    end do
+                end do
+            end do
+            deallocate(n_self_indices)
+        end do
+      end do
+
+      end subroutine scale_der_fingerprints
  
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       

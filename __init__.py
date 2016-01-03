@@ -5,6 +5,7 @@ from ase.parallel import paropen
 import os
 from ase import io as aseio
 import tempfile
+import warnings
 from datetime import datetime
 import multiprocessing as mp
 import gc
@@ -18,8 +19,8 @@ from utilities import Logger, save_parameters
 from descriptor import Behler
 from regression import NeuralNetwork
 try:
-    from amp import fmodules  # version 4 of fmodules
-    fmodules_version = 4
+    from amp import fmodules  # version 3 of fmodules
+    fmodules_version = 3
 except ImportError:
     fmodules = None
 
@@ -228,6 +229,13 @@ class Amp(Calculator):
                        more information see docstring for the class
                        NeuralNetwork.
     :type regression: object
+    :param fingerprints_range: Range of fingerprints of each chemical species.
+                               Should be fed as a dictionary of chemical
+                               species and a list of minimum and maximun, e.g:
+
+                               >>> fingerprints_range={"Pd": [0.31, 0.59], "O":[0.56, 0.72]}
+
+    :type fingerprints_range: dict
     :param load: Path for loading an existing parameters of Amp calculator.
     :type load: str
     :param label: Default prefix/location used for all files.
@@ -252,6 +260,7 @@ class Amp(Calculator):
     default_parameters = {
         'descriptor': Behler(),
         'regression': NeuralNetwork(),
+        'fingerprints_range': None,
     }
 
     ###########################################################################
@@ -291,6 +300,7 @@ class Amp(Calculator):
             parameters = load_parameters(json_file)
 
             kwargs = {}
+            kwargs['fingerprints_range'] = parameters['fingerprints_range']
             if parameters['descriptor'] == 'Behler':
                 kwargs['descriptor'] = \
                     Behler(cutoff=parameters['cutoff'],
@@ -416,17 +426,36 @@ class Amp(Calculator):
             self.fp.atoms = atoms
             self.fp._nl = _nl
 
-            # Deciding on whether it is exptrapoling or interpolating.
-            if self.extrapolate is False:
-                fingerprints_range = \
+            # If fingerprints_range is not available, it will raise an error.
+            if param.fingerprints_range is None:
+                raise RuntimeError('The keyword "fingerprints_range" is not '
+                                   'available. It can be provided to the '
+                                   'calculator either by introducing a JSON '
+                                   'file, or by directly feeding the keyword '
+                                   'to the calculator. If you do not know the '
+                                   'values but still want to run the '
+                                   'calculator, initialize it with '
+                                   'fingerprints_range="auto".')
+
+            # If fingerprints_range is not given either as a direct keyword or
+            # as the josn file, but instead is given as 'auto', it will be
+            # calculated here.
+            if param.fingerprints_range == 'auto':
+                warnings.warn('The values of "fingerprints_range" are not '
+                              'given. The user is expected to understand what '
+                              'is being done!')
+                param.fingerprints_range = \
                     calculate_fingerprints_range(self.fp,
                                                  self.reg.elements,
                                                  self.fp.atoms,
-                                                 self.fp._nl)
+                                                 _nl)
+            # Deciding on whether it is exptrapoling or interpolating is
+            # possible only when fingerprints_range is provided by the user.
+            elif self.extrapolate is False:
                 if compare_train_test_fingerprints(
                         self.fp,
                         self.fp.atoms,
-                        fingerprints_range,
+                        param.fingerprints_range,
                         _nl) == 1:
                     raise ExtrapolateError('Trying to extrapolate, which'
                                            ' is not allowed. Change to '
@@ -461,8 +490,26 @@ class Amp(Calculator):
                           for n_index, n_offset in zip(n_indices, n_offsets)]
                     indexfp = self.fp.get_fingerprint(index, symbol,
                                                       n_symbols, Rs)
+                    len_of_indexfp = len(indexfp)
+                    # fingerprints are scaled to [-1, 1] range
+                    scaled_indexfp = [None] * len_of_indexfp
+                    count = 0
+                    while count < len_of_indexfp:
+                        if (param.fingerprints_range[symbol][count][1] -
+                                param.fingerprints_range[symbol][count][0]) \
+                                > (10.**(-8.)):
+                            scaled_value = -1. + \
+                                2. * (indexfp[count] -
+                                      param.fingerprints_range[
+                                      symbol][count][0]) / \
+                                (param.fingerprints_range[symbol][count][1] -
+                                 param.fingerprints_range[symbol][count][0])
+                        else:
+                            scaled_value = indexfp[count]
+                        scaled_indexfp[count] = scaled_value
+                        count += 1
 
-                    atomic_amp_energy = self.reg.get_energy(indexfp,
+                    atomic_amp_energy = self.reg.get_energy(scaled_indexfp,
                                                             index, symbol,)
                     self.energy += atomic_amp_energy
                     index += 1
@@ -527,8 +574,26 @@ class Amp(Calculator):
                           for n_index, n_offset in zip(n_indices, n_offsets)]
                     indexfp = self.fp.get_fingerprint(index, symbol,
                                                       n_symbols, Rs)
+                    len_of_indexfp = len(indexfp)
+                    # fingerprints are scaled to [-1, 1] range
+                    scaled_indexfp = [None] * len_of_indexfp
+                    count = 0
+                    while count < len_of_indexfp:
+                        if (param.fingerprints_range[symbol][count][1] -
+                                param.fingerprints_range[symbol][count][0]) \
+                                > (10.**(-8.)):
+                            scaled_value = -1. + \
+                                2. * (indexfp[count] -
+                                      param.fingerprints_range[
+                                      symbol][count][0]) / \
+                                (param.fingerprints_range[symbol][count][1] -
+                                 param.fingerprints_range[symbol][count][0])
+                        else:
+                            scaled_value = indexfp[count]
+                        scaled_indexfp[count] = scaled_value
+                        count += 1
 
-                    __ = self.reg.get_energy(indexfp, index, symbol)
+                    __ = self.reg.get_energy(scaled_indexfp, index, symbol)
                     del __
                     index += 1
 
@@ -573,8 +638,31 @@ class Amp(Calculator):
                                     neighbor_symbols,
                                     Rs, self_index, i)
 
+                                len_of_der_indexfp = len(der_indexfp)
+
+                                # fingerprint derivatives are scaled
+                                scaled_der_indexfp = \
+                                    [None] * len_of_der_indexfp
+                                count = 0
+                                while count < len_of_der_indexfp:
+                                    if (param.fingerprints_range[
+                                        n_symbol][count][1] -
+                                        param.fingerprints_range[
+                                        n_symbol][count][0]) \
+                                            > (10.**(-8.)):
+                                        scaled_value = 2. * \
+                                            der_indexfp[count] / \
+                                            (param.fingerprints_range[
+                                                n_symbol][count][1] -
+                                             param.fingerprints_range[
+                                                n_symbol][count][0])
+                                    else:
+                                        scaled_value = der_indexfp[count]
+                                    scaled_der_indexfp[count] = scaled_value
+                                    count += 1
+
                                 force += self.reg.get_force(i,
-                                                            der_indexfp,
+                                                            scaled_der_indexfp,
                                                             n_index, n_symbol,)
                             n_count += 1
                         self.forces[self_index][i] = force
@@ -582,7 +670,7 @@ class Amp(Calculator):
                     self_index += 1
 
                 del dict_nl, outputs, n_self_offsets, n_self_indices,
-                n_self_symbols, _n_self_offsets, indexfp, der_indexfp
+                n_self_symbols, _n_self_offsets, scaled_indexfp, indexfp
 
             self.results['forces'] = self.forces
 
@@ -751,6 +839,7 @@ class Amp(Calculator):
             variables_exist = False
         else:
             variables_exist = True
+        param = self.reg.log(log, param, self.elements, images)
 
         # "MultiProcess" object is initialized
         _mp = MultiProcess(self.fortran, no_procs=cores)
@@ -781,11 +870,10 @@ class Amp(Calculator):
 
             gc.collect()
 
-        if param.descriptor is None:  # pure atomic-coordinates scheme
-            param = self.reg.log(log, param, self.elements, images)
-        else:  # fingerprinting scheme
-            param = self.reg.log(log, param, self.elements, images,
-                                 self.sfp.fingerprints_range)
+            # If fingerprints_range has not been loaded, it will take value
+            # from the json file.
+            if param.fingerprints_range is None:
+                param.fingerprints_range = self.sfp.fingerprints_range
 
         del hashs, images
 
@@ -2404,8 +2492,25 @@ def _calculate_cost_function_python(hashs, images, reg, param, sfp,
                                if row[2] == _]
                 else:
                     indexfp = sfp.fp_data[hash][index]
-
-                atomic_amp_energy = reg.get_energy(indexfp,
+                len_of_indexfp = len(indexfp)
+                # fingerprints are scaled to [-1, 1] range
+                scaled_indexfp = [None] * len_of_indexfp
+                count = 0
+                while count < len_of_indexfp:
+                    if (sfp.fingerprints_range[symbol][count][1] -
+                            sfp.fingerprints_range[symbol][count][0]) > \
+                            (10.**(-8.)):
+                        scaled_value = \
+                            -1. + 2. * (indexfp[count] -
+                                        sfp.fingerprints_range[
+                                        symbol][count][0]) \
+                            / (sfp.fingerprints_range[symbol][count][1] -
+                               sfp.fingerprints_range[symbol][count][0])
+                    else:
+                        scaled_value = indexfp[count]
+                    scaled_indexfp[count] = scaled_value
+                    count += 1
+                atomic_amp_energy = reg.get_energy(scaled_indexfp,
                                                    index, symbol,)
                 amp_energy += atomic_amp_energy
                 index += 1
@@ -2502,8 +2607,30 @@ def _calculate_cost_function_python(hashs, images, reg, param, sfp,
                                         sfp.der_fp_data[hash][(n_index,
                                                                self_index,
                                                                i)]
+                                len_of_der_indexfp = len(der_indexfp)
 
-                                force = reg.get_force(i, der_indexfp,
+                                # fingerprint derivatives are scaled
+                                scaled_der_indexfp = \
+                                    [None] * len_of_der_indexfp
+                                count = 0
+                                while count < len_of_der_indexfp:
+                                    if (sfp.fingerprints_range[
+                                            n_symbol][count][1] -
+                                            sfp.fingerprints_range
+                                            [n_symbol][count][0]) > \
+                                            (10.**(-8.)):
+                                        scaled_value = 2. * \
+                                            der_indexfp[count] / \
+                                            (sfp.fingerprints_range
+                                             [n_symbol][count][1] -
+                                             sfp.fingerprints_range
+                                             [n_symbol][count][0])
+                                    else:
+                                        scaled_value = der_indexfp[count]
+                                    scaled_der_indexfp[count] = scaled_value
+                                    count += 1
+
+                                force = reg.get_force(i, scaled_der_indexfp,
                                                       n_index, n_symbol,)
 
                                 amp_forces[self_index][i] += force
@@ -2716,7 +2843,6 @@ def interpolate_images(images, load, fortran=True):
     amp = Amp(load=load, fortran=fortran)
     param = amp.parameters
     fp = param.descriptor
-    # FIXME: fingerprints_range has been removed from param
     fingerprints_range = param.fingerprints_range
     # FIXME: this function should be extended to no fingerprints scheme.
     if fp is not None:  # fingerprinting scheme
@@ -2796,12 +2922,12 @@ def send_data_to_fortran(sfp, elements, train_forces,
         no_of_elements = len(elements)
         elements_numbers = [atomic_numbers[elm] for elm in elements]
         min_fingerprints = \
-            [[sfp.fingerprints_range[elm][_][0]
-              for _ in range(len(sfp.fingerprints_range[elm]))]
+            [[param.fingerprints_range[elm][_][0]
+              for _ in range(len(param.fingerprints_range[elm]))]
              for elm in elements]
-        max_fingerprints = [[sfp.fingerprints_range[elm][_][1]
+        max_fingerprints = [[param.fingerprints_range[elm][_][1]
                              for _
-                             in range(len(sfp.fingerprints_range[elm]))]
+                             in range(len(param.fingerprints_range[elm]))]
                             for elm in elements]
         len_fingerprints_of_elements = [len(sfp.Gs[elm]) for elm in elements]
     else:
