@@ -1522,7 +1522,7 @@ class SaveNeighborLists:
                 self.ncursor.execute('''CREATE TABLE IF NOT EXISTS
                 neighborlists (image text, atom integer, nl_index integer,
                 neighbor_atom integer,
-                offset1 integer, offset2 integer, offset3 integer)''')
+                xoffset integer, yoffset integer, zoffset integer)''')
             else:
                 self.nl_data = {}
             if not os.path.exists(filename):
