@@ -166,6 +166,8 @@ class NeuralNetwork:
         else:  # fingerprinting scheme
 
             Gs = self.param.descriptor.Gs
+            no_of_element_fps = \
+                self.param.descriptor.no_of_element_fingerprints
 
             if Gs is not None:
 
@@ -175,12 +177,12 @@ class NeuralNetwork:
                 # it will now be converted to a dictionary.
                 if isinstance(self.hiddenlayers, tuple):
                     hiddenlayers = {}
-                    for element in self.elements:
-                        hiddenlayers[element] = self.hiddenlayers
+                    for elm in self.elements:
+                        hiddenlayers[elm] = self.hiddenlayers
                     self.hiddenlayers = hiddenlayers
 
-                for element in self.elements:
-                    structure = self.hiddenlayers[element]
+                for elm in self.elements:
+                    structure = self.hiddenlayers[elm]
                     if isinstance(structure, str):
                         structure = structure.split('-')
                     elif isinstance(structure, int):
@@ -188,11 +190,12 @@ class NeuralNetwork:
                     else:
                         structure = list(structure)
                     hiddenlayers = [int(part) for part in structure]
-                    self.hiddenlayers[element] = hiddenlayers
+                    self.hiddenlayers[elm] = hiddenlayers
 
-                self.ravel = _RavelVariables(hiddenlayers=self.hiddenlayers,
-                                             elements=self.elements,
-                                             Gs=Gs)
+                self.ravel = \
+                    _RavelVariables(hiddenlayers=self.hiddenlayers,
+                                    elements=self.elements,
+                                    no_of_element_fps=no_of_element_fps)
 
                 if load is not None:
                     self._weights, self._scalings = \
@@ -204,33 +207,33 @@ class NeuralNetwork:
             string2 = 'hiddenlayers and weights are not compatible.'
             if isinstance(self.hiddenlayers, dict):
                 self.elements = sorted(self.hiddenlayers.keys())
-                for element in self.elements:
+                for elm in self.elements:
                     if self._weights is not None:
                         if Gs is not None:
-                            if np.shape(self._weights[element][1])[0] \
-                                    != len(Gs[element]) + 1:
+                            if np.shape(self._weights[elm][1])[0] \
+                                    != no_of_element_fps[elm] + 1:
                                 raise RuntimeError(string1)
-                        if isinstance(self.hiddenlayers[element], int):
-                            if np.shape(self._weights[element][1])[1] \
-                                    != self.hiddenlayers[element]:
+                        if isinstance(self.hiddenlayers[elm], int):
+                            if np.shape(self._weights[elm][1])[1] \
+                                    != self.hiddenlayers[elm]:
                                 raise RuntimeError(string2)
                         else:
-                            if np.shape(self._weights[element][1])[1] \
-                                    != self.hiddenlayers[element][0]:
+                            if np.shape(self._weights[elm][1])[1] \
+                                    != self.hiddenlayers[elm][0]:
                                 raise RuntimeError(string2)
 
                             _ = 2
                             len_of_hiddenlayers = \
-                                len(self.hiddenlayers[element])
+                                len(self.hiddenlayers[elm])
                             while _ < len_of_hiddenlayers + 1:
                                 if (np.shape(self._weights
-                                             [element][_])[0] !=
+                                             [elm][_])[0] !=
                                         self.hiddenlayers[
-                                        element][_ - 2] + 1 or
+                                        elm][_ - 2] + 1 or
                                         np.shape(self._weights
-                                                 [element][_])[1] !=
+                                                 [elm][_])[1] !=
                                         self.hiddenlayers
-                                        [element][_ - 1]):
+                                        [elm][_ - 1]):
                                     raise RuntimeError(string2)
                                 _ += 1
             del string1
@@ -292,13 +295,13 @@ class NeuralNetwork:
                 self.W[j + 1] = np.delete(weight[j + 1], -1, 0)
                 j += 1
         else:  # fingerprinting scheme
-            for element in self.elements:
-                self.W[element] = {}
-                weight = self._weights[element]
+            for elm in self.elements:
+                self.W[elm] = {}
+                weight = self._weights[elm]
                 len_of_weight = len(weight)
                 j = 0
                 while j < len_of_weight:
-                    self.W[element][j + 1] = np.delete(weight[j + 1], -1, 0)
+                    self.W[elm][j + 1] = np.delete(weight[j + 1], -1, 0)
                     j += 1
 
     ###########################################################################
@@ -349,31 +352,31 @@ class NeuralNetwork:
                 j += 1
 
         else:  # fingerprinting scheme
-            for element in self.elements:
-                len_of_weights = len(self._weights[element])
+            for elm in self.elements:
+                len_of_weights = len(self._weights[elm])
                 j = 1
                 while j < len_of_weights + 1:
-                    shape = np.shape(self._weights[element][j])
+                    shape = np.shape(self._weights[elm][j])
                     if j == 1:
-                        self._weights[element][j] = \
-                            np.insert(self._weights[element][j],
+                        self._weights[elm][j] = \
+                            np.insert(self._weights[elm][j],
                                       shape[1],
                                       shape[0] * [0],
                                       1)
-                    elif j == len(self._weights[element]):
-                        self._weights[element][j] = \
-                            np.insert(self._weights[element][j],
+                    elif j == len(self._weights[elm]):
+                        self._weights[elm][j] = \
+                            np.insert(self._weights[elm][j],
                                       -1,
                                       shape[1] * [0],
                                       0)
                     else:
-                        self._weights[element][j] = \
-                            np.insert(self._weights[element][j],
+                        self._weights[elm][j] = \
+                            np.insert(self._weights[elm][j],
                                       shape[1],
                                       shape[0] * [0],
                                       1)
-                        self._weights[element][j] = \
-                            np.insert(self._weights[element][j],
+                        self._weights[elm][j] = \
+                            np.insert(self._weights[elm][j],
                                       -1,
                                       (shape[1] + 1) * [0],
                                       0)
@@ -388,15 +391,16 @@ class NeuralNetwork:
             self.ravel = _RavelVariables(hiddenlayers=self.hiddenlayers,
                                          no_of_atoms=self.no_of_atoms)
         else:  # fingerprinting scheme
-            for element in self.elements:
-                len_of_hiddenlayers = len(self.hiddenlayers[element])
+            no_of_element_fps = param.descriptor.no_of_element_fingerprints
+            for elm in self.elements:
+                len_of_hiddenlayers = len(self.hiddenlayers[elm])
                 _ = 0
                 while _ < len_of_hiddenlayers:
-                    self.hiddenlayers[element][_] += 1
+                    self.hiddenlayers[elm][_] += 1
                     _ += 1
             self.ravel = _RavelVariables(hiddenlayers=self.hiddenlayers,
                                          elements=self.elements,
-                                         Gs=param.descriptor.Gs)
+                                         no_of_element_fps=no_of_element_fps)
 
         self._variables = \
             self.ravel.to_vector(self._weights, self._scalings)
@@ -851,19 +855,19 @@ class NeuralNetwork:
                 no_of_atoms=self.no_of_atoms)
 
         else:  # fingerprinting scheme
-
+            no_of_element_fps = param.descriptor.no_of_element_fingerprints
             # If hiddenlayers is fed by the user in the tuple format,
             # it will now be converted to a dictionary.
             if isinstance(param.regression.hiddenlayers, tuple):
                 hiddenlayers = {}
-                for element in self.elements:
-                    hiddenlayers[element] = param.regression.hiddenlayers
+                for elm in self.elements:
+                    hiddenlayers[elm] = param.regression.hiddenlayers
                 param.regression.hiddenlayers = hiddenlayers
 
             self.hiddenlayers = param.regression.hiddenlayers
 
-            for element in self.elements:
-                structure = self.hiddenlayers[element]
+            for elm in self.elements:
+                structure = self.hiddenlayers[elm]
                 if isinstance(structure, str):
                     structure = structure.split('-')
                 elif isinstance(structure, int):
@@ -871,11 +875,11 @@ class NeuralNetwork:
                 else:
                     structure = list(structure)
                 hiddenlayers = [int(part) for part in structure]
-                self.hiddenlayers[element] = hiddenlayers
+                self.hiddenlayers[elm] = hiddenlayers
 
             self.ravel = _RavelVariables(hiddenlayers=self.hiddenlayers,
                                          elements=self.elements,
-                                         Gs=param.descriptor.Gs)
+                                         no_of_element_fps=no_of_element_fps)
 
         log('Hidden-layer structure:')
         if param.descriptor is None:  # pure atomic-coordinates scheme
@@ -893,11 +897,13 @@ class NeuralNetwork:
                                                      self.activation,
                                                      self.no_of_atoms)
             else:  # fingerprinting scheme
-                self._weights = make_weight_matrices(self.hiddenlayers,
-                                                     self.activation,
-                                                     None,
-                                                     param.descriptor.Gs,
-                                                     self.elements,)
+                self._weights = \
+                    make_weight_matrices(
+                        self.hiddenlayers,
+                        self.activation,
+                        None,
+                        param.descriptor.no_of_element_fingerprints,
+                        self.elements,)
 
         else:
             log('Initial weights already present.')
@@ -944,14 +950,16 @@ class NeuralNetwork:
             nn_structure = OrderedDict()
             for elm in self.elements:
                 if isinstance(param.regression.hiddenlayers[elm], int):
-                    nn_structure[elm] = ([len(param.descriptor.Gs[elm])] +
-                                         [param.regression.hiddenlayers[elm]] +
-                                         [1])
+                    nn_structure[elm] = \
+                        ([param.descriptor.no_of_element_fingerprints[elm]] +
+                         [param.regression.hiddenlayers[elm]] +
+                         [1])
                 else:
-                    nn_structure[elm] = ([len(param.descriptor.Gs[elm])] +
-                                         [layer for layer in
-                                          param.regression.hiddenlayers[elm]] +
-                                         [1])
+                    nn_structure[elm] = \
+                        ([param.descriptor.no_of_element_fingerprints[elm]] +
+                         [layer for layer in
+                          param.regression.hiddenlayers[elm]] +
+                         [1])
 
             no_nodes_of_elements = [nn_structure[elm][_]
                                     for elm in self.elements
@@ -989,7 +997,8 @@ class NeuralNetwork:
 ###############################################################################
 
 
-def make_weight_matrices(hiddenlayers, activation, no_of_atoms=None, Gs=None,
+def make_weight_matrices(hiddenlayers, activation, no_of_atoms=None,
+                         no_of_element_fps=None,
                          elements=None):
     """
     Generates random weight arrays from variables.
@@ -1091,44 +1100,44 @@ def make_weight_matrices(hiddenlayers, activation, no_of_atoms=None, Gs=None,
 
     else:
 
-        for element in sorted(elements):
-            if isinstance(hiddenlayers[element], int):
-                nn_structure[element] = ([len(Gs[element])] +
-                                         [hiddenlayers[element]] +
-                                         [1])
+        for elm in sorted(elements):
+            if isinstance(hiddenlayers[elm], int):
+                nn_structure[elm] = ([no_of_element_fps[elm]] +
+                                     [hiddenlayers[elm]] +
+                                     [1])
             else:
-                nn_structure[element] = (
-                    [len(Gs[element])] +
-                    [layer for layer in hiddenlayers[element]] + [1])
-            weight[element] = {}
-            normalized_weight_range = weight_range / len(Gs[element])
-            weight[element][1] = np.random.random((len(Gs[element]) + 1,
-                                                   nn_structure[
-                                                   element][1])) * \
+                nn_structure[elm] = (
+                    [no_of_element_fps[elm]] +
+                    [layer for layer in hiddenlayers[elm]] + [1])
+            weight[elm] = {}
+            normalized_weight_range = weight_range / no_of_element_fps[elm]
+            weight[elm][1] = np.random.random((no_of_element_fps[elm] + 1,
+                                               nn_structure[
+                elm][1])) * \
                 normalized_weight_range - \
                 normalized_weight_range / 2.
-            len_of_hiddenlayers = len(list(nn_structure[element])) - 3
+            len_of_hiddenlayers = len(list(nn_structure[elm])) - 3
             layer = 0
             while layer < len_of_hiddenlayers:
                 normalized_weight_range = weight_range / \
-                    nn_structure[element][layer + 1]
-                weight[element][layer + 2] = np.random.random(
-                    (nn_structure[element][layer + 1] + 1,
-                     nn_structure[element][layer + 2])) * \
+                    nn_structure[elm][layer + 1]
+                weight[elm][layer + 2] = np.random.random(
+                    (nn_structure[elm][layer + 1] + 1,
+                     nn_structure[elm][layer + 2])) * \
                     normalized_weight_range - normalized_weight_range / 2.
                 layer += 1
-            normalized_weight_range = weight_range / nn_structure[element][-2]
-            weight[element][len(list(nn_structure[element])) - 1] = \
-                np.random.random((nn_structure[element][-2] + 1, 1)) \
+            normalized_weight_range = weight_range / nn_structure[elm][-2]
+            weight[elm][len(list(nn_structure[elm])) - 1] = \
+                np.random.random((nn_structure[elm][-2] + 1, 1)) \
                 * normalized_weight_range - normalized_weight_range / 2.
 
-            len_of_weight = len(weight[element])
+            len_of_weight = len(weight[elm])
             _ = 0
             while _ < len_of_weight:  # biases
-                size = weight[element][_ + 1][-1].size
+                size = weight[elm][_ + 1][-1].size
                 __ = 0
                 while __ < size:
-                    weight[element][_ + 1][-1][__] = 0.
+                    weight[elm][_ + 1][-1][__] = 0.
                     __ += 1
                 _ += 1
 
@@ -1201,23 +1210,23 @@ def make_scalings_matrices(images, activation, elements=None):
 
     else:  # fingerprinting scheme
 
-        for element in elements:
-            scaling[element] = {}
+        for elm in elements:
+            scaling[elm] = {}
             if activation == 'sigmoid':  # sigmoid activation function
-                scaling[element]['intercept'] = min_act_energy_per_atom
-                scaling[element]['slope'] = (max_act_energy_per_atom -
-                                             min_act_energy_per_atom)
+                scaling[elm]['intercept'] = min_act_energy_per_atom
+                scaling[elm]['slope'] = (max_act_energy_per_atom -
+                                         min_act_energy_per_atom)
             elif activation == 'tanh':  # tanh activation function
-                scaling[element]['intercept'] = (max_act_energy_per_atom +
-                                                 min_act_energy_per_atom) / 2.
-                scaling[element]['slope'] = (max_act_energy_per_atom -
+                scaling[elm]['intercept'] = (max_act_energy_per_atom +
                                              min_act_energy_per_atom) / 2.
+                scaling[elm]['slope'] = (max_act_energy_per_atom -
+                                         min_act_energy_per_atom) / 2.
             elif activation == 'linear':  # linear activation function
-                scaling[element]['intercept'] = (max_act_energy_per_atom +
-                                                 min_act_energy_per_atom) / 2.
-                scaling[element]['slope'] = (10. ** (-10.)) * \
-                                            (max_act_energy_per_atom -
+                scaling[elm]['intercept'] = (max_act_energy_per_atom +
                                              min_act_energy_per_atom) / 2.
+                scaling[elm]['slope'] = (10. ** (-10.)) * \
+                    (max_act_energy_per_atom -
+                     min_act_energy_per_atom) / 2.
 
     del images
 
@@ -1263,7 +1272,8 @@ class _RavelVariables:
     """
     ###########################################################################
 
-    def __init__(self, hiddenlayers, elements=None, Gs=None, no_of_atoms=None):
+    def __init__(self, hiddenlayers, elements=None, no_of_element_fps=None,
+                 no_of_atoms=None):
 
         self.no_of_atoms = no_of_atoms
         self.count = 0
@@ -1272,31 +1282,31 @@ class _RavelVariables:
 
         if self.no_of_atoms is None:  # fingerprinting scheme
 
-            for element in elements:
-                len_of_hiddenlayers = len(hiddenlayers[element])
+            for elm in elements:
+                len_of_hiddenlayers = len(hiddenlayers[elm])
                 layer = 1
                 while layer < len_of_hiddenlayers + 2:
                     if layer == 1:
                         shape = \
-                            (len(Gs[element]) + 1, hiddenlayers[element][0])
-                    elif layer == (len(hiddenlayers[element]) + 1):
-                        shape = (hiddenlayers[element][layer - 2] + 1, 1)
+                            (no_of_element_fps[elm] + 1, hiddenlayers[elm][0])
+                    elif layer == (len(hiddenlayers[elm]) + 1):
+                        shape = (hiddenlayers[elm][layer - 2] + 1, 1)
                     else:
                         shape = (
-                            hiddenlayers[element][layer - 2] + 1,
-                            hiddenlayers[element][layer - 1])
+                            hiddenlayers[elm][layer - 2] + 1,
+                            hiddenlayers[elm][layer - 1])
                     size = shape[0] * shape[1]
-                    self._weightskeys.append({'key1': element,
+                    self._weightskeys.append({'key1': elm,
                                               'key2': layer,
                                               'shape': shape,
                                               'size': size})
                     self.count += size
                     layer += 1
 
-            for element in elements:
-                self._scalingskeys.append({'key1': element,
+            for elm in elements:
+                self._scalingskeys.append({'key1': elm,
                                            'key2': 'intercept'})
-                self._scalingskeys.append({'key1': element,
+                self._scalingskeys.append({'key1': elm,
                                            'key2': 'slope'})
                 self.count += 2
 

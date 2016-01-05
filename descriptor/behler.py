@@ -46,6 +46,11 @@ class Behler:
         self.fingerprints_tag = fingerprints_tag
         self.fortran = fortran
 
+        self.no_of_element_fingerprints = {}
+        if Gs is not None:
+            for element in Gs.keys():
+                self.no_of_element_fingerprints[element] = len(Gs[element])
+
         # Checking if the functional forms of fingerprints in the train set
         # is the same as those of the current version of the code:
         if self.fingerprints_tag != 1:
@@ -201,6 +206,11 @@ class Behler:
         # If Gs is not given, generates symmetry functions
         if not param.descriptor.Gs:
             param.descriptor.Gs = make_symmetry_functions(elements)
+            param.descriptor.no_of_element_fingerprints = {}
+            for element in param.descriptor.Gs.keys():
+                param.descriptor.no_of_element_fingerprints[element] = \
+                    len(param.descriptor.Gs[element])
+
         log('Symmetry functions for each element:')
         for _ in param.descriptor.Gs.keys():
             log(' %2s: %i' % (_, len(param.descriptor.Gs[_])))

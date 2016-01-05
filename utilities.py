@@ -278,12 +278,16 @@ def save_parameters(filename, param):
         parameters['Gs'] = param.descriptor.Gs
         parameters['cutoff'] = param.descriptor.cutoff
         parameters['fingerprints_tag'] = param.descriptor.fingerprints_tag
+        if param.descriptor.__class__.__name__ == 'SphericalHarmonics':
+            parameters['jmax'] = param.descriptor.jmax
 
     if param.descriptor is None:
         parameters['descriptor'] = 'None'
         parameters['no_of_atoms'] = param.regression.no_of_atoms
     elif param.descriptor.__class__.__name__ == 'Behler':
         parameters['descriptor'] = 'Behler'
+    elif param.descriptor.__class__.__name__ == 'SphericalHarmonics':
+        parameters['descriptor'] = 'SphericalHarmonics'
     else:
         raise RuntimeError('Descriptor is not recognized to Amp for saving '
                            'parameters. User should add the descriptor under '

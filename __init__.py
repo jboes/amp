@@ -16,7 +16,7 @@ from ase.calculators.neighborlist import NeighborList
 from utilities import make_filename, load_parameters, ConvergenceOccurred, IO
 from utilities import TrainingConvergenceError, ExtrapolateError, hash_image
 from utilities import Logger, save_parameters
-from descriptor import Behler
+from descriptor import Behler, SphericalHarmonics
 from regression import NeuralNetwork
 try:
     from amp import fmodules  # version 3 of fmodules
@@ -307,6 +307,15 @@ class Amp(Calculator):
                            Gs=parameters['Gs'],
                            fingerprints_tag=parameters['fingerprints_tag'],
                            fortran=fortran,)
+
+            elif parameters['descriptor'] == 'SphericalHarmonics':
+                kwargs['descriptor'] = \
+                    SphericalHarmonics(cutoff=parameters['cutoff'],
+                                       Gs=parameters['Gs'],
+                                       jmax=parameters['jmax'],
+                                       fingerprints_tag=parameters[
+                                           'fingerprints_tag'],
+                                       fortran=fortran,)
             elif parameters['descriptor'] == 'None':
                 kwargs['descriptor'] = None
                 if parameters['no_of_atoms'] == 'None':
@@ -1672,7 +1681,6 @@ class SaveFingerprints:
     def __init__(self, fp, elements, no_of_images, hashs, images, label,
                  train_forces, snl, log, _mp, io, data_format, save_memory):
 
-        self.Gs = fp.Gs
         self.train_forces = train_forces
         new_images = images
 
@@ -1765,15 +1773,9 @@ class SaveFingerprints:
             log(' ...child fingerprints read and saved to %s.' % filename,
                 toc='read_fps')
 
-        fingerprint_values = {}
+        fingerprints_range = OrderedDict()
         for element in elements:
-            fingerprint_values[element] = {}
-            len_of_fingerprint = len(self.Gs[element])
-            _ = 0
-            while _ < len_of_fingerprint:
-                fingerprint_values[element][_] = []
-                _ += 1
-
+            fingerprints_range[element] = []
         count = 0
         while count < no_of_images:
             hash = hashs[count]
@@ -1782,33 +1784,38 @@ class SaveFingerprints:
             index = 0
             while index < no_of_atoms:
                 symbol = image[index].symbol
-                len_of_fingerprint = len(self.Gs[symbol])
                 _ = 0
-                while _ < len_of_fingerprint:
-                    if save_memory:
-                        self.fcursor.execute('''SELECT * FROM fingerprints
-                        WHERE image=? AND atom=? AND fp_index=?''',
-                                             (hash, index, _))
-                        row = self.fcursor.fetchall()
-                        fingerprint_values[symbol][_].append(row[0][3])
-                    else:
-                        fingerprint_values[symbol][_].append(
-                            self.fp_data[hash][index][_])
-                    _ += 1
+                while True:
+                    try:
+                        if len(fingerprints_range[symbol]) < (_ + 1):
+                            fingerprints_range[symbol].append(
+                                [np.inf, -np.inf])
+
+                        if save_memory:
+                            self.fcursor.execute('''SELECT * FROM fingerprints
+                            WHERE image=? AND atom=? AND fp_index=?''',
+                                                 (hash, index, _))
+                            row = self.fcursor.fetchall()
+                            value = row[0][3]
+                        else:
+                            value = self.fp_data[hash][index][_]
+
+                        if value < fingerprints_range[symbol][_][0]:
+                            fingerprints_range[symbol][_][0] = value
+                        if fingerprints_range[symbol][_][1] < value:
+                            fingerprints_range[symbol][_][1] = value
+                        _ += 1
+                    except IndexError:
+                        break
                 index += 1
             count += 1
         del _
-
-        fingerprints_range = OrderedDict()
         for element in elements:
-            fingerprints_range[element] = \
-                [[min(fingerprint_values[element][_]),
-                  max(fingerprint_values[element][_])]
-                 for _ in range(len(self.Gs[element]))]
+            fingerprints_range[element].pop()
 
         self.fingerprints_range = fingerprints_range
 
-        del new_images, fingerprint_values
+        del new_images
 
         if train_forces is True:
             new_images = images
@@ -2696,6 +2703,8 @@ def _calculate_cost_function_python(hashs, images, reg, param, sfp,
 
 ###############################################################################
 
+# FIXME: Fingerprint_values and fp.Gs should be removed.
+
 
 def calculate_fingerprints_range(fp, elements, atoms, nl):
     """
@@ -2929,7 +2938,8 @@ def send_data_to_fortran(sfp, elements, train_forces,
                              for _
                              in range(len(param.fingerprints_range[elm]))]
                             for elm in elements]
-        len_fingerprints_of_elements = [len(sfp.Gs[elm]) for elm in elements]
+        len_fingerprints_of_elements = \
+            [len(param.fingerprints_range[elm]) for elm in elements]
     else:
         no_of_atoms_of_image = param.no_of_atoms
 
