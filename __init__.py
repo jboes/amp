@@ -857,7 +857,7 @@ class Amp(Calculator):
         # back-propagation calculations
         _mp.make_list_of_sub_images(no_of_images, hashs, images)
 
-        io = IO(hashs, images,)  # utilities.IO object initialized.
+        io = IO(images,)  # utilities.IO object initialized.
 
         if param.descriptor is None:  # pure atomic-coordinates scheme
             self.sfp = None

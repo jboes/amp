@@ -3,8 +3,6 @@ from numpy import sin, cos, sqrt, exp
 from ase.data import atomic_numbers
 from amp.utilities import FingerprintsError
 import math
-from math import factorial
-from ase.parallel import paropen
 try:
     from amp import fmodules
 except ImportError:
@@ -64,6 +62,11 @@ class SphericalHarmonics:
                             no_of_element_fps += 1
                 self.no_of_element_fingerprints[element] = no_of_element_fps
 
+        self.factorial = [1]
+        for _ in range(int(3. * self.jmax) + 2):
+            if _ > 0:
+                self.factorial += [_ * self.factorial[_ - 1]]
+
         # Checking if the functional forms of fingerprints in the train set
         # is the same as those of the current version of the code:
         if self.fingerprints_tag != 1:
@@ -105,19 +108,90 @@ class SphericalHarmonics:
                                    specified by its index and symbol.
         """
         home = self.atoms[index].position
+        rs = []
+        psis = []
+        thetas = []
+        phis = []
+        len_of_neighbors = len(Rs)
+        for n_index in range(len_of_neighbors):
+            neighbor = Rs[n_index]
+            x = neighbor[0] - home[0]
+            y = neighbor[1] - home[1]
+            z = neighbor[2] - home[2]
+            r = np.linalg.norm(neighbor - home)
+            if r > 10.**(-10.):
+
+                psi = np.arccos(sqrt(1. - (r / self.cutoff)**2.))
+                theta = np.arccos(z / (self.cutoff * sin(psi)))
+                if abs((z / (self.cutoff * sin(psi))) - 1.0) < 10.**(-8.):
+                    theta = 0.0
+                elif abs((z / (self.cutoff * sin(psi))) + 1.0) < 10.**(-8.):
+                    theta = np.pi
+                phi = np.arctan(y / x)
+                if x < 0.:
+                    phi += np.pi
+                elif x > 0. and y < 0.:
+                    phi += 2. * np.pi
+
+                if math.isnan(phi):
+                    if y < 0.:
+                        phi = 1.5 * np.pi
+                    else:
+                        phi = 0.5 * np.pi
+
+                rs += [r]
+                psis += [psi]
+                thetas += [theta]
+                phis += [phi]
 
         fingerprint = []
         for _2j1 in range(int(2 * self.jmax) + 1):
             j1 = 0.5 * _2j1
             j2 = 0.5 * _2j1
             for j in range(int(min(_2j1, self.jmax)) + 1):
-                value = calculate_B(j1, j2, 1.0 * j, symbol, n_symbols, Rs,
-                                    self.Gs[symbol], self.cutoff, home,
-                                    self.fortran)
+                value = calculate_B(j1, j2, 1.0 * j, self.Gs[symbol],
+                                    self.cutoff, self.factorial, n_symbols,
+                                    rs, psis, thetas, phis, self.fortran)
                 value = value.real
                 fingerprint.append(value)
 
         return fingerprint
+
+    ###########################################################################
+
+    def get_der_fingerprint(self, index, symbol, n_indices, n_symbols, Rs,
+                            m, i):
+        """
+        Returns the value of the derivative of G for atom with index and
+        symbol with respect to coordinate x_{i} of atom index m. n_indices,
+        n_symbols and Rs are lists of neighbors' indices, symbols and Cartesian
+        positions, respectively.
+
+        :param index: Index of the center atom.
+        :type index: int
+        :param symbol: Symbol of the center atom.
+        :type symbol: str
+        :param n_indices: List of neighbors' indices.
+        :type n_indices: list of int
+        :param n_symbols: List of neighbors' symbols.
+        :type n_symbols: list of str
+        :param Rs: List of Cartesian atomic positions.
+        :type Rs: list of list of float
+        :param m: Index of the pair atom.
+        :type m: int
+        :param i: Direction of the derivative; is an integer from 0 to 2.
+        :type i: int
+
+        :returns: list of float -- the value of the derivative of the
+                                   fingerprints for atom with index and symbol
+                                   with respect to coordinate x_{i} of atom
+                                   index m.
+        """
+
+        raise RuntimeError('SphericalHarmonics descriptor does not work with '
+                           'force training yet. Either turn off force '
+                           'training by "force_goal=None", or use Behler '
+                           'descriptor by "descriptor=Behler()".')
 
     ###########################################################################
 
@@ -167,42 +241,45 @@ class SphericalHarmonics:
 ###############################################################################
 
 
-def calculate_B(j1, j2, j, symbol, symbols, Rs, G_element, cutoff, home,
-                fortran):
+def calculate_B(j1, j2, j, G_element, cutoff, factorial, n_symbols, rs, psis,
+                thetas, phis, fortran):
     """
     Calculates bi-spectrum B_{j1, j2, j} according to Eq. (5) of "Gaussian
     Approximation Potentials: The Accuracy of Quantum Mechanics, without the
     Electrons", Phys. Rev. Lett. 104, 136403.
     """
-    m1vals = m_values(j1)
-    m2vals = m_values(j2)
+
     mvals = m_values(j)
-
     B = 0.
-    for m1 in m1vals:
-        for mp1 in m1vals:
-            c1 = calculate_c(j1, mp1, m1, symbol, symbols,
-                             Rs, G_element, cutoff, home, fortran)
-            for m2 in m2vals:
-                for mp2 in m2vals:
-                    c2 = calculate_c(j2, mp2, m2, symbol, symbols,
-                                     Rs, G_element, cutoff, home, fortran)
-                    for m in mvals:
-                        for mp in mvals:
-                            c = calculate_c(j, mp, m, symbol, symbols,
-                                            Rs, G_element, cutoff, home,
-                                            fortran)
-                            B += CG(j1, m1, j2, m2, j, m) * \
-                                CG(j1, mp1, j2, mp2, j, mp) * \
-                                np.conjugate(c) * c1 * c2
-    return B
+    for m in mvals:
+        for mp in mvals:
+            c = calculate_c(j, mp, m, G_element, cutoff, factorial, n_symbols,
+                            rs, psis, thetas, phis, fortran)
+            m1bound = min(j1, m + j2)
+            mp1bound = min(j1, mp + j2)
+            m1 = max(-j1, m - j2)
+            while m1 < (m1bound + 0.5):
+                mp1 = max(-j1, mp - j2)
+                while mp1 < (mp1bound + 0.5):
+                    c1 = calculate_c(j1, mp1, m1, G_element, cutoff, factorial,
+                                     n_symbols, rs, psis, thetas, phis,
+                                     fortran)
+                    c2 = calculate_c(j2, mp - mp1, m - m1, G_element, cutoff,
+                                     factorial, n_symbols, rs, psis, thetas,
+                                     phis, fortran)
+                    B += CG(j1, m1, j2, m - m1, j, m, factorial) * \
+                        CG(j1, mp1, j2, mp - mp1, j, mp, factorial) * \
+                        np.conjugate(c) * c1 * c2
+                    mp1 += 1.
+                m1 += 1.
 
+    return B
 
 ###############################################################################
 
 
-def calculate_c(j, mp, m, symbol, symbols, Rs, G_element, cutoff, home,
-                fortran):
+def calculate_c(j, mp, m, G_element, cutoff, factorial, n_symbols, rs, psis,
+                thetas, phis, fortran):
     """
     Calculates c^{j}_{m'm} according to Eq. (4) of "Gaussian Approximation
     Potentials: The Accuracy of Quantum Mechanics, without the Electrons",
@@ -210,35 +287,13 @@ def calculate_c(j, mp, m, symbol, symbols, Rs, G_element, cutoff, home,
     """
 
     value = 0.
-    len_of_neighbors = len(Rs)
-    for n_index in range(len_of_neighbors):
-        neighbor = Rs[n_index]
-        x = neighbor[0] - home[0]
-        y = neighbor[1] - home[1]
-        z = neighbor[2] - home[2]
-        r = np.linalg.norm(neighbor - home)
-        if r > 10.**(-10.):
-            psi = np.arccos(np.sqrt(1. - (r / cutoff)**2.))
-            theta = np.arccos(z / (cutoff * sin(psi)))
-            if ((z / (cutoff * sin(psi))) - 1.0) < 10.**(-8.):
-                theta = 0.0
-            elif ((z / (cutoff * sin(psi))) + 1.0) < 10.**(-8.):
-                theta = np.pi
-            phi = np.arctan(y / x)
-            if x < 0.:
-                phi += np.pi
-            elif x > 0. and y < 0.:
-                phi += 2. * np.pi
+    for n_symbol, r, psi, theta, phi in zip(n_symbols, rs, psis, thetas, phis):
 
-            if math.isnan(phi):
-                if y < 0.:
-                    phi = 1.5 * np.pi
-                else:
-                    phi = 0.5 * np.pi
+        value += G_element[n_symbol] * \
+            np.conjugate(U(j, m, mp, psi, theta, phi, factorial)) * \
+            cutoff_fxn(r, cutoff)
 
-            value += G_element[symbols[n_index]] * \
-                np.conjugate(U(j, m, mp, psi, theta, phi)) * \
-                cutoff_fxn(r, cutoff)
+#        value += np.conjugate(U(j, m, mp, psi, theta, phi, factorial))
 
     return value
 
@@ -274,18 +329,18 @@ def m_values(j):
 ###############################################################################
 
 
-def binomial(n, k):
+def binomial(n, k, factorial):
     """Returns C(n,k) = n!/(k!(n-k)!)."""
 
     assert n >= 0 and k >= 0 and n >= k, \
         'n and k should be non-negative integers.'
-    c = factorial(n) / (factorial(k) * factorial(n - k))
+    c = factorial[int(n)] / (factorial[int(k)] * factorial[int(n - k)])
     return c
 
 ###############################################################################
 
 
-def WignerD(j, m, mp, alpha, beta, gamma):
+def WignerD(j, m, mp, alpha, beta, gamma, factorial):
     """Returns the Wigner-D matrix. alpha, beta, and gamma are the Euler
     angles."""
 
@@ -298,12 +353,13 @@ def WignerD(j, m, mp, alpha, beta, gamma):
                 break
             elif k < mp - m:
                 continue
-            result += (-1)**k * binomial(j + mp, k) * \
-                binomial(j - mp, k + m - mp)
+            result += (-1)**k * binomial(j + mp, k, factorial) * \
+                binomial(j - mp, k + m - mp, factorial)
 
         result *= (-1)**(m - mp) * \
-            sqrt(float(factorial(j + m) * factorial(j - m)) /
-                 float((factorial(j + mp) * factorial(j - mp)))) / 2.**j
+            sqrt(float(factorial[int(j + m)] * factorial[int(j - m)]) /
+                 float((factorial[int(j + mp)] * factorial[int(j - mp)]))) / \
+            2.**j
         result *= exp(-1j * m * alpha) * exp(-1j * mp * gamma)
 
     else:
@@ -318,11 +374,12 @@ def WignerD(j, m, mp, alpha, beta, gamma):
                     break
                 elif k < mpp - m:
                     continue
-                temp1 += (-1)**k * binomial(j + mpp, k) * \
-                    binomial(j - mpp, k + m - mpp)
+                temp1 += (-1)**k * binomial(j + mpp, k, factorial) * \
+                    binomial(j - mpp, k + m - mpp, factorial)
             temp1 *= (-1)**(m - mpp) * \
-                sqrt(float(factorial(j + m) * factorial(j - m)) /
-                     float((factorial(j + mpp) * factorial(j - mpp)))) / 2.**j
+                sqrt(float(factorial[int(j + m)] * factorial[int(j - m)]) /
+                     float((factorial[int(j + mpp)] *
+                            factorial[int(j - mpp)]))) / 2.**j
 
             # temp2 = WignerD(j, mpp, mp, 0, np.pi/2, 0) = d(j, mpp, mp,
             # np.pi/2)
@@ -332,11 +389,12 @@ def WignerD(j, m, mp, alpha, beta, gamma):
                     break
                 elif k < - mp - mpp:
                     continue
-                temp2 += (-1)**k * binomial(j - mp, k) * \
-                    binomial(j + mp, k + mpp + mp)
+                temp2 += (-1)**k * binomial(j - mp, k, factorial) * \
+                    binomial(j + mp, k + mpp + mp, factorial)
             temp2 *= (-1)**(mpp + mp) * \
-                sqrt(float(factorial(j + mpp) * factorial(j - mpp)) /
-                     float((factorial(j - mp) * factorial(j + mp)))) / 2.**j
+                sqrt(float(factorial[int(j + mpp)] * factorial[int(j - mpp)]) /
+                     float((factorial[int(j - mp)] *
+                            factorial[int(j + mp)]))) / 2.**j
 
             result += temp1 * exp(-1j * mpp * beta) * temp2
 
@@ -352,7 +410,7 @@ def WignerD(j, m, mp, alpha, beta, gamma):
 ###############################################################################
 
 
-def U(j, m, mp, omega, theta, phi):
+def U(j, m, mp, omega, theta, phi, factorial):
     """
     Calculates rotation matrix U_{MM'}^{J} in terms of rotation angle omega as
     well as rotation axis angles theta and phi, according to Varshalovich,
@@ -363,16 +421,16 @@ def U(j, m, mp, omega, theta, phi):
     result = 0.
     mvals = m_values(j)
     for mpp in mvals:
-        result += WignerD(j, m, mpp, phi, theta, -phi) * \
+        result += WignerD(j, m, mpp, phi, theta, -phi, factorial) * \
             exp(- 1j * mpp * omega) * \
-            WignerD(j, mpp, mp, phi, -theta, -phi)
+            WignerD(j, mpp, mp, phi, -theta, -phi, factorial)
     return result
 
 
 ###############################################################################
 
 
-def CG(a, alpha, b, beta, c, gamma):
+def CG(a, alpha, b, beta, c, gamma, factorial):
     """Clebsch-Gordan coefficient C_{a alpha b beta}^{c gamma} is calculated
     acoording to the expression given in Varshalovich Eq. (3), Section 8.2,
     Page 238."""
@@ -392,17 +450,17 @@ def CG(a, alpha, b, beta, c, gamma):
             return 0.
         else:
             sqrtarg = \
-                factorial(int(a + alpha)) * \
-                factorial(int(a - alpha)) * \
-                factorial(int(b + beta)) * \
-                factorial(int(b - beta)) * \
-                factorial(int(c + gamma)) * \
-                factorial(int(c - gamma)) * \
+                factorial[int(a + alpha)] * \
+                factorial[int(a - alpha)] * \
+                factorial[int(b + beta)] * \
+                factorial[int(b - beta)] * \
+                factorial[int(c + gamma)] * \
+                factorial[int(c - gamma)] * \
                 (2. * c + 1.) * \
-                factorial(int(a + b - c)) * \
-                factorial(int(a - b + c)) * \
-                factorial(int(-a + b + c)) / \
-                factorial(int(a + b + c + 1.))
+                factorial[int(a + b - c)] * \
+                factorial[int(a - b + c)] * \
+                factorial[int(-a + b + c)] / \
+                factorial[int(a + b + c + 1.)]
 
             sqrtres = sqrt(sqrtarg)
 
@@ -411,12 +469,12 @@ def CG(a, alpha, b, beta, c, gamma):
             sumres = 0.
             for z in range(int(zmin), int(zmax) + 1):
                 value = \
-                    factorial(int(z)) * \
-                    factorial(int(a + b - c - z)) * \
-                    factorial(int(a - alpha - z)) * \
-                    factorial(int(b + beta - z)) * \
-                    factorial(int(c - b + alpha + z)) * \
-                    factorial(int(c - a - beta + z))
+                    factorial[int(z)] * \
+                    factorial[int(a + b - c - z)] * \
+                    factorial[int(a - alpha - z)] * \
+                    factorial[int(b + beta - z)] * \
+                    factorial[int(c - b + alpha + z)] * \
+                    factorial[int(c - a - beta + z)]
                 sumres += (-1.)**z / value
 
             result = sqrtres * sumres
@@ -837,11 +895,16 @@ def compare_exact_numerical_WignerD():
                [2., -2., 2.], [2., -2., 1.], [2., -2., 0.], [2., -2., -1.],
                [2., -2., -2.]]
 
+    factorial = [1]
+    for _ in range(int(2. * 2.) + 2):
+        if _ > 0:
+            factorial += [_ * factorial[_ - 1]]
+
     for alpha in angles:
         for beta in angles:
             for gamma in angles:
                 for [jj, m, mp] in degrees:
-                    DD = WignerD(jj, m, mp, alpha, beta, gamma)
+                    DD = WignerD(jj, m, mp, alpha, beta, gamma, factorial)
                     dd = exact_Wigner_d(jj, m, mp, beta)
                     assert (abs(DD.real -
                                 (exp(-1j * m * alpha) * dd *
@@ -880,11 +943,16 @@ def compare_exact_numerical_U():
                [2., -2., 2.], [2., -2., 1.], [2., -2., 0.], [2., -2., -1.],
                [2., -2., -2.]]
 
+    factorial = [1]
+    for _ in range(int(2. * 2.) + 2):
+        if _ > 0:
+            factorial += [_ * factorial[_ - 1]]
+
     for omega in angles:
         for theta in angles:
             for phi in angles:
                 for [jj, m, mp] in degrees:
-                    UU = U(jj, m, mp, omega, theta, phi)
+                    UU = U(jj, m, mp, omega, theta, phi, factorial)
                     exactU = exact_U(jj, m, mp, omega, theta, phi)
                     assert (abs(UU.real - exactU.real) < 10.**(-14.))
                     assert (abs(UU.imag - exactU.imag) < 10.**(-14.))
@@ -911,5 +979,5 @@ def make_symmetry_functions(elements):
 
 ###############################################################################
 
-#compare_exact_numerical_WignerD()
-#compare_exact_numerical_U()
+# compare_exact_numerical_WignerD()
+# compare_exact_numerical_U()
