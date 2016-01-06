@@ -293,8 +293,6 @@ def calculate_c(j, mp, m, G_element, cutoff, factorial, n_symbols, rs, psis,
             np.conjugate(U(j, m, mp, psi, theta, phi, factorial)) * \
             cutoff_fxn(r, cutoff)
 
-#        value += np.conjugate(U(j, m, mp, psi, theta, phi, factorial))
-
     return value
 
 ###############################################################################
