@@ -19,8 +19,8 @@ from utilities import Logger, save_parameters
 from descriptor import Behler, SphericalHarmonics
 from regression import NeuralNetwork
 try:
-    from amp import fmodules  # version 3 of fmodules
-    fmodules_version = 3
+    from amp import fmodules  # version 4 of fmodules
+    fmodules_version = 4
 except ImportError:
     fmodules = None
 

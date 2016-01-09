@@ -65,17 +65,17 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
        
       subroutine calculate_g4(numbers, rs, g_numbers, g_gamma, g_zeta, &
-                           g_eta, cutoff, home, n, ridge)
+                           g_eta, cutoff, home, tag, n, ridge)
                
               implicit none
               integer, dimension(n) :: numbers
               integer, dimension(2) :: g_numbers
               double precision, dimension(n, 3) :: rs
               double precision, dimension(3) :: home
-              integer :: n
+              integer :: n, tag
               double precision :: g_gamma, g_zeta, g_eta, cutoff
               double precision :: ridge
-!f2py         intent(in) :: numbers, rs, g_numbers, g_gamma, g_zeta
+!f2py         intent(in) :: numbers, rs, g_numbers, g_gamma, g_zeta,tag
 !f2py         intent(in) :: g_eta, cutoff, home
 !f2py         intent(hide) :: n
 !f2py         intent(out) :: ridge
@@ -102,8 +102,19 @@
                     term = term*&
                     exp(-g_eta*(Rij**2 + Rik**2 + Rjk**2)&
                     /(cutoff ** 2.0d0))
-                    term = term*(1.0d0/3.0d0)*(cutoff_fxn(Rij, cutoff)+&
-                    cutoff_fxn(Rik, cutoff)+cutoff_fxn(Rjk, cutoff))
+                    if (tag == 1) then
+                        term = term*cutoff_fxn(Rij, cutoff)
+                        term = term*cutoff_fxn(Rik, cutoff)
+                        term = term*cutoff_fxn(Rjk, cutoff)
+                    elseif (tag == 2) then
+                        term = term*(1.0d0/3.0d0)*&
+                        (cutoff_fxn(Rij, cutoff)*&
+                        cutoff_fxn(Rik, cutoff)+&
+                        cutoff_fxn(Rij, cutoff)*&
+                        cutoff_fxn(Rjk, cutoff)+&
+                        cutoff_fxn(Rik, cutoff)*&
+                        cutoff_fxn(Rjk, cutoff))
+                    endif 
                     ridge = ridge + term
                   end if
                 end do
@@ -255,24 +266,25 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
  
       subroutine calculate_der_g4(n_indices, numbers, rs, g_numbers, &
-                            g_gamma, g_zeta, &
-                            g_eta, cutoff, aa, home, mm, ii, n, ridge)
+                            g_gamma, g_zeta, g_eta, &
+                            cutoff, aa, home, mm, ii, tag, n, ridge)
                
               implicit none
               integer, dimension(n) :: n_indices, numbers
               integer, dimension(2) :: g_numbers
               double precision, dimension(n, 3) :: rs
               double precision, dimension(3) :: home, Rj, Rk
-              integer :: n, aa, mm, ii
+              integer :: n, aa, mm, ii, tag
               double precision :: g_gamma, g_zeta, g_eta, cutoff
               double precision :: ridge
 !f2py         intent(in) :: numbers, rs, g_numbers, g_gamma, g_zeta
-!f2py         intent(in) :: g_eta, cutoff, home, n_indices , aa, mm, ii
+!f2py         intent(in) :: g_eta, cutoff, home, n_indices , aa, mm, ii, tag
 !f2py         intent(hide) :: n
 !f2py         intent(out) :: ridge
               integer :: j, k, match, xyz
               double precision, dimension(3) :: Raj_, Rak_, Rjk_
-             double precision :: Raj, Rak, Rjk, costheta, c1, c2, c3, c4
+              double precision :: Raj, Rak, Rjk, costheta
+              double precision :: c1, c2, c3, c4
               double precision :: term1, term2, term3, term4, term5
               double precision :: term6, term7, term8, term9, term10
               double precision :: term11, term
@@ -306,7 +318,12 @@
                              * exp(-g_eta*(Raj**2 + Rak**2 + Rjk**2)&
                              / (cutoff ** 2.0d0))
                     end if
-                    term2 = (1.0d0/3.0d0) * (c2 + c3 + c4)
+                    if (tag == 1) then
+                        term2 = c2 * c3 * c4
+                    elseif (tag == 2) then
+                        term2 = (1.0d0/3.0d0) * &
+                        (c2 * c3 + c2 * c4 + c3 * c4)
+                    endif 
                     term3 = der_cos_theta(aa, n_indices(j), &
                      n_indices(k), home, Rj, Rk, mm, ii)
                     term4 = g_gamma * g_zeta * term3
@@ -323,13 +340,29 @@
                     term4 = term4 - 2.0d0 * c1 * g_eta * Rjk * term7&
                                     / (cutoff ** 2.0d0)
                     term2 = term2 * term4
-                    term8 = c1 * (1.0d0/3.0d0) * &
-                    der_cutoff_fxn(Raj, cutoff) * term5
-                    term9 = c1 * (1.0d0/3.0d0) * &
-                    der_cutoff_fxn(Rak, cutoff) * term6
-                    term10 = c1 * (1.0d0/3.0d0) * &
-                    der_cutoff_fxn(Rjk, cutoff) * term7
-                    term11 = term2 + term8 + term9 + term10
+                    if (tag == 1) then
+                        term8 = &
+                        der_cutoff_fxn(Raj, cutoff) * c3 * c4 * term5
+                        term9 = &
+                        c2 * der_cutoff_fxn(Rak, cutoff) * c4 * term6
+                        term10 = &
+                        c2 * c3 * der_cutoff_fxn(Rjk, cutoff) * term7
+                    elseif (tag == 2) then
+                        term8 = der_cutoff_fxn(Raj, cutoff) * term5 * c3
+                        term8 = &
+                        term8 + c2 * der_cutoff_fxn(Rak, cutoff) * term6
+                        term8 = (1.0d0/3.0d0) * term8
+                        term9 = der_cutoff_fxn(Raj, cutoff) * term5 * c4
+                        term9 = &
+                        term9 + c2 * der_cutoff_fxn(Rjk, cutoff) * term7
+                        term9 = (1.0d0/3.0d0) * term9
+                        term10 = &
+                        der_cutoff_fxn(Rak, cutoff) * term6 * c4
+                        term10 = term10 + &
+                        c3 * der_cutoff_fxn(Rjk, cutoff) * term7
+                        term10 = (1.0d0/3.0d0) * term10
+                    endif
+                    term11 = term2 + c1 * (term8 + term9 + term10)
                     term = term1 * term11
                     ridge = ridge + term
                   end if
