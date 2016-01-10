@@ -560,7 +560,7 @@ def test():
                             else:
                                 assert (abs(calc.cost_function -
                                             reference_cost_function) <
-                                        10.**(-5.)), \
+                                        10.**(-10.)), \
                                     '''Cost function value for %r fortran, %r
                                 data format, %r save_memory, and %i cores is
                                 not consistent with the value of python version
@@ -568,7 +568,7 @@ def test():
                                                       save_memory, cores)
 
                             assert (abs(calc.energy_per_atom_rmse -
-                                        reference_energy_rmse) < 10.**(-5.)), \
+                                        reference_energy_rmse) < 10.**(-9.)), \
                                 '''Energy rmse value for %r fortran, %r data
                             format, %r save_memory, and %i cores is not
                             consistent with the value of python version on
@@ -576,7 +576,7 @@ def test():
                                                save_memory, cores)
 
                             assert (abs(calc.force_rmse -
-                                        reference_force_rmse) < 10.**(-5.)), \
+                                        reference_force_rmse) < 10.**(-9.)), \
                                 '''Force rmse value for %r fortran, %r data
                             format, %r save_memory, and %i cores is not
                             consistent with the value of python version on
@@ -587,7 +587,7 @@ def test():
                                     ref_cost_fxn_variable_derivatives)):
                                 assert (calc.der_variables_cost_function[_] -
                                         ref_cost_fxn_variable_derivatives[_] <
-                                        10.**(-5.))
+                                        10.**(-10.))
                                 '''Derivative of the cost function for %r
                                 fortran, %r data format, %r save_memory, and %i
                                 cores is not consistent with the value of

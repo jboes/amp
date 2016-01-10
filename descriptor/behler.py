@@ -34,19 +34,16 @@ class Behler:
                              form suggested by Behler, and 2 is for the version
                              modified by us.
     :type fingerprints_tag: int
-    :param fortran: If True, will use the fortran subroutines, else will not.
-    :type fortran: bool
 
     :raises: FingerprintsError, NotImplementedError
     """
     ###########################################################################
 
-    def __init__(self, cutoff=6.5, Gs=None, fingerprints_tag=2, fortran=True,):
+    def __init__(self, cutoff=6.5, Gs=None, fingerprints_tag=2,):
 
         self.cutoff = cutoff
         self.Gs = Gs
         self.fingerprints_tag = fingerprints_tag
-        self.fortran = fortran
 
         self.no_of_element_fingerprints = {}
         if Gs is not None:
@@ -62,13 +59,17 @@ class Behler:
 
     ###########################################################################
 
-    def initialize(self, atoms):
+    def initialize(self, fortran, atoms):
         """
         Initializing atoms object.
 
+        :param fortran: If True, will use the fortran subroutines, else will
+                        not.
+        :type fortran: bool
         :param atoms: ASE atoms object.
         :type atoms: ASE dict
         """
+        self.fortran = fortran
         self.atoms = atoms
 
     ###########################################################################

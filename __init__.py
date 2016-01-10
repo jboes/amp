@@ -432,8 +432,8 @@ class Amp(Calculator):
                                skin=0.)
             _nl.update(atoms)
 
-            self.fp.atoms = atoms
             self.fp._nl = _nl
+            self.fp.initialize(self.fortran, atoms)
 
             # If fingerprints_range is not available, it will raise an error.
             if param.fingerprints_range is None:
@@ -874,8 +874,8 @@ class Amp(Calculator):
             # Fingerprints are calculated and saved
             self.sfp = SaveFingerprints(self.fp, self.elements, no_of_images,
                                         hashs, images, self.dblabel,
-                                        train_forces, snl, log,
-                                        _mp, io, data_format, save_memory)
+                                        train_forces, snl, log, _mp, io,
+                                        data_format, save_memory, self.fortran)
 
             gc.collect()
 
@@ -1675,11 +1675,14 @@ class SaveFingerprints:
     :type data_format: str
     :param save_memory: If True, memory efficient mode will be used.
     :type save_memory: bool
+    :param fortran: If True, will use fortran modules, if False, will not.
+    :type fortran: bool
     """
     ###########################################################################
 
     def __init__(self, fp, elements, no_of_images, hashs, images, label,
-                 train_forces, snl, log, _mp, io, data_format, save_memory):
+                 train_forces, snl, log, _mp, io, data_format, save_memory,
+                 fortran):
 
         self.train_forces = train_forces
         new_images = images
@@ -1748,7 +1751,7 @@ class SaveFingerprints:
                     % (_, childfiles[_].name))
                 _ += 1
 
-            task_args = (fp, childfiles, io, data_format, save_memory,)
+            task_args = (fp, childfiles, io, data_format, save_memory, fortran)
             _mp.share_fingerprints_task_between_cores(
                 task=_calculate_fingerprints, _args=task_args)
 
@@ -1895,7 +1898,7 @@ class SaveFingerprints:
                     _ += 1
 
                 task_args = (fp, snl, childfiles, io, data_format, save_memory,
-                             snl.ncursor,)
+                             snl.ncursor, fortran)
                 _mp.share_fingerprints_task_between_cores(
                     task=_calculate_der_fingerprints,
                     _args=task_args)
@@ -2186,7 +2189,7 @@ class CostFxnandDer:
 
 
 def _calculate_fingerprints(proc_no, hashs, images, fp, childfiles, io,
-                            data_format, save_memory,):
+                            data_format, save_memory, fortran):
     """
     Function to be called on all processes simultaneously for calculating
     fingerprints.
@@ -2207,6 +2210,8 @@ def _calculate_fingerprints(proc_no, hashs, images, fp, childfiles, io,
     :type data_format: str
     :param save_memory: If True, memory efficient mode will be used.
     :type save_memory: bool
+    :param fortran: If True, will use fortran modules, if False, will not.
+    :type fortran: bool
     """
     if save_memory:
         fconn = sqlite3.connect(childfiles[proc_no].name)
@@ -2223,7 +2228,7 @@ def _calculate_fingerprints(proc_no, hashs, images, fp, childfiles, io,
         data[hash] = {}
         atoms = images[hash]
         no_of_atoms = len(atoms)
-        fp.initialize(atoms)
+        fp.initialize(fortran, atoms)
         _nl = NeighborList(cutoffs=([fp.cutoff / 2.] * len(atoms)),
                            self_interaction=False,
                            bothways=True,
@@ -2266,7 +2271,8 @@ def _calculate_fingerprints(proc_no, hashs, images, fp, childfiles, io,
 
 
 def _calculate_der_fingerprints(proc_no, hashs, images, fp, snl, childfiles,
-                                io, data_format, save_memory, ncursor):
+                                io, data_format, save_memory, ncursor,
+                                fortran):
     """
     Function to be called on all processes simultaneously for calculating
     derivatives of fingerprints.
@@ -2292,6 +2298,8 @@ def _calculate_der_fingerprints(proc_no, hashs, images, fp, snl, childfiles,
     :param ncursor: Cursor connecting to neighborlists database in the
                     save_memory mode.
     :type ncursor: object
+    :param fortran: If True, will use fortran modules, if False, will not.
+    :type fortran: bool
     """
     if save_memory:
         fdconn = sqlite3.connect(childfiles[proc_no].name)
@@ -2309,7 +2317,7 @@ def _calculate_der_fingerprints(proc_no, hashs, images, fp, snl, childfiles,
         data[hash] = {}
         atoms = images[hash]
         no_of_atoms = len(atoms)
-        fp.initialize(atoms)
+        fp.initialize(fortran, atoms)
         _nl = NeighborList(cutoffs=([fp.cutoff / 2.] * no_of_atoms),
                            self_interaction=False,
                            bothways=True,
@@ -2931,15 +2939,15 @@ def send_data_to_fortran(sfp, elements, train_forces,
         no_of_elements = len(elements)
         elements_numbers = [atomic_numbers[elm] for elm in elements]
         min_fingerprints = \
-            [[param.fingerprints_range[elm][_][0]
-              for _ in range(len(param.fingerprints_range[elm]))]
+            [[sfp.fingerprints_range[elm][_][0]
+              for _ in range(len(sfp.fingerprints_range[elm]))]
              for elm in elements]
-        max_fingerprints = [[param.fingerprints_range[elm][_][1]
+        max_fingerprints = [[sfp.fingerprints_range[elm][_][1]
                              for _
-                             in range(len(param.fingerprints_range[elm]))]
+                             in range(len(sfp.fingerprints_range[elm]))]
                             for elm in elements]
         len_fingerprints_of_elements = \
-            [len(param.fingerprints_range[elm]) for elm in elements]
+            [len(sfp.fingerprints_range[elm]) for elm in elements]
     else:
         no_of_atoms_of_image = param.no_of_atoms
 

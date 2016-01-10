@@ -41,7 +41,7 @@ def test():
         for global_search in [None, SimulatedAnnealing(temperature=10,
                                                        steps=5)]:
             for data_format in ['json', 'db']:
-                for save_memory in [False,]:
+                for save_memory in [False, ]:
                     for fortran in [False, True]:
                         for cores in range(1, 4):
 
@@ -59,6 +59,7 @@ def test():
                                        descriptor=descriptor,
                                        regression=regression,
                                        fortran=fortran,)
+
                             # Should start with new variables
                             calc.train(images,
                                        energy_goal=0.01, force_goal=10.,
@@ -101,6 +102,7 @@ def test():
                                        descriptor=descriptor,
                                        regression=regression,
                                        fortran=fortran,)
+
                             # Should start with new variables
                             calc.train(images,
                                        energy_goal=0.01, force_goal=10.,
@@ -116,6 +118,7 @@ def test():
                                        descriptor=descriptor,
                                        regression=regression,
                                        fortran=fortran,)
+
                             # Should start with existing variables
                             calc.train(images,
                                        energy_goal=0.01, force_goal=10.,
@@ -141,6 +144,7 @@ def test():
                                        descriptor=descriptor,
                                        regression=regression,
                                        fortran=fortran,)
+
                             # Should start with existing variables
                             calc.train(images,
                                        energy_goal=0.01, force_goal=10.,

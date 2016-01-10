@@ -194,18 +194,18 @@ def non_periodic_0th_bfgs_step_test():
                                        extend_variables=extend_variables)
 
                             assert (abs(calc.cost_function - 7144.3029236323) <
-                                    10.**(-5.)), \
+                                    10.**(-10.)), \
                                 'The calculated value of cost function is \
                                 wrong!'
 
                             assert (abs(calc.energy_per_atom_rmse -
                                         24.3147240647693) <
-                                    10.**(-7.)), \
+                                    10.**(-10.)), \
                                 'The calculated value of energy per atom RMSE \
                                 is wrong!'
 
                             assert (abs(calc.force_rmse - 144.7113314827651) <
-                                    10 ** (-7)), \
+                                    10 ** (-10)), \
                                 'The calculated value of force RMSE is wrong!'
 
                             for _ in range(len(correct_der_cost_fxn)):
@@ -237,18 +237,18 @@ def non_periodic_0th_bfgs_step_test():
                                        extend_variables=extend_variables)
 
                             assert (abs(calc.cost_function - 7144.3029236323) <
-                                    10.**(-5.)), \
+                                    10.**(-10.)), \
                                 'The calculated value of cost function is \
                                 wrong!'
 
                             assert (abs(calc.energy_per_atom_rmse -
                                         24.3147240647693) <
-                                    10.**(-7.)), \
+                                    10.**(-10.)), \
                                 'The calculated value of energy per atom RMSE \
                                 is wrong!'
 
                             assert (abs(calc.force_rmse - 144.7113314827651) <
-                                    10 ** (-7)), \
+                                    10 ** (-10)), \
                                 'The calculated value of force RMSE is wrong!'
 
                             for _ in range(len(correct_der_cost_fxn)):
@@ -442,7 +442,7 @@ def non_periodic_9th_bfgs_step_test():
 
                             assert (abs(calc.cost_function -
                                         5143.710215976742) <
-                                    10.**(-6.)), \
+                                    10.**(-10.)), \
                                 'The calculated value of cost function is \
                                 wrong!'
 
@@ -452,13 +452,13 @@ def non_periodic_9th_bfgs_step_test():
                             is wrong!'
 
                             assert (abs(calc.force_rmse - 144.00654147430743) <
-                                    10 ** (-7.)), \
+                                    10 ** (-10.)), \
                                 'The calculated value of force RMSE is wrong!'
 
                             for _ in range(len(correct_der_cost_fxn)):
                                 assert(abs(calc.der_variables_cost_function[
                                     _] - correct_der_cost_fxn[_] <
-                                    10 ** (-5))), \
+                                    10 ** (-10))), \
                                     'The calculated value of cost function \
                                 derivative is wrong!'
 
@@ -485,23 +485,23 @@ def non_periodic_9th_bfgs_step_test():
 
                             assert (abs(calc.cost_function -
                                         5143.710215976742) <
-                                    10.**(-6.)), \
+                                    10.**(-10.)), \
                                 'The calculated value of cost function is \
                                 wrong!'
 
                             assert (abs(calc.energy_per_atom_rmse -
-                                        14.11476828359897) < 10.**(-7.)), \
+                                        14.11476828359897) < 10.**(-10.)), \
                                 'The calculated value of energy per atom RMSE \
                             is wrong!'
 
                             assert (abs(calc.force_rmse - 144.00654147430743) <
-                                    10 ** (-7.)), \
+                                    10 ** (-10.)), \
                                 'The calculated value of force RMSE is wrong!'
 
                             for _ in range(len(correct_der_cost_fxn)):
                                 assert(abs(calc.der_variables_cost_function[
                                     _] - correct_der_cost_fxn[_] <
-                                    10 ** (-5))), \
+                                    10 ** (-10))), \
                                     'The calculated value of cost function \
                                 derivative is wrong!'
 
@@ -656,23 +656,23 @@ def periodic_0th_bfgs_step_test():
 
                             assert (abs(calc.cost_function -
                                         8005.262570965399) <
-                                    10.**(-7.)), \
+                                    10.**(-10.)), \
                                 'The calculated value of cost function is \
                                 wrong!'
 
                             assert (abs(calc.energy_per_atom_rmse -
-                                        43.7357980979198) < 10.**(-8.)), \
+                                        43.7357980979198) < 10.**(-10.)), \
                                 'The calculated value of energy per atom RMSE \
                             is wrong!'
 
                             assert (abs(calc.force_rmse - 137.44097112273843) <
-                                    10 ** (-8.)), \
+                                    10 ** (-10.)), \
                                 'The calculated value of force RMSE is wrong!'
 
                             for _ in range(len(correct_der_cost_fxn)):
                                 assert(abs(calc.der_variables_cost_function[
                                     _] -
-                                    correct_der_cost_fxn[_] < 10 ** (-8))), \
+                                    correct_der_cost_fxn[_] < 10 ** (-10))), \
                                     'The calculated value of cost function \
                                    derivative is wrong!'
 
@@ -699,23 +699,23 @@ def periodic_0th_bfgs_step_test():
 
                             assert (abs(calc.cost_function -
                                         8005.262570965399) <
-                                    10.**(-7.)), \
+                                    10.**(-10.)), \
                                 'The calculated value of cost function is \
                                 wrong!'
 
                             assert (abs(calc.energy_per_atom_rmse -
-                                        43.7357980979198) < 10.**(-8.)), \
+                                        43.7357980979198) < 10.**(-10.)), \
                                 'The calculated value of energy per atom RMSE \
                             is wrong!'
 
                             assert (abs(calc.force_rmse - 137.44097112273843) <
-                                    10 ** (-8.)), \
+                                    10 ** (-10.)), \
                                 'The calculated value of force RMSE is wrong!'
 
                             for _ in range(len(correct_der_cost_fxn)):
                                 assert(abs(calc.der_variables_cost_function[
                                     _] -
-                                    correct_der_cost_fxn[_] < 10 ** (-8))), \
+                                    correct_der_cost_fxn[_] < 10 ** (-10))), \
                                     'The calculated value of cost function \
                                    derivative is wrong!'
 
@@ -866,24 +866,24 @@ def periodic_2nd_bfgs_step_test():
 
                             assert (abs(calc.cost_function -
                                         2301.384892179139) <
-                                    10.**(-6.)), \
+                                    10.**(-10.)), \
                                 'The calculated value of cost function is \
                                 wrong!'
 
                             assert (abs(calc.energy_per_atom_rmse -
                                         5.13539878419966) <
-                                    10.**(-8.)), \
+                                    10.**(-10.)), \
                                 'The calculated value of energy per atom RMSE \
                                 is wrong!'
 
                             assert (abs(calc.force_rmse - 136.08416299484367) <
-                                    10 ** (-8.)), \
+                                    10 ** (-10.)), \
                                 'The calculated value of force RMSE is wrong!'
 
                             for _ in range(len(correct_der_cost_fxn)):
                                 assert(abs(calc.der_variables_cost_function[
                                     _] - correct_der_cost_fxn[_] <
-                                    10 ** (-7))), \
+                                    10 ** (-10.))), \
                                     'The calculated value of cost function \
                             derivative is wrong!'
 
@@ -910,24 +910,24 @@ def periodic_2nd_bfgs_step_test():
 
                             assert (abs(calc.cost_function -
                                         2301.384892179139) <
-                                    10.**(-6.)), \
+                                    10.**(-10.)), \
                                 'The calculated value of cost function is \
                                 wrong!'
 
                             assert (abs(calc.energy_per_atom_rmse -
                                         5.13539878419966) <
-                                    10.**(-8.)), \
+                                    10.**(-10.)), \
                                 'The calculated value of energy per atom RMSE \
                                 is wrong!'
 
                             assert (abs(calc.force_rmse - 136.08416299484367) <
-                                    10 ** (-8.)), \
+                                    10 ** (-10.)), \
                                 'The calculated value of force RMSE is wrong!'
 
                             for _ in range(len(correct_der_cost_fxn)):
                                 assert(abs(calc.der_variables_cost_function[
                                     _] - correct_der_cost_fxn[_] <
-                                    10 ** (-7))), \
+                                    10 ** (-10.))), \
                                     'The calculated value of cost function \
                             derivative is wrong!'
 

@@ -32,21 +32,18 @@ class SphericalHarmonics:
     :param fingerprints_tag: An internal tag for identifying the functional
                              form of fingerprints used in the code.
     :type fingerprints_tag: int
-    :param fortran: If True, will use the fortran subroutines, else will not.
-    :type fortran: bool
 
     :raises: FingerprintsError, NotImplementedError
     """
     ###########################################################################
 
     def __init__(self, cutoff=6.5, Gs=None, jmax=1,
-                 fingerprints_tag=1, fortran=True,):
+                 fingerprints_tag=1,):
 
         self.cutoff = cutoff
         self.Gs = Gs
         self.jmax = jmax
         self.fingerprints_tag = fingerprints_tag
-        self.fortran = fortran
 
         self.no_of_element_fingerprints = {}
         if Gs is not None:
@@ -76,13 +73,17 @@ class SphericalHarmonics:
 
     ###########################################################################
 
-    def initialize(self, atoms):
+    def initialize(self, fortran, atoms):
         """
         Initializing atoms object.
 
+        :param fortran: If True, will use the fortran subroutines, else will
+                        not.
+        :type fortran: bool
         :param atoms: ASE atoms object.
         :type atoms: ASE dict
         """
+        self.fortran = fortran
         self.atoms = atoms
 
     ###########################################################################
