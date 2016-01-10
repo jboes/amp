@@ -964,6 +964,7 @@ class Amp(Calculator):
                     save_memory,
                     self.sfp,
                     snl,)
+                costfxn.nnsizestep = step
 
             variables = param.regression._variables
 
@@ -984,7 +985,8 @@ class Amp(Calculator):
 
         if not converged:
             log('Saving checkpoint data.')
-            filename = make_filename(self.label, 'parameters-checkpoint.json')
+            filename = make_filename(self.label,
+                                     'parameters-checkpoint-%i.json' % step)
             save_parameters(filename, costfxn.param)
             log(' ...could not find parameters for the desired goal\n'
                 'error. Least error parameters saved as checkpoint.\n'
@@ -2005,6 +2007,7 @@ class CostFxnandDer:
         self.sfp = sfp
         self.snl = snl
         self.steps = 0
+        self.nnsizestep = 0
 
         if param.descriptor is not None:  # pure atomic-coordinates scheme
             self.cutoff = param.descriptor.cutoff
@@ -2113,7 +2116,7 @@ class CostFxnandDer:
             log('Saving checkpoint data.')
             filename = make_filename(
                 self.label,
-                'parameters-checkpoint.json')
+                'parameters-checkpoint-%i.json' % self.nnsizestep)
             save_parameters(filename, self.param)
 
         if self.energy_per_atom_rmse < self.energy_goal and \
