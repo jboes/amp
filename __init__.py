@@ -305,8 +305,7 @@ class Amp(Calculator):
                 kwargs['descriptor'] = \
                     Behler(cutoff=parameters['cutoff'],
                            Gs=parameters['Gs'],
-                           fingerprints_tag=parameters['fingerprints_tag'],
-                           fortran=fortran,)
+                           fingerprints_tag=parameters['fingerprints_tag'],)
 
             elif parameters['descriptor'] == 'SphericalHarmonics':
                 kwargs['descriptor'] = \
@@ -314,8 +313,7 @@ class Amp(Calculator):
                                        Gs=parameters['Gs'],
                                        jmax=parameters['jmax'],
                                        fingerprints_tag=parameters[
-                                           'fingerprints_tag'],
-                                       fortran=fortran,)
+                                           'fingerprints_tag'],)
             elif parameters['descriptor'] == 'None':
                 kwargs['descriptor'] = None
                 if parameters['no_of_atoms'] == 'None':
