@@ -1,6 +1,7 @@
 import numpy as np
 from ase.data import atomic_numbers
 from amp.utilities import FingerprintsError
+import warnings
 try:
     from amp import fmodules
 except ImportError:
@@ -39,7 +40,7 @@ class Behler:
     """
     ###########################################################################
 
-    def __init__(self, cutoff=6.5, Gs=None, fingerprints_tag=2,):
+    def __init__(self, cutoff=6.5, Gs=None, fingerprints_tag=1,):
 
         self.cutoff = cutoff
         self.Gs = Gs
@@ -56,6 +57,8 @@ class Behler:
             raise FingerprintsError('Functional form of fingerprints has been '
                                     'changed. Re-train you train images set, '
                                     'and use the new variables.')
+        if self.fingerprints_tag == 2:
+            warnings.warn('Functional form 2 is not continuous!')
 
     ###########################################################################
 
