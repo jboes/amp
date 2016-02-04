@@ -234,7 +234,13 @@ class SphericalHarmonics:
                 param.descriptor.no_of_element_fingerprints[element] = \
                     no_of_element_fps
 
-        log('Symmetry functions for each element:')
+        log('Number of descriptors for each element:')
+        for element in elements:
+            log(' %2s: %s' % (element,
+                              str(param.descriptor.no_of_element_fingerprints[
+                                  element])))
+
+        log('Symmetry coefficients for each element:')
         for _ in param.descriptor.Gs.keys():
             log(' %2s: %s' % (_, str(param.descriptor.Gs[_])))
 
