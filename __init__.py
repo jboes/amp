@@ -16,7 +16,7 @@ from ase.calculators.neighborlist import NeighborList
 from utilities import make_filename, load_parameters, ConvergenceOccurred, IO
 from utilities import TrainingConvergenceError, ExtrapolateError, hash_image
 from utilities import Logger, save_parameters
-from descriptor import Behler, SphericalHarmonics
+from descriptor import Behler, SphericalHarmonics, Zernike
 from regression import NeuralNetwork
 try:
     from amp import fmodules  # version 4 of fmodules
@@ -314,6 +314,14 @@ class Amp(Calculator):
                                        jmax=parameters['jmax'],
                                        fingerprints_tag=parameters[
                                            'fingerprints_tag'],)
+
+            elif parameters['descriptor'] == 'Zernike':
+                kwargs['descriptor'] = \
+                    Zernike(cutoff=parameters['cutoff'],
+                            Gs=parameters['Gs'],
+                            nmax=parameters['nmax'],
+                            fingerprints_tag=parameters['fingerprints_tag'],)
+
             elif parameters['descriptor'] == 'None':
                 kwargs['descriptor'] = None
                 if parameters['no_of_atoms'] == 'None':
