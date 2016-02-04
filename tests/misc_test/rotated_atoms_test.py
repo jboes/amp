@@ -9,7 +9,7 @@ from ase import Atom, Atoms
 from ase.constraints import FixAtoms
 from ase.calculators.emt import EMT
 from amp import Amp
-from amp.descriptor import Behler, SphericalHarmonics
+from amp.descriptor import Behler, SphericalHarmonics, Zernike
 import json
 from ase.parallel import paropen
 import shutil
@@ -42,7 +42,7 @@ def rotate_atom(x, y, z, phi, theta, psi):
 
 def test():
 
-    for descriptor in [Behler(), SphericalHarmonics(jmax=2.)]:
+    for descriptor in [Behler(), SphericalHarmonics(jmax=2.), Zernike(nmax=5)]:
 
         # Non-rotated atomic configuration
         atoms = Atoms([Atom('Pt', (0., 0., 0.)),
