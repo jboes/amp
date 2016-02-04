@@ -122,23 +122,26 @@ class SphericalHarmonics:
             r = np.linalg.norm(neighbor - home)
             if r > 10.**(-10.):
 
-                psi = np.arccos(sqrt(1. - (r / self.cutoff)**2.))
-                theta = np.arccos(z / (self.cutoff * sin(psi)))
-                if abs((z / (self.cutoff * sin(psi))) - 1.0) < 10.**(-8.):
-                    theta = 0.0
-                elif abs((z / (self.cutoff * sin(psi))) + 1.0) < 10.**(-8.):
-                    theta = np.pi
-                phi = np.arctan(y / x)
-                if x < 0.:
-                    phi += np.pi
-                elif x > 0. and y < 0.:
-                    phi += 2. * np.pi
+                psi = np.arcsin(r / self.cutoff)
 
-                if math.isnan(phi):
-                    if y < 0.:
-                        phi = 1.5 * np.pi
-                    else:
-                        phi = 0.5 * np.pi
+                theta = np.arccos(z / r)
+                if abs((z / r) - 1.0) < 10.**(-8.):
+                    theta = 0.0
+                elif abs((z / r) + 1.0) < 10.**(-8.):
+                    theta = np.pi
+
+                if x < 0.:
+                    phi = np.pi + np.arctan(y / x)
+                elif 0. < x and y < 0.:
+                    phi = 2 * np.pi + np.arctan(y / x)
+                elif 0. < x and 0. <= y:
+                    phi = np.arctan(y / x)
+                elif x == 0. and 0. < y:
+                    phi = 0.5 * np.pi
+                elif x == 0. and y < 0.:
+                    phi = 1.5 * np.pi
+                else:
+                    phi = 0.
 
                 rs += [r]
                 psis += [psi]
