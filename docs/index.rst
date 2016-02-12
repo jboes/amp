@@ -21,6 +21,7 @@ and is released under the GNU General Public License. This is a relatively new p
    useamp.rst
    theory.rst
    parallelcomputing.rst
+   develop.rst
 
 **List of All Methods**:
 
