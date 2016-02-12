@@ -188,11 +188,11 @@ def plot_convergence(logfile, plotfile='convergence.pdf'):
         ax.set_ylabel('temperature')
 
         ax = fig0.add_subplot(312)
-        ax.set_title('trace of cost function')
+        ax.set_title('trace of loss function')
         ax.plot(d['costfxns'], '-')
         ax.set_yscale('log')
         ax.set_xlabel('step')
-        ax.set_ylabel('cost function')
+        ax.set_ylabel('loss function')
 
         ax = fig0.add_subplot(313)
         ax.set_title('trace of acceptance rate')
@@ -220,7 +220,7 @@ def plot_convergence(logfile, plotfile='convergence.pdf'):
     if d['forcegoal']:
         ax.semilogy(steps, d['fs'], 'g', lw=2, label='force rmse')
     ax.semilogy(steps, d['costfxns'], color='0.5', lw=2,
-                label='cost function')
+                label='loss function')
     # Targets.
     ax.semilogy([steps[0], steps[-1]], [d['energygoal']] * 2,
                 color='b', linestyle=':')
@@ -235,7 +235,7 @@ def plot_convergence(logfile, plotfile='convergence.pdf'):
     if len(breaks) > 0:
         ylim = ax.get_ylim()
         for b in breaks:
-            ax.plot([b]*2, ylim, '--k')
+            ax.plot([b] * 2, ylim, '--k')
 
     if d['forcegoal']:
         ax = fig.add_axes((lm, bm, 1. - lm - rm, bottomaxheight))
@@ -245,7 +245,7 @@ def plot_convergence(logfile, plotfile='convergence.pdf'):
                         y2=np.array(d['costfxnEs']) +
                         np.array(d['costfxnFs']),
                         color='green')
-        ax.set_ylabel('cost function component')
+        ax.set_ylabel('loss function component')
         ax.set_xlabel('BFGS step')
         ax.set_ylim(0, 1)
 
@@ -301,6 +301,9 @@ def plot_parity(load,
 
     from amp import Amp
     from amp.utilities import hash_image
+    from matplotlib import rc
+    # activate latex text rendering
+    rc('text', usetex=True)
 
     calc = Amp(load=load)
 
@@ -373,9 +376,9 @@ def plot_parity(load,
             [min_act_energy, max_act_energy],
             'r-',
             lw=0.3,)
-    ax.set_xlabel('actual energy, eV')
-    ax.set_ylabel('Amp energy')
-    ax.set_title('Energies')
+    ax.set_xlabel(r"\textit{ab initio} energy, eV")
+    ax.set_ylabel(r"\textit{Amp} energy, eV")
+    ax.set_title(r"Energies")
 
     if plot_forces:
 
@@ -476,9 +479,9 @@ def plot_parity(load,
                 'r-',
                 lw=0.3,)
 
-        ax.set_xlabel('actual force, eV/Ang')
-        ax.set_ylabel('Amp force')
-        ax.set_title('Forces')
+        ax.set_xlabel(r"\textit{ab initio} force, eV/Ang")
+        ax.set_ylabel(r"\textit{Amp} force, eV/Ang")
+        ax.set_title(r"Forces")
 
         ##############################################################
 
@@ -529,6 +532,9 @@ def plot_error(load,
 
     from amp import Amp
     from amp.utilities import hash_image
+    from matplotlib import rc
+    # activate latex text rendering
+    rc('text', usetex=True)
 
     calc = Amp(load=load)
 
@@ -618,9 +624,11 @@ def plot_error(load,
             ha='right',
             va='bottom',
             color='red')
-    ax.set_xlabel('actual energy per atom, eV per atom')
-    ax.set_ylabel('|actual energy - Amp energy| / number of atoms')
-    ax.set_title('Energies')
+
+    ax.set_xlabel(r"\textit{ab initio} energy (eV) per atom")
+    ax.set_ylabel(r"$\left|\right.$\textit{ab initio} energy - \textit{Amp} "
+                  "energy$\left|\right.$ / number of atoms")
+    ax.set_title(r"Energies")
 
     if plot_forces:
 
@@ -703,6 +711,7 @@ def plot_error(load,
                         no_of_atoms
                     k += 1
                 index += 1
+            count += 1
         del hash, index, k
 
         force_rmse = np.sqrt(force_square_error / no_of_images)
@@ -747,9 +756,10 @@ def plot_error(load,
                 va='bottom',
                 color='red',)
 
-        ax.set_xlabel('actual force, eV/Ang')
-        ax.set_ylabel('|actual force - Amp force|')
-        ax.set_title('Forces')
+        ax.set_xlabel(r"\textit{ab initio} force, eV/Ang")
+        ax.set_ylabel(r"$\left|\right.$\textit{ab initio} force - "
+                      "\textit{Amp} force$\left|\right.$")
+        ax.set_title(r"Forces")
 
         ##############################################################
 
