@@ -120,6 +120,7 @@ class Zernike:
                         omega = 0.
                         for n_index in range(len_of_neighbors):
                             neighbor = Rs[n_index]
+                            n_symbol = n_symbols[n_index]
                             x = (neighbor[0] - home[0]) / self.cutoff
                             y = (neighbor[1] - home[1]) / self.cutoff
                             z = (neighbor[2] - home[2]) / self.cutoff
@@ -144,7 +145,8 @@ class Zernike:
                             else:
                                 phi = 0.
 
-                            ZZ = calculate_R(n, l, rho, self.factorial) * \
+                            ZZ = self.Gs[symbol][n_symbol] * \
+                                calculate_R(n, l, rho, self.factorial) * \
                                 sph_harm(m, l, phi, theta) * \
                                 cutoff_fxn(rho * self.cutoff, self.cutoff)
 
@@ -299,7 +301,7 @@ def binomial(n, k, factorial):
     """Returns C(n,k) = n!/(k!(n-k)!)."""
 
     assert n >= 0 and k >= 0 and n >= k, \
-        'n and k should be non-negative integers.'
+        'n and k should be non-negative integers with n >= k.'
 
     c = factorial[int(2 * n)] / \
         (factorial[int(2 * k)] * factorial[int(2 * (n - k))])
