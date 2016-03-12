@@ -70,6 +70,7 @@ def test_behler():
     calc = Amp(descriptor=Behler(),
                label=os.path.join(label, 'behler'),
                regression=NeuralNetwork(hiddenlayers=(5, 5)))
+
     calc.train(images, force_goal=None)
 
 ###############################################################################

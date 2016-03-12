@@ -1,6 +1,7 @@
 import numpy as np
 from ase.data import atomic_numbers
 from amp.utilities import FingerprintsError
+import warnings
 try:
     from amp import fmodules
 except ImportError:
@@ -29,39 +30,49 @@ class Behler:
                ...               "eta":2., "gamma":1., "zeta":5.0}]}
 
     :type Gs: dict
-    :param fingerprints_tag: An internal tag for identifying the functional
-                             form of fingerprints used in the code.
+    :param fingerprints_tag: A tag for identifying the functional form of
+                             fingerprints. 1 is for the original functional
+                             form suggested by Behler, and 2 is for the version
+                             modified by us.
     :type fingerprints_tag: int
-    :param fortran: If True, will use the fortran subroutines, else will not.
-    :type fortran: bool
 
     :raises: FingerprintsError, NotImplementedError
     """
     ###########################################################################
 
-    def __init__(self, cutoff=6.5, Gs=None, fingerprints_tag=1, fortran=True,):
+    def __init__(self, cutoff=6.5, Gs=None, fingerprints_tag=1,):
 
         self.cutoff = cutoff
         self.Gs = Gs
         self.fingerprints_tag = fingerprints_tag
-        self.fortran = fortran
+
+        self.no_of_element_fingerprints = {}
+        if Gs is not None:
+            for element in Gs.keys():
+                self.no_of_element_fingerprints[element] = len(Gs[element])
 
         # Checking if the functional forms of fingerprints in the train set
         # is the same as those of the current version of the code:
-        if self.fingerprints_tag != 1:
+        if self.fingerprints_tag != 1 and self.fingerprints_tag != 2:
             raise FingerprintsError('Functional form of fingerprints has been '
                                     'changed. Re-train you train images set, '
                                     'and use the new variables.')
+        if self.fingerprints_tag == 2:
+            warnings.warn('Functional form 2 is not continuous!')
 
     ###########################################################################
 
-    def initialize(self, atoms):
+    def initialize(self, fortran, atoms):
         """
         Initializing atoms object.
 
+        :param fortran: If True, will use the fortran subroutines, else will
+                        not.
+        :type fortran: bool
         :param atoms: ASE atoms object.
         :type atoms: ASE dict
         """
+        self.fortran = fortran
         self.atoms = atoms
 
     ###########################################################################
@@ -100,7 +111,7 @@ class Behler:
             elif G['type'] == 'G4':
                 ridge = calculate_G4(n_symbols, Rs, G['elements'], G['gamma'],
                                      G['zeta'], G['eta'], self.cutoff, home,
-                                     self.fortran)
+                                     self.fortran, self.fingerprints_tag)
             else:
                 raise NotImplementedError('Unknown G type: %s' % G['type'])
             fingerprint[count] = ridge
@@ -172,7 +183,8 @@ class Behler:
                     Rindex,
                     m,
                     i,
-                    self.fortran)
+                    self.fortran,
+                    self.fingerprints_tag)
             else:
                 raise NotImplementedError('Unknown G type: %s' % G['type'])
 
@@ -201,6 +213,11 @@ class Behler:
         # If Gs is not given, generates symmetry functions
         if not param.descriptor.Gs:
             param.descriptor.Gs = make_symmetry_functions(elements)
+            param.descriptor.no_of_element_fingerprints = {}
+            for element in param.descriptor.Gs.keys():
+                param.descriptor.no_of_element_fingerprints[element] = \
+                    len(param.descriptor.Gs[element])
+
         log('Symmetry functions for each element:')
         for _ in param.descriptor.Gs.keys():
             log(' %2s: %i' % (_, len(param.descriptor.Gs[_])))
@@ -263,7 +280,7 @@ def calculate_G2(symbols, Rs, G_element, eta, cutoff, home, fortran):
 
 
 def calculate_G4(symbols, Rs, G_elements, gamma, zeta, eta, cutoff, home,
-                 fortran):
+                 fortran, fingerprints_tag):
     """
     Calculate G4 symmetry function. Ideally this will not be used but
     will be a template for how to build the fortran version (and serves as
@@ -287,6 +304,9 @@ def calculate_G4(symbols, Rs, G_elements, gamma, zeta, eta, cutoff, home,
     :type home: int
     :param fortran: If True, will use the fortran subroutines, else will not.
     :type fortran: bool
+    :param fingerprints_tag: An integer number for deciding which functional
+                            form should be used.
+    :type fingerprints_tag: int
 
     :returns: float -- G4 fingerprint.
     """
@@ -300,7 +320,8 @@ def calculate_G4(symbols, Rs, G_elements, gamma, zeta, eta, cutoff, home,
             ridge = fmodules.calculate_g4(numbers=numbers, rs=Rs,
                                           g_numbers=G_numbers, g_gamma=gamma,
                                           g_zeta=zeta, g_eta=eta,
-                                          cutoff=cutoff, home=home)
+                                          cutoff=cutoff, home=home,
+                                          tag=fingerprints_tag)
     else:
         ridge = 0.
         counts = range(len(symbols))
@@ -318,9 +339,16 @@ def calculate_G4(symbols, Rs, G_elements, gamma, zeta, eta, cutoff, home,
                 term = (1. + gamma * cos_theta_ijk) ** zeta
                 term *= np.exp(-eta * (Rij ** 2. + Rik ** 2. + Rjk ** 2.) /
                                (cutoff ** 2.))
-                term *= (1. / 3.) * (cutoff_fxn(Rij, cutoff) +
-                                     cutoff_fxn(Rik, cutoff) +
-                                     cutoff_fxn(Rjk, cutoff))
+                if fingerprints_tag == 1:
+                    term *= cutoff_fxn(Rij, cutoff)
+                    term *= cutoff_fxn(Rik, cutoff)
+                    term *= cutoff_fxn(Rjk, cutoff)
+                elif fingerprints_tag == 2:
+                    term *= (1. / 3.) * \
+                        (cutoff_fxn(Rij, cutoff) * cutoff_fxn(Rik, cutoff) +
+                         cutoff_fxn(Rij, cutoff) * cutoff_fxn(Rjk, cutoff) +
+                         cutoff_fxn(Rik, cutoff) * cutoff_fxn(Rjk, cutoff))
+
                 ridge += term
         ridge *= 2. ** (1. - zeta)
 
@@ -610,7 +638,7 @@ def calculate_der_G2(n_indices, symbols, Rs, G_element, eta, cutoff, a, Ra,
 
 
 def calculate_der_G4(n_indices, symbols, Rs, G_elements, gamma, zeta, eta,
-                     cutoff, a, Ra, m, i, fortran):
+                     cutoff, a, Ra, m, i, fortran, fingerprints_tag):
     """
     Calculates coordinate derivative of G4 symmetry function for atom at
     index a and position Ra with respect to coordinate x_{i} of atom index m.
@@ -641,6 +669,9 @@ def calculate_der_G4(n_indices, symbols, Rs, G_elements, gamma, zeta, eta,
     :type i: int
     :param fortran: If True, will use the fortran subroutines, else will not.
     :type fortran: bool
+    :param fingerprints_tag: An integer number for deciding which functional
+                            form should be used.
+    :type fingerprints_tag: int
 
     :returns: float -- coordinate derivative of G4 symmetry function for atom
                        at index a and position Ra with respect to coordinate
@@ -659,7 +690,8 @@ def calculate_der_G4(n_indices, symbols, Rs, G_elements, gamma, zeta, eta,
                                               g_zeta=zeta, g_eta=eta,
                                               cutoff=cutoff, aa=a,
                                               home=Ra, mm=m,
-                                              ii=i)
+                                              ii=i,
+                                              tag=fingerprints_tag)
     else:
         ridge = 0.
         counts = range(len(symbols))
@@ -689,7 +721,10 @@ def calculate_der_G4(n_indices, symbols, Rs, G_elements, gamma, zeta, eta,
                     term1 = c1 ** (zeta - 1.) * \
                         np.exp(- eta * (Raj ** 2. + Rak ** 2. + Rjk ** 2.) /
                                (cutoff ** 2.))
-                term2 = (1. / 3.) * (c2 + c3 + c4)
+                if fingerprints_tag == 1:
+                    term2 = c2 * c3 * c4
+                elif fingerprints_tag == 2:
+                    term2 = (1. / 3.) * (c2 * c3 + c2 * c4 + c3 * c4)
                 term3 = der_cos_theta(a, n_indices[j], n_indices[k], Ra, Rj,
                                       Rk, m, i)
                 term4 = gamma * zeta * term3
@@ -700,10 +735,22 @@ def calculate_der_G4(n_indices, symbols, Rs, G_elements, gamma, zeta, eta,
                 term7 = der_position(n_indices[j], n_indices[k], Rj, Rk, m, i)
                 term4 += -2. * c1 * eta * Rjk * term7 / (cutoff ** 2.)
                 term2 = term2 * term4
-                term8 = c1 * (1. / 3.) * der_cutoff_fxn(Raj, cutoff) * term5
-                term9 = c1 * (1. / 3.) * der_cutoff_fxn(Rak, cutoff) * term6
-                term10 = c1 * (1. / 3.) * der_cutoff_fxn(Rjk, cutoff) * term7
-                term11 = term2 + term8 + term9 + term10
+                if fingerprints_tag == 1:
+                    term8 = der_cutoff_fxn(Raj, cutoff) * c3 * c4 * term5
+                    term9 = c2 * der_cutoff_fxn(Rak, cutoff) * c4 * term6
+                    term10 = c2 * c3 * der_cutoff_fxn(Rjk, cutoff) * term7
+                elif fingerprints_tag == 2:
+                    term8 = der_cutoff_fxn(Raj, cutoff) * term5 * c3
+                    term8 += c2 * der_cutoff_fxn(Rak, cutoff) * term6
+                    term8 = (1. / 3.) * term8
+                    term9 = der_cutoff_fxn(Raj, cutoff) * term5 * c4
+                    term9 += c2 * der_cutoff_fxn(Rjk, cutoff) * term7
+                    term9 = (1. / 3.) * term9
+                    term10 = der_cutoff_fxn(Rak, cutoff) * term6 * c4
+                    term10 += c3 * der_cutoff_fxn(Rjk, cutoff) * term7
+                    term10 = (1. / 3.) * term10
+
+                term11 = term2 + c1 * (term8 + term9 + term10)
                 term = term1 * term11
                 ridge += term
         ridge *= 2. ** (1. - zeta)

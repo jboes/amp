@@ -278,12 +278,20 @@ def save_parameters(filename, param):
         parameters['Gs'] = param.descriptor.Gs
         parameters['cutoff'] = param.descriptor.cutoff
         parameters['fingerprints_tag'] = param.descriptor.fingerprints_tag
+        if param.descriptor.__class__.__name__ == 'SphericalHarmonics':
+            parameters['jmax'] = param.descriptor.jmax
+        elif param.descriptor.__class__.__name__ == 'Zernike':
+            parameters['nmax'] = param.descriptor.nmax
 
     if param.descriptor is None:
         parameters['descriptor'] = 'None'
         parameters['no_of_atoms'] = param.regression.no_of_atoms
     elif param.descriptor.__class__.__name__ == 'Behler':
         parameters['descriptor'] = 'Behler'
+    elif param.descriptor.__class__.__name__ == 'SphericalHarmonics':
+        parameters['descriptor'] = 'SphericalHarmonics'
+    elif param.descriptor.__class__.__name__ == 'Zernike':
+        parameters['descriptor'] = 'Zernike'
     else:
         raise RuntimeError('Descriptor is not recognized to Amp for saving '
                            'parameters. User should add the descriptor under '
@@ -355,8 +363,7 @@ class IO:
     """
     ###########################################################################
 
-    def __init__(self, hashs, images):
-        self.hashs = hashs
+    def __init__(self, images):
         self.images = images
 
     ###########################################################################
@@ -407,9 +414,8 @@ class IO:
                 c = conn.cursor()
                 # Create table
                 c.execute('''CREATE TABLE IF NOT EXISTS neighborlists
-                (image text, atom integer, nl_index integer,
-                neighbor_atom integer,
-                offset1 integer, offset2 integer, offset3 integer)''')
+                (image text, atom integer, neighbor_atom integer,
+                xoffset integer, yoffset integer, zoffset integer)''')
                 count = 0
                 while count < no_of_images:
                     hash = hashs[count]
@@ -424,10 +430,10 @@ class IO:
                         while _ < len_of_neighbors:
                             value = value1[_]
                             # Insert a row of data
-                            row = (hash, index, _, value0[_], value[0],
+                            row = (hash, index, value0[_], value[0],
                                    value[1], value[2])
                             c.execute('''INSERT INTO neighborlists VALUES
-                            (?, ?, ?, ?, ?, ?, ?)''', row)
+                            (?, ?, ?, ?, ?, ?)''', row)
                             _ += 1
                         index += 1
                     count += 1
@@ -451,7 +457,7 @@ class IO:
                 c = conn.cursor()
                 # Create table
                 c.execute('''CREATE TABLE IF NOT EXISTS fingerprints
-                (image text, atom integer, fp_index integer, value real)''')
+                (image text, atom integer, value real)''')
                 hashs = data.keys()
                 no_of_images = len(hashs)
                 count = 0
@@ -466,9 +472,9 @@ class IO:
                         _ = 0
                         while _ < len_of_fingerprints:
                             # Insert a row of data
-                            row = (hash, index, _, value[_])
+                            row = (hash, index, value[_])
                             c.execute('''INSERT INTO fingerprints VALUES
-                            (?, ?, ?, ?)''', row)
+                            (?, ?, ?)''', row)
                             _ += 1
                         index += 1
                     count += 1
@@ -510,7 +516,7 @@ class IO:
                 # Create table
                 c.execute('''CREATE TABLE IF NOT EXISTS fingerprint_derivatives
                 (image text, atom integer, neighbor_atom integer,
-                direction integer, fp_index integer, value real)''')
+                direction integer, value real)''')
                 count0 = 0
                 while count0 < no_of_images:
                     hash = hashs[count0]
@@ -527,9 +533,9 @@ class IO:
                         _ = 0
                         while _ < len_of_value:
                             # Insert a row of data
-                            row = (hash, self_index, n_index, i, _, value[_])
+                            row = (hash, self_index, n_index, i, value[_])
                             c.execute('''INSERT INTO fingerprint_derivatives
-                            VALUES (?, ?, ?, ?, ?, ?)''', row)
+                            VALUES (?, ?, ?, ?, ?)''', row)
                             _ += 1
                         count1 += 1
                     count0 += 1
@@ -581,27 +587,25 @@ class IO:
                     count += 1
 
             elif data_format is 'db':
-                conn = sqlite3.connect(filename)
-                c = conn.cursor()
-                c.execute("SELECT * FROM neighborlists")
-                rows = c.fetchall()
-                hashs = set([row[0] for row in rows])
-                for hash in hashs:
-                    data[hash] = {}
-                    image = self.images[hash]
-                    no_of_atoms = len(image)
-                    index = 0
-                    while index < no_of_atoms:
-                        c.execute('''SELECT * FROM neighborlists WHERE image=?
-                        AND atom=?''', (hash, index,))
-                        rows = c.fetchall()
-                        nl_indices = set([row[2] for row in rows])
-                        nl_indices = sorted(nl_indices)
-                        nl_offsets = [[row[3], row[4], row[5]]
-                                      for nl_index in nl_indices
-                                      for row in rows if row[2] == nl_index]
-                        data[hash][index] = (nl_indices, nl_offsets,)
-                        index += 1
+                with sqlite3.connect(filename) as conn:
+                    c = conn.cursor()
+                    c.execute("SELECT * FROM neighborlists")
+                    _hash = None
+                    while True:
+                        row = c.fetchone()
+                        if row is None:
+                            break
+                        hash, index, n_index, xoffset, yoffset, zoffset = row
+                        if hash != _hash:
+                            data[hash] = {}
+                            _hash = hash
+                            _index = None
+                        if index != _index:
+                            data[hash][index] = [[], []]
+                            _index = index
+                        data[hash][index][0] += [n_index]
+                        data[hash][index][1] += [[xoffset, yoffset, zoffset]]
+                hashs = data.keys()
 
         elif data_type is 'fingerprints':
 
@@ -629,24 +633,24 @@ class IO:
                     count += 1
 
             elif data_format is 'db':
-                conn = sqlite3.connect(filename)
-                c = conn.cursor()
-                c.execute("SELECT * FROM fingerprints")
-                rows1 = c.fetchall()
-                hashs = set([row[0] for row in rows1])
-                for hash in hashs:
-                    data[hash] = {}
-                    image = self.images[hash]
-                    no_of_atoms = len(image)
-                    index = 0
-                    while index < no_of_atoms:
-                        c.execute('''SELECT * FROM fingerprints
-                        WHERE image=? AND atom=?''', (hash, index,))
-                        rows2 = c.fetchall()
-                        fp_value = [row[3] for fp_index in range(len(rows2))
-                                    for row in rows2 if row[2] == fp_index]
-                        data[hash][index] = fp_value
-                        index += 1
+                with sqlite3.connect(filename) as conn:
+                    c = conn.cursor()
+                    c.execute("SELECT * FROM fingerprints")
+                    _hash = None
+                    while True:
+                        row = c.fetchone()
+                        if row is None:
+                            break
+                        hash, index, fp = row
+                        if hash != _hash:
+                            data[hash] = {}
+                            _hash = hash
+                            _index = None
+                        if index != _index:
+                            data[hash][index] = []
+                            _index = index
+                        data[hash][index] += [fp]
+                hashs = data.keys()
 
         elif data_type is 'fingerprint_derivatives':
 
@@ -676,44 +680,25 @@ class IO:
                     count0 += 1
 
             elif data_format is 'db':
-                conn = sqlite3.connect(filename)
-                c = conn.cursor()
-                c.execute("SELECT * FROM fingerprint_derivatives")
-                rows1 = c.fetchall()
-                hashs = set([row[0] for row in rows1])
-                for hash in hashs:
-                    data[hash] = {}
-                    image = self.images[hash]
-                    no_of_atoms = len(image)
-                    self_index = 0
-                    while self_index < no_of_atoms:
-                        c.execute('''SELECT * FROM fingerprint_derivatives
-                        WHERE image=? AND atom=?''', (hash, self_index,))
-                        rows2 = c.fetchall()
-                        nl_indices = set([row[2] for row in rows2])
-                        nl_indices = sorted(nl_indices)
-                        for n_index in nl_indices:
-                            i = 0
-                            while i < 3:
-                                c.execute('''SELECT * FROM
-                                fingerprint_derivatives
-                                WHERE image=? AND atom=? AND neighbor_atom=?
-                                AND direction=?''',
-                                          (hash, self_index, n_index, i))
-                                rows3 = c.fetchall()
-                                der_fp_values = \
-                                    [row[5]
-                                     for der_fp_index in range(len(rows3))
-                                     for row in rows3
-                                     if row[4] == der_fp_index]
-                                data[hash][(n_index, self_index, i)] = \
-                                    der_fp_values
-                                i += 1
-                        self_index += 1
-
-                # Save (commit) the changes
-                conn.commit()
-                conn.close()
+                with sqlite3.connect(filename) as conn:
+                    c = conn.cursor()
+                    c.execute("SELECT * FROM fingerprint_derivatives")
+                    _hash = None
+                    while True:
+                        row = c.fetchone()
+                        if row is None:
+                            break
+                        hash, self_index, n_index, i, fp_der = row
+                        index = (n_index, self_index, i)
+                        if hash != _hash:
+                            data[hash] = {}
+                            _hash = hash
+                            _index = None
+                        if index != _index:
+                            data[hash][index] = []
+                            _index = index
+                        data[hash][index] += [fp_der]
+                hashs = data.keys()
 
         return hashs, data
 

@@ -76,7 +76,7 @@ def test():
         for fortran in [False, True]:
             for extend_variables in [False, True]:
                 for data_format in ['db', 'json']:
-                    for save_memory in [True, False]:
+                    for save_memory in [False]:
                         for cores in range(1, 7):
 
                             string = 'consistnone/%s-%s-%s-%s-%s-%i'

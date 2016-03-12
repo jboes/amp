@@ -16,11 +16,11 @@ from ase.calculators.neighborlist import NeighborList
 from utilities import make_filename, load_parameters, ConvergenceOccurred, IO
 from utilities import TrainingConvergenceError, ExtrapolateError, hash_image
 from utilities import Logger, save_parameters
-from descriptor import Behler
+from descriptor import Behler, SphericalHarmonics, Zernike
 from regression import NeuralNetwork
 try:
-    from amp import fmodules  # version 3 of fmodules
-    fmodules_version = 3
+    from amp import fmodules  # version 4 of fmodules
+    fmodules_version = 4
 except ImportError:
     fmodules = None
 
@@ -305,8 +305,23 @@ class Amp(Calculator):
                 kwargs['descriptor'] = \
                     Behler(cutoff=parameters['cutoff'],
                            Gs=parameters['Gs'],
-                           fingerprints_tag=parameters['fingerprints_tag'],
-                           fortran=fortran,)
+                           fingerprints_tag=parameters['fingerprints_tag'],)
+
+            elif parameters['descriptor'] == 'SphericalHarmonics':
+                kwargs['descriptor'] = \
+                    SphericalHarmonics(cutoff=parameters['cutoff'],
+                                       Gs=parameters['Gs'],
+                                       jmax=parameters['jmax'],
+                                       fingerprints_tag=parameters[
+                                           'fingerprints_tag'],)
+
+            elif parameters['descriptor'] == 'Zernike':
+                kwargs['descriptor'] = \
+                    Zernike(cutoff=parameters['cutoff'],
+                            Gs=parameters['Gs'],
+                            nmax=parameters['nmax'],
+                            fingerprints_tag=parameters['fingerprints_tag'],)
+
             elif parameters['descriptor'] == 'None':
                 kwargs['descriptor'] = None
                 if parameters['no_of_atoms'] == 'None':
@@ -423,8 +438,8 @@ class Amp(Calculator):
                                skin=0.)
             _nl.update(atoms)
 
-            self.fp.atoms = atoms
             self.fp._nl = _nl
+            self.fp.initialize(self.fortran, atoms)
 
             # If fingerprints_range is not available, it will raise an error.
             if param.fingerprints_range is None:
@@ -848,7 +863,7 @@ class Amp(Calculator):
         # back-propagation calculations
         _mp.make_list_of_sub_images(no_of_images, hashs, images)
 
-        io = IO(hashs, images,)  # utilities.IO object initialized.
+        io = IO(images,)  # utilities.IO object initialized.
 
         if param.descriptor is None:  # pure atomic-coordinates scheme
             self.sfp = None
@@ -865,8 +880,8 @@ class Amp(Calculator):
             # Fingerprints are calculated and saved
             self.sfp = SaveFingerprints(self.fp, self.elements, no_of_images,
                                         hashs, images, self.dblabel,
-                                        train_forces, snl, log,
-                                        _mp, io, data_format, save_memory)
+                                        train_forces, snl, log, _mp, io,
+                                        data_format, save_memory, self.fortran)
 
             gc.collect()
 
@@ -955,6 +970,7 @@ class Amp(Calculator):
                     save_memory,
                     self.sfp,
                     snl,)
+                costfxn.nnsizestep = step
 
             variables = param.regression._variables
 
@@ -975,7 +991,8 @@ class Amp(Calculator):
 
         if not converged:
             log('Saving checkpoint data.')
-            filename = make_filename(self.label, 'parameters-checkpoint.json')
+            filename = make_filename(self.label,
+                                     'parameters-checkpoint-%i.json' % step)
             save_parameters(filename, costfxn.param)
             log(' ...could not find parameters for the desired goal\n'
                 'error. Least error parameters saved as checkpoint.\n'
@@ -1522,7 +1539,7 @@ class SaveNeighborLists:
                 self.ncursor.execute('''CREATE TABLE IF NOT EXISTS
                 neighborlists (image text, atom integer, nl_index integer,
                 neighbor_atom integer,
-                offset1 integer, offset2 integer, offset3 integer)''')
+                xoffset integer, yoffset integer, zoffset integer)''')
             else:
                 self.nl_data = {}
             if not os.path.exists(filename):
@@ -1666,13 +1683,15 @@ class SaveFingerprints:
     :type data_format: str
     :param save_memory: If True, memory efficient mode will be used.
     :type save_memory: bool
+    :param fortran: If True, will use fortran modules, if False, will not.
+    :type fortran: bool
     """
     ###########################################################################
 
     def __init__(self, fp, elements, no_of_images, hashs, images, label,
-                 train_forces, snl, log, _mp, io, data_format, save_memory):
+                 train_forces, snl, log, _mp, io, data_format, save_memory,
+                 fortran):
 
-        self.Gs = fp.Gs
         self.train_forces = train_forces
         new_images = images
 
@@ -1740,7 +1759,7 @@ class SaveFingerprints:
                     % (_, childfiles[_].name))
                 _ += 1
 
-            task_args = (fp, childfiles, io, data_format, save_memory,)
+            task_args = (fp, childfiles, io, data_format, save_memory, fortran)
             _mp.share_fingerprints_task_between_cores(
                 task=_calculate_fingerprints, _args=task_args)
 
@@ -1765,15 +1784,9 @@ class SaveFingerprints:
             log(' ...child fingerprints read and saved to %s.' % filename,
                 toc='read_fps')
 
-        fingerprint_values = {}
+        fingerprints_range = OrderedDict()
         for element in elements:
-            fingerprint_values[element] = {}
-            len_of_fingerprint = len(self.Gs[element])
-            _ = 0
-            while _ < len_of_fingerprint:
-                fingerprint_values[element][_] = []
-                _ += 1
-
+            fingerprints_range[element] = []
         count = 0
         while count < no_of_images:
             hash = hashs[count]
@@ -1782,33 +1795,38 @@ class SaveFingerprints:
             index = 0
             while index < no_of_atoms:
                 symbol = image[index].symbol
-                len_of_fingerprint = len(self.Gs[symbol])
                 _ = 0
-                while _ < len_of_fingerprint:
-                    if save_memory:
-                        self.fcursor.execute('''SELECT * FROM fingerprints
-                        WHERE image=? AND atom=? AND fp_index=?''',
-                                             (hash, index, _))
-                        row = self.fcursor.fetchall()
-                        fingerprint_values[symbol][_].append(row[0][3])
-                    else:
-                        fingerprint_values[symbol][_].append(
-                            self.fp_data[hash][index][_])
-                    _ += 1
+                while True:
+                    try:
+                        if len(fingerprints_range[symbol]) < (_ + 1):
+                            fingerprints_range[symbol].append(
+                                [np.inf, -np.inf])
+
+                        if save_memory:
+                            self.fcursor.execute('''SELECT * FROM fingerprints
+                            WHERE image=? AND atom=? AND fp_index=?''',
+                                                 (hash, index, _))
+                            row = self.fcursor.fetchall()
+                            value = row[0][3]
+                        else:
+                            value = self.fp_data[hash][index][_]
+
+                        if value < fingerprints_range[symbol][_][0]:
+                            fingerprints_range[symbol][_][0] = value
+                        if fingerprints_range[symbol][_][1] < value:
+                            fingerprints_range[symbol][_][1] = value
+                        _ += 1
+                    except IndexError:
+                        break
                 index += 1
             count += 1
         del _
-
-        fingerprints_range = OrderedDict()
         for element in elements:
-            fingerprints_range[element] = \
-                [[min(fingerprint_values[element][_]),
-                  max(fingerprint_values[element][_])]
-                 for _ in range(len(self.Gs[element]))]
+            fingerprints_range[element].pop()
 
         self.fingerprints_range = fingerprints_range
 
-        del new_images, fingerprint_values
+        del new_images
 
         if train_forces is True:
             new_images = images
@@ -1888,7 +1906,7 @@ class SaveFingerprints:
                     _ += 1
 
                 task_args = (fp, snl, childfiles, io, data_format, save_memory,
-                             snl.ncursor,)
+                             snl.ncursor, fortran)
                 _mp.share_fingerprints_task_between_cores(
                     task=_calculate_der_fingerprints,
                     _args=task_args)
@@ -1995,6 +2013,7 @@ class CostFxnandDer:
         self.sfp = sfp
         self.snl = snl
         self.steps = 0
+        self.nnsizestep = 0
 
         if param.descriptor is not None:  # pure atomic-coordinates scheme
             self.cutoff = param.descriptor.cutoff
@@ -2103,7 +2122,7 @@ class CostFxnandDer:
             log('Saving checkpoint data.')
             filename = make_filename(
                 self.label,
-                'parameters-checkpoint.json')
+                'parameters-checkpoint-%i.json' % self.nnsizestep)
             save_parameters(filename, self.param)
 
         if self.energy_per_atom_rmse < self.energy_goal and \
@@ -2179,7 +2198,7 @@ class CostFxnandDer:
 
 
 def _calculate_fingerprints(proc_no, hashs, images, fp, childfiles, io,
-                            data_format, save_memory,):
+                            data_format, save_memory, fortran):
     """
     Function to be called on all processes simultaneously for calculating
     fingerprints.
@@ -2200,6 +2219,8 @@ def _calculate_fingerprints(proc_no, hashs, images, fp, childfiles, io,
     :type data_format: str
     :param save_memory: If True, memory efficient mode will be used.
     :type save_memory: bool
+    :param fortran: If True, will use fortran modules, if False, will not.
+    :type fortran: bool
     """
     if save_memory:
         fconn = sqlite3.connect(childfiles[proc_no].name)
@@ -2216,7 +2237,7 @@ def _calculate_fingerprints(proc_no, hashs, images, fp, childfiles, io,
         data[hash] = {}
         atoms = images[hash]
         no_of_atoms = len(atoms)
-        fp.initialize(atoms)
+        fp.initialize(fortran, atoms)
         _nl = NeighborList(cutoffs=([fp.cutoff / 2.] * len(atoms)),
                            self_interaction=False,
                            bothways=True,
@@ -2259,7 +2280,8 @@ def _calculate_fingerprints(proc_no, hashs, images, fp, childfiles, io,
 
 
 def _calculate_der_fingerprints(proc_no, hashs, images, fp, snl, childfiles,
-                                io, data_format, save_memory, ncursor):
+                                io, data_format, save_memory, ncursor,
+                                fortran):
     """
     Function to be called on all processes simultaneously for calculating
     derivatives of fingerprints.
@@ -2285,6 +2307,8 @@ def _calculate_der_fingerprints(proc_no, hashs, images, fp, snl, childfiles,
     :param ncursor: Cursor connecting to neighborlists database in the
                     save_memory mode.
     :type ncursor: object
+    :param fortran: If True, will use fortran modules, if False, will not.
+    :type fortran: bool
     """
     if save_memory:
         fdconn = sqlite3.connect(childfiles[proc_no].name)
@@ -2302,7 +2326,7 @@ def _calculate_der_fingerprints(proc_no, hashs, images, fp, snl, childfiles,
         data[hash] = {}
         atoms = images[hash]
         no_of_atoms = len(atoms)
-        fp.initialize(atoms)
+        fp.initialize(fortran, atoms)
         _nl = NeighborList(cutoffs=([fp.cutoff / 2.] * no_of_atoms),
                            self_interaction=False,
                            bothways=True,
@@ -2696,6 +2720,8 @@ def _calculate_cost_function_python(hashs, images, reg, param, sfp,
 
 ###############################################################################
 
+# FIXME: Fingerprint_values and fp.Gs should be removed.
+
 
 def calculate_fingerprints_range(fp, elements, atoms, nl):
     """
@@ -2922,14 +2948,15 @@ def send_data_to_fortran(sfp, elements, train_forces,
         no_of_elements = len(elements)
         elements_numbers = [atomic_numbers[elm] for elm in elements]
         min_fingerprints = \
-            [[param.fingerprints_range[elm][_][0]
-              for _ in range(len(param.fingerprints_range[elm]))]
+            [[sfp.fingerprints_range[elm][_][0]
+              for _ in range(len(sfp.fingerprints_range[elm]))]
              for elm in elements]
-        max_fingerprints = [[param.fingerprints_range[elm][_][1]
+        max_fingerprints = [[sfp.fingerprints_range[elm][_][1]
                              for _
-                             in range(len(param.fingerprints_range[elm]))]
+                             in range(len(sfp.fingerprints_range[elm]))]
                             for elm in elements]
-        len_fingerprints_of_elements = [len(sfp.Gs[elm]) for elm in elements]
+        len_fingerprints_of_elements = \
+            [len(sfp.fingerprints_range[elm]) for elm in elements]
     else:
         no_of_atoms_of_image = param.no_of_atoms
 

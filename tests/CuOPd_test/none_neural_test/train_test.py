@@ -120,7 +120,7 @@ def test():
         for fortran in [False, True]:
             for extend_variables in [False, True]:
                 for data_format in ['db', 'json']:
-                    for save_memory in [True, False]:
+                    for save_memory in [False]:
                         for cores in range(1, 7):
 
                             string = 'CuOPdnone/%s-%s-%s-%s-%s-%i'
@@ -129,8 +129,12 @@ def test():
                                               save_memory, cores)
 
                             if global_search is 'SA':
-                                global_search = \
+                                gs = \
                                     SimulatedAnnealing(temperature=10, steps=5)
+                            elif global_search is None:
+                                gs = None
+
+                            print label
 
                             calc = Amp(descriptor=None,
                                        regression=NeuralNetwork(
@@ -146,7 +150,42 @@ def test():
                                        force_coefficient=0.04,
                                        cores=cores, data_format=data_format,
                                        save_memory=save_memory,
-                                       global_search=global_search,
+                                       global_search=gs,
+                                       extend_variables=extend_variables)
+
+                            # Check for consistency between the two models
+                            assert (abs(calc.cost_function - cost_function) <
+                                    10.**(-5.)), \
+                                'The calculated value of cost function is \
+                                wrong!'
+                            assert (abs(calc.energy_per_atom_rmse -
+                                        energy_rmse) <
+                                    10.**(-5.)), \
+                                'The calculated value of energy per atom RMSE \
+                            is wrong!'
+                            assert (abs(calc.force_rmse - force_rmse) <
+                                    10 ** (-5)), \
+                                'The calculated value of force RMSE is wrong!'
+
+                            dblabel = label
+                            secondlabel = '_' + label
+
+                            calc = Amp(descriptor=None,
+                                       regression=NeuralNetwork(
+                                           hiddenlayers=(2, 1),
+                                           activation='tanh',
+                                           weights=weights,
+                                           scalings=scalings,),
+                                       fortran=fortran,
+                                       label=secondlabel,
+                                       dblabel=dblabel)
+
+                            calc.train(images=images, energy_goal=10.**10.,
+                                       force_goal=10.**10.,
+                                       force_coefficient=0.04,
+                                       cores=cores, data_format=data_format,
+                                       save_memory=save_memory,
+                                       global_search=gs,
                                        extend_variables=extend_variables)
 
                             # Check for consistency between the two models

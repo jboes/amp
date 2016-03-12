@@ -1,14 +1,14 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
  
-!     Fortran Version = 3
+!     Fortran Version = 4
       subroutine check_version(version, warning) 
       implicit none
     
       integer :: version, warning
 !f2py         intent(in) :: version
 !f2py         intent(out) :: warning
-      if (version .NE. 3) then
+      if (version .NE. 4) then
           warning = 1
       else
           warning = 0
