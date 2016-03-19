@@ -278,7 +278,7 @@ def save_parameters(filename, param):
         parameters['Gs'] = param.descriptor.Gs
         parameters['cutoff'] = param.descriptor.cutoff
         parameters['fingerprints_tag'] = param.descriptor.fingerprints_tag
-        if param.descriptor.__class__.__name__ == 'SphericalHarmonics':
+        if param.descriptor.__class__.__name__ == 'Bispectrum':
             parameters['jmax'] = param.descriptor.jmax
         elif param.descriptor.__class__.__name__ == 'Zernike':
             parameters['nmax'] = param.descriptor.nmax
@@ -286,10 +286,10 @@ def save_parameters(filename, param):
     if param.descriptor is None:
         parameters['descriptor'] = 'None'
         parameters['no_of_atoms'] = param.regression.no_of_atoms
-    elif param.descriptor.__class__.__name__ == 'Behler':
-        parameters['descriptor'] = 'Behler'
-    elif param.descriptor.__class__.__name__ == 'SphericalHarmonics':
-        parameters['descriptor'] = 'SphericalHarmonics'
+    elif param.descriptor.__class__.__name__ == 'Gaussian':
+        parameters['descriptor'] = 'Gaussian'
+    elif param.descriptor.__class__.__name__ == 'Bispectrum':
+        parameters['descriptor'] = 'Bispectrum'
     elif param.descriptor.__class__.__name__ == 'Zernike':
         parameters['descriptor'] = 'Zernike'
     else:

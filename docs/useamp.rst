@@ -23,7 +23,7 @@ The calculator as well as descriptors and regressions should be first imported b
 
 Then Amp is initiated with a descriptor and a regression algorithm, e.g.::
 
-   >>> calc = Amp(descriptor=Behler()
+   >>> calc = Amp(descriptor=Gaussian()
 		       regression=NeuralNetwork())
 
 The values of arguments shown above are the default values in the current release of Amp. A size-dependent scheme can be

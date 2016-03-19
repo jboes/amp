@@ -1,5 +1,5 @@
 """
-Exact behler-neural scheme forces and energies of five different non-periodic
+Exact Gaussian-neural scheme forces and energies of five different non-periodic
 configurations and three different periodic configurations have been calculated
 in Mathematica, and are given below.  This script checks the values calculated
 by the code with and without fortran modules.
@@ -12,7 +12,7 @@ import numpy as np
 from ase import Atoms
 from collections import OrderedDict
 from amp import Amp
-from amp.descriptor import Behler
+from amp.descriptor import Gaussian
 from amp.regression import NeuralNetwork
 
 ###############################################################################
@@ -161,11 +161,11 @@ def non_periodic_test():
                                  [0.0, 0.20167521020630502]]}
 
     ###########################################################################
-    # Testing pure-python and fortran versions of behler-neural force call
+    # Testing pure-python and fortran versions of Gaussian-neural force call
 
     for fortran in [False, True]:
 
-        calc = Amp(descriptor=Behler(cutoff=6.5, Gs=Gs),
+        calc = Amp(descriptor=Gaussian(cutoff=6.5, Gs=Gs),
                    regression=NeuralNetwork(hiddenlayers=hiddenlayers,
                                             weights=weights,
                                             scalings=scalings,
@@ -178,7 +178,7 @@ def non_periodic_test():
 
         for image_no in range(len(predicted_energies)):
             assert (abs(predicted_energies[image_no] -
-                        correct_predicted_energies[image_no]) < 10.**(-15.)), \
+                        correct_predicted_energies[image_no]) < 10.**(-10.)), \
                 'The predicted energy of image %i is wrong!' % (image_no + 1)
 
         predicted_forces = [calc.get_forces(image) for image in images]
@@ -189,7 +189,7 @@ def non_periodic_test():
                         np.shape(predicted_forces[image_no])[1]):
                     assert (abs(predicted_forces[image_no][index][direction] -
                                 correct_predicted_forces[image_no][index]
-                                [direction]) < 10.**(-15.)), \
+                                [direction]) < 10.**(-10.)), \
                         'The predicted %i force of atom %i of image %i is' \
                         'wrong!' % (direction, index, image_no + 1)
 
@@ -242,9 +242,9 @@ def periodic_test():
         [[[0.14747720528015523, -3.3010645563584973, 3.3008168318984463],
           [0.03333579762326405, 9.050780376599887, -0.42608278400777605],
             [-0.1808130029034193, -5.7497158202413905, -2.8747340478906698]],
-            [[6.5035267996045045*(10.**(-6.)), -6.503526799604495*(10.**(-6.)),
+            [[6.5035267996045045 * (10.**(-6.)), -6.503526799604495 * (10.**(-6.)),
               0.00010834689201069249],
-             [-6.5035267996045045*(10.**(-6.)), 6.503526799604495*(10.**(-6.)),
+             [-6.5035267996045045 * (10.**(-6.)), 6.503526799604495 * (10.**(-6.)),
               -0.00010834689201069249]],
             [[0.0, 0.0, 0.0]]]
 
@@ -297,11 +297,11 @@ def periodic_test():
                                  [0.27127576524253594, 0.5898312261433813]]}
 
     ###########################################################################
-    # Testing pure-python and fortran versions of behler-neural force call
+    # Testing pure-python and fortran versions of Gaussian-neural force call
 
     for fortran in [False, True]:
 
-        calc = Amp(descriptor=Behler(cutoff=4., Gs=Gs),
+        calc = Amp(descriptor=Gaussian(cutoff=4., Gs=Gs),
                    regression=NeuralNetwork(hiddenlayers=hiddenlayers,
                                             weights=weights,
                                             scalings=scalings,
@@ -314,7 +314,7 @@ def periodic_test():
 
         for image_no in range(len(predicted_energies)):
             assert (abs(predicted_energies[image_no] -
-                        correct_predicted_energies[image_no]) < 10.**(-14.)), \
+                        correct_predicted_energies[image_no]) < 10.**(-10.)), \
                 'The predicted energy of image %i is wrong!' % (image_no + 1)
 
         predicted_forces = [calc.get_forces(image) for image in images]
@@ -325,7 +325,7 @@ def periodic_test():
                         np.shape(predicted_forces[image_no])[1]):
                     assert (abs(predicted_forces[image_no][index][direction] -
                                 correct_predicted_forces[image_no][index]
-                                [direction]) < 10.**(-11.)), \
+                                [direction]) < 10.**(-10.)), \
                         'The predicted %i force of atom %i of image %i is' \
                         'wrong!' % (direction, index, image_no + 1)
 

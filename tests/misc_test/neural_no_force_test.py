@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """Test that the neural network regression works in training on energy only
-both with none and behler descriptor.
+both with none and Gaussian descriptor.
 """
 
 import os
@@ -12,7 +12,7 @@ from ase import units
 from ase.md import VelocityVerlet
 from ase.constraints import FixAtoms
 from amp import Amp
-from amp.descriptor import Behler
+from amp.descriptor import Gaussian
 from amp.regression import NeuralNetwork
 
 ###############################################################################
@@ -60,15 +60,17 @@ def test_none():
 ###############################################################################
 
 
-def test_behler():
+def test_gaussian():
     label = 'noforce_test'
+    if not os.path.exists(label):
+        os.mkdir(label)
 
     print('Generating data.')
     images = generate_data(10)
 
-    print('Training behler-neural network.')
-    calc = Amp(descriptor=Behler(),
-               label=os.path.join(label, 'behler'),
+    print('Training Gaussian-neural network.')
+    calc = Amp(descriptor=Gaussian(),
+               label=os.path.join(label, 'Gaussian'),
                regression=NeuralNetwork(hiddenlayers=(5, 5)))
 
     calc.train(images, force_goal=None)
@@ -76,5 +78,5 @@ def test_behler():
 ###############################################################################
 
 if __name__ == '__main__':
-    test_behler()
+    test_gaussian()
     test_none()

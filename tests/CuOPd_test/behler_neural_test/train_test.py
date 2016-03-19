@@ -1,5 +1,5 @@
 """
-Exact behler-neural scheme cost function, energy per atom RMSE and force RMSE
+Exact Gaussian-neural scheme cost function, energy per atom RMSE and force RMSE
 for five different non-periodic configurations and three three different
 periodic configurations have been calculated in Mathematica. This script
 checks the values calculated by the code during training with and without
@@ -13,8 +13,9 @@ import numpy as np
 from collections import OrderedDict
 from ase import Atoms
 from ase.calculators.emt import EMT
+import os
 from amp import Amp
-from amp.descriptor import Behler
+from amp.descriptor import Gaussian
 from amp.regression import NeuralNetwork
 from amp import SimulatedAnnealing
 
@@ -23,6 +24,16 @@ from amp import SimulatedAnnealing
 
 
 def non_periodic_0th_bfgs_step_test():
+
+    pwd = os.getcwd()
+    os.mkdir(os.path.join(pwd, 'CuOPdbp'))
+    os.mkdir(os.path.join(pwd, '_CuOPdbp'))
+    os.mkdir(os.path.join(pwd, 'CuOPdbp/0'))
+    os.mkdir(os.path.join(pwd, '_CuOPdbp/0'))
+    os.mkdir(os.path.join(pwd, 'CuOPdbp/1'))
+    os.mkdir(os.path.join(pwd, '_CuOPdbp/1'))
+    os.mkdir(os.path.join(pwd, 'CuOPdbp/2'))
+    os.mkdir(os.path.join(pwd, '_CuOPdbp/2'))
 
     ###########################################################################
     # Making the list of periodic image
@@ -156,7 +167,7 @@ def non_periodic_0th_bfgs_step_test():
                             -82.45107056053345, -80.6816768350809]
 
     ###########################################################################
-    # Testing pure-python and fortran versions of behler-neural on different
+    # Testing pure-python and fortran versions of Gaussian-neural on different
     # number of processes
 
     for global_search in [None, 'SA']:
@@ -179,7 +190,7 @@ def non_periodic_0th_bfgs_step_test():
 
                             print label
 
-                            calc = Amp(descriptor=Behler(cutoff=6.5, Gs=Gs),
+                            calc = Amp(descriptor=Gaussian(cutoff=6.5, Gs=Gs),
                                        regression=NeuralNetwork(
                                        hiddenlayers=hiddenlayers,
                                        weights=weights,
@@ -222,7 +233,7 @@ def non_periodic_0th_bfgs_step_test():
                             dblabel = label
                             secondlabel = '_' + label
 
-                            calc = Amp(descriptor=Behler(cutoff=6.5, Gs=Gs),
+                            calc = Amp(descriptor=Gaussian(cutoff=6.5, Gs=Gs),
                                        regression=NeuralNetwork(
                                        hiddenlayers=hiddenlayers,
                                        weights=weights,
@@ -371,7 +382,7 @@ def periodic_0th_bfgs_step_test():
                             -35.13852440758523]
 
     ###########################################################################
-    # Testing pure-python and fortran versions of behler-neural on different
+    # Testing pure-python and fortran versions of Gaussian-neural on different
     # number of processes
 
     for global_search in [None, 'SA']:
@@ -394,7 +405,7 @@ def periodic_0th_bfgs_step_test():
 
                             print label
 
-                            calc = Amp(descriptor=Behler(cutoff=4., Gs=Gs),
+                            calc = Amp(descriptor=Gaussian(cutoff=4., Gs=Gs),
                                        regression=NeuralNetwork(
                                        hiddenlayers=hiddenlayers,
                                        weights=weights,
@@ -435,7 +446,7 @@ def periodic_0th_bfgs_step_test():
                             dblabel = label
                             secondlabel = '_' + label
 
-                            calc = Amp(descriptor=Behler(cutoff=4., Gs=Gs),
+                            calc = Amp(descriptor=Gaussian(cutoff=4., Gs=Gs),
                                        regression=NeuralNetwork(
                                        hiddenlayers=hiddenlayers,
                                        weights=weights,

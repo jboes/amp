@@ -2,8 +2,14 @@ import numpy as np
 from numpy import cos, sqrt
 from ase.data import atomic_numbers
 from amp.utilities import FingerprintsError
-from scipy.special import factorial as fac
 from scipy.special import sph_harm
+try:  # for scipy v <= 0.90
+    from scipy import factorial as fac
+except ImportError:
+    try:  # for scipy v >= 0.10
+        from scipy.misc import factorial as fac
+    except ImportError:  # for newer version of scipy
+        from scipy.special import factorial as fac
 
 ###############################################################################
 
@@ -195,8 +201,8 @@ class Zernike:
 
         raise RuntimeError('Zernike descriptor does not work with '
                            'force training yet. Either turn off force '
-                           'training by "force_goal=None", or use Behler '
-                           'descriptor by "descriptor=Behler()".')
+                           'training by "force_goal=None", or use Gaussian '
+                           'descriptor by "descriptor=Gaussian()".')
 
     ###########################################################################
 

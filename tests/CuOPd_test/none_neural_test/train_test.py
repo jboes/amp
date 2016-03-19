@@ -11,6 +11,7 @@ import numpy as np
 from collections import OrderedDict
 from ase import Atoms, Atom
 from ase.calculators.emt import EMT
+import os
 from amp import Amp
 from amp.regression import NeuralNetwork
 from amp import SimulatedAnnealing
@@ -85,6 +86,10 @@ force_rmse = np.sqrt(SumSquareErrorForces / 5)
 
 def test():
 
+    pwd = os.getcwd()
+    os.mkdir(os.path.join(pwd, 'CuOPdnone'))
+    os.mkdir(os.path.join(pwd, '_CuOPdnone'))
+
     ###########################################################################
     # Parameters
 
@@ -113,7 +118,7 @@ def test():
     images = generate_images()
 
     ###########################################################################
-    # Testing pure-python and fortran versions of behler-neural on different
+    # Testing pure-python and fortran versions of Gaussian-neural on different
     # number of processes
 
     for global_search in [None, 'SA']:

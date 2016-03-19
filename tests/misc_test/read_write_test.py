@@ -8,7 +8,7 @@ from ase import Atoms
 from amp import Amp
 from amp import SimulatedAnnealing
 from amp.regression import NeuralNetwork
-from amp.descriptor import Behler
+from amp.descriptor import Gaussian
 import shutil
 
 ###############################################################################
@@ -37,7 +37,7 @@ def test():
 
     images = make_training_images()
 
-    for descriptor in [None, Behler()]:
+    for descriptor in [None, Gaussian()]:
         for global_search in [None, SimulatedAnnealing(temperature=10,
                                                        steps=5)]:
             for data_format in ['json', 'db']:
@@ -97,6 +97,10 @@ def test():
                                        overwrite=True,
                                        cores=cores,)
 
+                            label = 'testdir'
+                            if not os.path.exists(label):
+                                os.mkdir(label)
+
                             # New directory calculator.
                             calc = Amp(label='testdir/calc',
                                        descriptor=descriptor,
@@ -127,6 +131,10 @@ def test():
                                        data_format=data_format,
                                        save_memory=save_memory,
                                        cores=cores,)
+
+                            label = 'calc_new'
+                            if not os.path.exists(label):
+                                os.mkdir(label)
 
                             # Change label and re-train
                             calc.set_label('calc_new/calc')
