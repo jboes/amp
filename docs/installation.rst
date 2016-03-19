@@ -4,7 +4,6 @@
 Installation
 ==================================
 
-AMP is python-based and is designed to integrate closely with the
 AMP is python-based and is designed to integrate closely with the `Atomic Simulation Environment <https://wiki.fysik.dtu.dk/ase/>`_ (ASE).
 In its most basic form, it has few requirements:
 
