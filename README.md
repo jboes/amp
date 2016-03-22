@@ -63,7 +63,7 @@ page <https://bitbucket.org/andrewpeterson/amp/>`_. If you use git, check out th
 
 where you should replace '~/path/to/my/codes' with wherever you would like the code to be located on your computer.
 If you do not use git, just download the code as a zip file from the project's
-`download <https://bitbucket.org/andrewpeterson/amp/downloads>`_ page, and extract it into '~/path/to/my/codes'.
+`download <https://bitbucket.org/andrewpeterson/amp/downloads>`_ page, and extract it into '~/path/to/my/codes'. Please make sure that the folder '~/path/to/my/codes/amp' includes the script '__init__.py' as well as the folders 'descriptor', 'regression', ... 
 At the download page, you can also find historical numbered releases.
 
 ----------------------------------
