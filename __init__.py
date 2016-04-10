@@ -902,6 +902,14 @@ class Amp(Calculator):
             # from the json file.
             if param.fingerprints_range is None:
                 param.fingerprints_range = self.sfp.fingerprints_range
+            else:
+                log('Updated fingerprints range from saved version; this is'
+                    ' a temporary bug fix. With this the first iteration of'
+                    ' the training neural network will *not* give identical'
+                    ' results to the saved version if the '
+                    'fingerprints_range has changed.')
+
+                param.fingerprints_range = self.sfp.fingerprints_range
 
         del hashs, images
 
