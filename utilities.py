@@ -9,7 +9,7 @@ import sqlite3
 from ase import io as aseio
 from ase.parallel import paropen
 
-###############################################################################
+#
 
 
 def randomize_images(images, fraction=0.8):
@@ -51,7 +51,7 @@ def randomize_images(images, fraction=0.8):
         images.close()
     return train_images, test_images
 
-###############################################################################
+#
 
 
 class FingerprintsError(Exception):
@@ -61,7 +61,7 @@ class FingerprintsError(Exception):
     """
     pass
 
-###############################################################################
+#
 
 
 class ConvergenceOccurred(Exception):
@@ -71,7 +71,7 @@ class ConvergenceOccurred(Exception):
     """
     pass
 
-###############################################################################
+#
 
 
 class TrainingConvergenceError(Exception):
@@ -81,7 +81,7 @@ class TrainingConvergenceError(Exception):
     """
     pass
 
-###############################################################################
+#
 
 
 class ExtrapolateError(Exception):
@@ -91,7 +91,7 @@ class ExtrapolateError(Exception):
     """
     pass
 
-###############################################################################
+#
 
 
 class UntrainedError(Exception):
@@ -101,7 +101,7 @@ class UntrainedError(Exception):
     """
     pass
 
-###############################################################################
+#
 
 
 def hash_image(atoms):
@@ -127,7 +127,7 @@ def hash_image(atoms):
     hash = md5.hexdigest()
     return hash
 
-###############################################################################
+#
 
 
 class Logger:
@@ -138,13 +138,13 @@ class Logger:
     :param filename: File object or path to the file to write to.
     :type filename: str
     """
-    ###########################################################################
+    #
 
     def __init__(self, filename):
         self._f = paropen(filename, 'a')
         self._tics = {}
 
-    ###########################################################################
+    #
 
     def tic(self, label=None):
         """
@@ -158,7 +158,7 @@ class Logger:
         else:
             self._tic = time.time()
 
-    ###########################################################################
+    #
 
     def __call__(self, message, toc=None):
         """
@@ -181,7 +181,7 @@ class Logger:
         self._f.write(message + dt + '\n')
         self._f.flush()
 
-###############################################################################
+#
 
 
 def count_allocated_cpus():
@@ -213,7 +213,7 @@ def count_allocated_cpus():
 
     return ncores
 
-###############################################################################
+#
 
 
 def names_of_allocated_nodes():
@@ -252,7 +252,7 @@ def names_of_allocated_nodes():
 
     return node_list, len(node_list)
 
-###############################################################################
+#
 
 
 def save_parameters(filename, param):
@@ -314,7 +314,7 @@ def save_parameters(filename, param):
     with paropen(export_filename, 'wb') as outfile:
         json.dump(parameters, outfile)
 
-###############################################################################
+#
 
 
 def load_parameters(json_file):
@@ -323,7 +323,7 @@ def load_parameters(json_file):
 
     return parameters
 
-###############################################################################
+#
 
 
 def make_filename(label, base_filename):
@@ -343,7 +343,7 @@ def make_filename(label, base_filename):
 
     return filename
 
-###############################################################################
+#
 
 
 class IO:
@@ -361,12 +361,12 @@ class IO:
                    reference, e.g. DFT calculations.
     :type images: list or str
     """
-    ###########################################################################
+    #
 
     def __init__(self, images):
         self.images = images
 
-    ###########################################################################
+    #
 
     def save(self, filename, data_type, data, data_format):
         """
@@ -430,8 +430,8 @@ class IO:
                         while _ < len_of_neighbors:
                             value = value1[_]
                             # Insert a row of data
-                            row = (hash, index, value0[_], value[0],
-                                   value[1], value[2])
+                            row = (hash, index, int(value0[_]), int(value[0]),
+                                   int(value[1]), int(value[2]))
                             c.execute('''INSERT INTO neighborlists VALUES
                             (?, ?, ?, ?, ?, ?)''', row)
                             _ += 1
@@ -546,7 +546,7 @@ class IO:
 
         del data
 
-    ###########################################################################
+    #
 
     def read(self, filename, data_type, data, data_format):
         """
@@ -702,4 +702,4 @@ class IO:
 
         return hashs, data
 
-###############################################################################
+#
