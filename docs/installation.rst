@@ -9,7 +9,7 @@ In its most basic form, it has few requirements:
 
 * Python, version 2.7 is recommended
 * ASE
-* NumPy
+* NumPy (Preferably >= 1.9)
 * SciPy
 
 ----------------------------------
