@@ -36,7 +36,7 @@ In its most basic form, it has few requirements:
 
 * Python, version 2.7 is recommended
 * ASE
-* NumPy
+* NumPy (>= 1.9 for saving data in ".db" database format)
 * SciPy
 
 ----------------------------------
