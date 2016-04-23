@@ -376,8 +376,8 @@ def plot_parity(load,
             [min_act_energy, max_act_energy],
             'r-',
             lw=0.3,)
-    ax.set_xlabel(r"DFT energy, $eV$")
-    ax.set_ylabel(r"\textit{Amp} energy, $eV$")
+    ax.set_xlabel(r"\textit{ab initio} energy, eV")
+    ax.set_ylabel(r"\textit{Amp} energy, eV")
     ax.set_title(r"Energies")
 
     if plot_forces:
@@ -479,8 +479,8 @@ def plot_parity(load,
                 'r-',
                 lw=0.3,)
 
-        ax.set_xlabel(r"DFT force, $eV/\AA$")
-        ax.set_ylabel(r"\textit{Amp} force, $eV/\AA$")
+        ax.set_xlabel(r"\textit{ab initio} force, eV/\AA")
+        ax.set_ylabel(r"\textit{Amp} force, eV/\AA")
         ax.set_title(r"Forces")
 
         ##############################################################
@@ -626,8 +626,8 @@ def plot_error(load,
             va='bottom',
             color='black')
 
-    ax.set_xlabel(r"DFT energy ($eV$) per atom")
-    ax.set_ylabel(r"$|$DFT energy - \textit{Amp} energy$|$ / number of atoms")
+    ax.set_xlabel(r"\textit{ab initio} energy (eV) per atom")
+    ax.set_ylabel(r"$|$\textit{ab initio} energy - \textit{Amp} energy$|$ / number of atoms")
     ax.set_title("Energies")
 
     if plot_forces:
@@ -757,8 +757,8 @@ def plot_error(load,
                 va='bottom',
                 color='black',)
 
-        ax.set_xlabel(r"DFT force, $eV/\AA$")
-        ax.set_ylabel(r"$|$DFT force - \textit{Amp} force$|$")
+        ax.set_xlabel(r"\textit{ab initio} force, eV/\AA")
+        ax.set_ylabel(r"$|$\textit{ab initio} force - \textit{Amp} force$|$")
         ax.set_title(r"Forces")
 
         ##############################################################
