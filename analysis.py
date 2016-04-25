@@ -493,8 +493,8 @@ def plot_parity(load,
                 'r-',
                 lw=0.3,)
 
-        ax.set_xlabel(r"\textit{ab initio} force, eV/Ang")
-        ax.set_ylabel(r"\textit{Amp} force, eV/Ang")
+        ax.set_xlabel(r"\textit{ab initio} force, eV/\AA")
+        ax.set_ylabel(r"\textit{Amp} force, eV/\AA")
         ax.set_title(r"Forces")
 
         ##############################################################
@@ -631,18 +631,18 @@ def plot_error(load,
         count += 1
     # draw horizontal line for rmse
     ax.plot([min_act_energy, max_act_energy],
-            [energy_per_atom_rmse, energy_per_atom_rmse], 'r-', lw=1,)
+            [energy_per_atom_rmse, energy_per_atom_rmse],
+            color='black', linestyle='dashed', lw=1,)
     ax.text(max_act_energy,
             energy_per_atom_rmse,
-            'rmse = %6.5f' % energy_per_atom_rmse,
+            'energy rmse = %6.5f' % energy_per_atom_rmse,
             ha='right',
             va='bottom',
-            color='red')
+            color='black')
 
     ax.set_xlabel(r"\textit{ab initio} energy (eV) per atom")
-    ax.set_ylabel(r"$\left|\right.$\textit{ab initio} energy - \textit{Amp} "
-                  "energy$\left|\right.$ / number of atoms")
-    ax.set_title(r"Energies")
+    ax.set_ylabel(r"$|$\textit{ab initio} energy - \textit{Amp} energy$|$ / number of atoms")
+    ax.set_title("Energies")
 
     if plot_forces:
 
@@ -761,18 +761,18 @@ def plot_error(load,
         # draw horizontal line for rmse
         ax.plot([min_act_force, max_act_force],
                 [force_rmse, force_rmse],
-                'r-',
+                color='black',
+                linestyle='dashed',
                 lw=1,)
         ax.text(max_act_force,
                 force_rmse,
-                'rmse = %5.4f' % force_rmse,
+                'force rmse = %5.4f' % force_rmse,
                 ha='right',
                 va='bottom',
-                color='red',)
+                color='black',)
 
-        ax.set_xlabel(r"\textit{ab initio} force, eV/Ang")
-        ax.set_ylabel(r"$\left|\right.$\textit{ab initio} force - "
-                      "\textit{Amp} force$\left|\right.$")
+        ax.set_xlabel(r"\textit{ab initio} force, eV/\AA")
+        ax.set_ylabel(r"$|$\textit{ab initio} force - \textit{Amp} force$|$")
         ax.set_title(r"Forces")
 
         ##############################################################
