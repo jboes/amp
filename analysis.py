@@ -164,15 +164,18 @@ def read_trainlog(logfile):
 ###############################################################################
 
 
-def plot_convergence(logfile, plotfile='convergence.pdf'):
+def plot_convergence(logfile, plotfile='convergence.pdf', returnfig=False):
     """
     Makes a plot of the convergence of the cost function and its energy
     and force components.
 
     :param logfile: Name or path to the log file.
     :type logfile: str
-    :param plotfile: Name or path to the plot file.
+    :param plotfile: Name or path to the plot file. If "None" no output
+                     written.
     :type plotfile: str
+    :param returnfig: Whether to return a reference to the figure.
+    :type returnfig: boolean
     """
 
     data = read_trainlog(logfile)
@@ -249,12 +252,23 @@ def plot_convergence(logfile, plotfile='convergence.pdf'):
         ax.set_xlabel('BFGS step')
         ax.set_ylim(0, 1)
 
-    with PdfPages(plotfile) as pdf:
+    if plotfile is not None:
+        with PdfPages(plotfile) as pdf:
+            if 'annealing' in data:
+                pdf.savefig(fig0)
+            pdf.savefig(fig)
+
+    if returnfig:
+        figs = []
         if 'annealing' in data:
-            pdf.savefig(fig0)
-            pyplot.close(fig0)
-        pdf.savefig(fig)
-        pyplot.close(fig)
+            figs.append(fig0)
+        figs.append(fig)
+        return figs
+
+    # Close the figures (pyplot is sloppy).
+    if 'annealing' in data:
+        pyplot.close(fig0)
+    pyplot.close(fig)
 
 ###############################################################################
 
