@@ -454,7 +454,7 @@ class NeuralNetwork:
         while _ < len_of_input:
             temp[0, _] = input[_]
             _ += 1
-        temp[0, len(input)] = 1.0
+        temp[0, len(input)] = 1.0  # bias term
         ohat[0] = temp
         net[1] = np.dot(ohat[0], weight[1])
         if self.activation == 'linear':
@@ -1068,7 +1068,6 @@ def make_weight_matrices(hiddenlayers, activation, no_of_atoms=None,
             nn_structure = (
                 [3 * no_of_atoms] +
                 [layer for layer in hiddenlayers] + [1])
-        weight = {}
         normalized_weight_range = weight_range / (3 * no_of_atoms)
         weight[1] = np.random.random((3 * no_of_atoms + 1,
                                       nn_structure[1])) * \
@@ -1110,7 +1109,13 @@ def make_weight_matrices(hiddenlayers, activation, no_of_atoms=None,
                     [no_of_element_fps[elm]] +
                     [layer for layer in hiddenlayers[elm]] + [1])
             weight[elm] = {}
-            normalized_weight_range = weight_range / no_of_element_fps[elm]
+            # Instead try Andrew Ng coursera approach. +/- epsilon
+            # epsilon = sqrt(6./(n_i + n_o))
+            # where the n's are the number of input and output nodes.
+            # Note: need to double that here with the math below.
+            epsilon = np.sqrt(6. / (nn_structure[elm][0] +
+                                    nn_structure[elm][1]))
+            normalized_weight_range = 2. * epsilon
             weight[elm][1] = np.random.random((no_of_element_fps[elm] + 1,
                                                nn_structure[
                 elm][1])) * \
@@ -1119,27 +1124,32 @@ def make_weight_matrices(hiddenlayers, activation, no_of_atoms=None,
             len_of_hiddenlayers = len(list(nn_structure[elm])) - 3
             layer = 0
             while layer < len_of_hiddenlayers:
-                normalized_weight_range = weight_range / \
-                    nn_structure[elm][layer + 1]
+                epsilon = np.sqrt(6. / (nn_structure[elm][layer + 1] +
+                                        nn_structure[elm][layer + 2]))
+                normalized_weight_range = 2. * epsilon
+
                 weight[elm][layer + 2] = np.random.random(
                     (nn_structure[elm][layer + 1] + 1,
                      nn_structure[elm][layer + 2])) * \
                     normalized_weight_range - normalized_weight_range / 2.
                 layer += 1
-            normalized_weight_range = weight_range / nn_structure[elm][-2]
+            epsilon = np.sqrt(6. / (nn_structure[elm][-2] +
+                                    nn_structure[elm][-1]))
+            normalized_weight_range = 2. * epsilon
             weight[elm][len(list(nn_structure[elm])) - 1] = \
                 np.random.random((nn_structure[elm][-2] + 1, 1)) \
                 * normalized_weight_range - normalized_weight_range / 2.
 
             len_of_weight = len(weight[elm])
-            _ = 0
-            while _ < len_of_weight:  # biases
-                size = weight[elm][_ + 1][-1].size
-                __ = 0
-                while __ < size:
-                    weight[elm][_ + 1][-1][__] = 0.
-                    __ += 1
-                _ += 1
+            if False:  # This seemed to be setting all biases to zero?
+                _ = 0
+                while _ < len_of_weight:  # biases
+                    size = weight[elm][_ + 1][-1].size
+                    __ = 0
+                    while __ < size:
+                        weight[elm][_ + 1][-1][__] = 0.
+                        __ += 1
+                    _ += 1
 
     return weight
 
