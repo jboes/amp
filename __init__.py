@@ -24,7 +24,7 @@ from utilities import Logger, save_parameters
 from descriptor import Gaussian, Bispectrum, Zernike
 from regression import NeuralNetwork
 try:
-    from amp import fmodules  # version 4 of fmodules
+    from . import fmodules  # version 4 of fmodules
     fmodules_version = 4
 except ImportError:
     fmodules = None
@@ -251,7 +251,7 @@ class Amp(Calculator):
     :param label: Default prefix/location used for all files.
     :type label: str
     :param dblabel: Optional separate prefix/location for database files,
-                    including fingerprints, fingerprint derivatives, and
+                    including fingerprints, fingerprint primes, and
                     neighborlists. This file location can be shared between
                     calculator instances to avoid re-calculating redundant
                     information. If not supplied, just uses the value from
@@ -660,37 +660,37 @@ class Amp(Calculator):
                                 # for calculating derivatives of fingerprints,
                                 # summation runs over neighboring atoms of type
                                 # I (either inside or outside the main cell)
-                                der_indexfp = self.fp.get_der_fingerprint(
+                                indexfp_prime = self.fp.get_der_fingerprint(
                                     n_index, n_symbol,
                                     neighbor_indices,
                                     neighbor_symbols,
                                     Rs, self_index, i)
 
-                                len_of_der_indexfp = len(der_indexfp)
+                                len_of_indexfp_prime = len(indexfp_prime)
 
                                 # fingerprint derivatives are scaled
-                                scaled_der_indexfp = \
-                                    [None] * len_of_der_indexfp
+                                scaled_indexfp_prime = \
+                                    [None] * len_of_indexfp_prime
                                 count = 0
-                                while count < len_of_der_indexfp:
+                                while count < len_of_indexfp_prime:
                                     if (param.fingerprints_range[
                                         n_symbol][count][1] -
                                         param.fingerprints_range[
                                         n_symbol][count][0]) \
                                             > (10.**(-8.)):
                                         scaled_value = 2. * \
-                                            der_indexfp[count] / \
+                                            indexfp_prime[count] / \
                                             (param.fingerprints_range[
                                                 n_symbol][count][1] -
                                              param.fingerprints_range[
                                                 n_symbol][count][0])
                                     else:
-                                        scaled_value = der_indexfp[count]
-                                    scaled_der_indexfp[count] = scaled_value
+                                        scaled_value = indexfp_prime[count]
+                                    scaled_indexfp_prime[count] = scaled_value
                                     count += 1
 
                                 force += self.reg.get_force(i,
-                                                            scaled_der_indexfp,
+                                                            scaled_indexfp_prime,
                                                             n_index, n_symbol,)
                             n_count += 1
                         self.forces[self_index][i] = force
@@ -2426,24 +2426,24 @@ def _calculate_der_fingerprints(proc_no, hashs, images, fp, snl, childfiles,
                               np.dot(_offset, atoms.get_cell())
                               for _index, _offset
                               in zip(neighbor_indices, neighbor_offsets)]
-                        der_indexfp = fp.get_der_fingerprint(
+                        indexfp_prime = fp.get_der_fingerprint(
                             n_index, n_symbol,
                             neighbor_indices,
                             neighbor_symbols,
                             Rs, self_index, i)
                         if save_memory:
-                            len_of_der_indexfp = len(der_indexfp)
+                            len_of_indexfp_prime = len(indexfp_prime)
                             _ = 0
-                            while _ < len_of_der_indexfp:
+                            while _ < len_of_indexfp_prime:
                                 # Insert a row of data
                                 row = (hash, self_index, n_index, i, _,
-                                       der_indexfp[_])
+                                       indexfp_prime[_])
                                 fdcursor.execute('''INSERT INTO
                                 fingerprint_derivatives
                                 VALUES (?, ?, ?, ?, ?, ?)''', row)
                                 _ += 1
                         else:
-                            data[hash][(n_index, self_index, i)] = der_indexfp
+                            data[hash][(n_index, self_index, i)] = indexfp_prime
                         i += 1
                 n_count += 1
             self_index += 1
@@ -2675,40 +2675,40 @@ def _calculate_cost_function_python(hashs, images, reg, param, sfp,
                                                           self_index,
                                                           n_index, i))
                                     rows = sfp.fdcursor.fetchall()
-                                    der_indexfp = \
+                                    indexfp_prime = \
                                         [row[5]
                                          for der_fp_index in range(len(rows))
                                          for row in rows
                                          if row[4] == der_fp_index]
                                 else:
-                                    der_indexfp = \
+                                    indexfp_prime = \
                                         sfp.der_fp_data[hash][(n_index,
                                                                self_index,
                                                                i)]
-                                len_of_der_indexfp = len(der_indexfp)
+                                len_of_indexfp_prime = len(indexfp_prime)
 
                                 # fingerprint derivatives are scaled
-                                scaled_der_indexfp = \
-                                    [None] * len_of_der_indexfp
+                                scaled_indexfp_prime = \
+                                    [None] * len_of_indexfp_prime
                                 count = 0
-                                while count < len_of_der_indexfp:
+                                while count < len_of_indexfp_prime:
                                     if (sfp.fingerprints_range[
                                             n_symbol][count][1] -
                                             sfp.fingerprints_range
                                             [n_symbol][count][0]) > \
                                             (10.**(-8.)):
                                         scaled_value = 2. * \
-                                            der_indexfp[count] / \
+                                            indexfp_prime[count] / \
                                             (sfp.fingerprints_range
                                              [n_symbol][count][1] -
                                              sfp.fingerprints_range
                                              [n_symbol][count][0])
                                     else:
-                                        scaled_value = der_indexfp[count]
-                                    scaled_der_indexfp[count] = scaled_value
+                                        scaled_value = indexfp_prime[count]
+                                    scaled_indexfp_prime[count] = scaled_value
                                     count += 1
 
-                                force = reg.get_force(i, scaled_der_indexfp,
+                                force = reg.get_force(i, scaled_indexfp_prime,
                                                       n_index, n_symbol,)
 
                                 amp_forces[self_index][i] += force
@@ -3130,15 +3130,15 @@ def ravel_neighborlists_and_der_fingerprints_of_images(hashs, images, sfp,
                                                   self_index,
                                                   n_index, i))
                             rows = sfp.fdcursor.fetchall()
-                            der_indexfp = [row[5]
+                            indexfp_prime = [row[5]
                                            for __ in range(len(rows))
                                            for row in rows
                                            if row[4] == __]
                         else:
-                            der_indexfp = sfp.der_fp_data[hash][(n_index,
+                            indexfp_prime = sfp.der_fp_data[hash][(n_index,
                                                                  self_index,
                                                                  i)]
-                        raveled_der_fingerprints.append(der_indexfp)
+                        raveled_der_fingerprints.append(indexfp_prime)
                     count += 1
                 del n_offset
                 n_count += 1

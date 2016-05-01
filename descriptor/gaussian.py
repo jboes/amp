@@ -1,9 +1,9 @@
 import numpy as np
 from ase.data import atomic_numbers
-from amp.utilities import FingerprintsError
+from ..utilities import FingerprintsError
 import warnings
 try:
-    from amp import fmodules
+    from .. import fmodules
 except ImportError:
     fmodules = None
 
