@@ -802,7 +802,7 @@ class Amp(Calculator):
             if extension == '.traj':
                 images = aseio.Trajectory(images, 'r')
             elif extension == '.db':
-                images = aseio.read(images)
+                images = aseio.read(images, index=':')
         no_of_images = len(images)
 
         if param.descriptor is None:  # pure atomic-coordinates scheme
