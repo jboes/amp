@@ -1,7 +1,7 @@
 import numpy as np
 from collections import OrderedDict
 try:
-    from amp import fmodules
+    from .. import fmodules
 except ImportError:
     fmodules = None
 
