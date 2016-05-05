@@ -313,8 +313,8 @@ def plot_parity(load,
     if plot_forces is not None:
         forcescript = os.path.join('force-' + base_filename + '.json')
 
-    from amp import Amp
-    from amp.utilities import hash_image
+    from . import Amp
+    from utilities import hash_image
     from matplotlib import rc
     # activate latex text rendering
     rc('text', usetex=True)
@@ -544,8 +544,8 @@ def plot_error(load,
     if plot_forces is not None:
         forcescript = os.path.join('force-' + base_filename + '.json')
 
-    from amp import Amp
-    from amp.utilities import hash_image
+    from . import Amp
+    from utilities import hash_image
     from matplotlib import rc
     # activate latex text rendering
     rc('text', usetex=True)
