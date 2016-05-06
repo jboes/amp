@@ -97,10 +97,10 @@ def test():
 
     ###########################################################################
 
-        fp1 = paropen('rotation_test/before_rot/-fingerprints.json', 'rb')
+        fp1 = paropen('rotation_test/before_rot/fingerprints.json', 'rb')
         nonrotated_data = json.load(fp1)
 
-        fp2 = paropen('rotation_test/after_rot/-fingerprints.json', 'rb')
+        fp2 = paropen('rotation_test/after_rot/fingerprints.json', 'rb')
         rotated_data = json.load(fp2)
 
         for hash1, hash2 in zip(nonrotated_data.keys(), rotated_data.keys()):
