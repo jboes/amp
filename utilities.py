@@ -317,15 +317,6 @@ def save_parameters(filename, param):
 #
 
 
-def load_parameters(json_file):
-
-    parameters = json.load(json_file)
-
-    return parameters
-
-#
-
-
 class IO:
 
     """
@@ -367,6 +358,7 @@ class IO:
 
             hashs = data.keys()
             no_of_images = len(hashs)
+
             if data_format is 'json':
                 # Reformatting data for saving
                 new_dict = {}
