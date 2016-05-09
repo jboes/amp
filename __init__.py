@@ -1,4 +1,5 @@
 import numpy as np
+import json
 from ase.calculators.calculator import Calculator
 from ase.data import atomic_numbers
 from ase.parallel import paropen
@@ -18,7 +19,7 @@ from getpass import getuser
 from socket import gethostname
 from scipy.optimize import fmin_bfgs as optimizer
 from ase.calculators.neighborlist import NeighborList
-from utilities import make_filename, load_parameters, ConvergenceOccurred, IO
+from utilities import ConvergenceOccurred, IO
 from utilities import TrainingConvergenceError, ExtrapolateError, hash_image
 from utilities import Logger, save_parameters
 from descriptor import Gaussian, Bispectrum, Zernike
@@ -275,7 +276,7 @@ class Amp(Calculator):
 
     ###########################################################################
 
-    def __init__(self, load=None, label='amp', dblabel=None, extrapolate=True,
+    def __init__(self, load=None, label='', dblabel='', extrapolate=True,
                  fortran=True, **kwargs):
 
         log = Logger(make_filename(label, 'log.txt'))
@@ -285,8 +286,6 @@ class Amp(Calculator):
         self.extrapolate = extrapolate
         self.fortran = fortran
         self.dblabel = dblabel
-        if not dblabel:
-            self.dblabel = label
 
         if self.fortran and not fmodules:
             raise RuntimeError('Not using fortran modules. '
@@ -307,11 +306,11 @@ class Amp(Calculator):
             try:
                 json_file = paropen(load, 'rb')
             except IOError:
-                json_file = paropen(make_filename(load,
+                json_file = paropen(os.path.join(load,
                                                   'trained-parameters.json'),
                                     'rb')
 
-            parameters = load_parameters(json_file)
+            parameters = json.load(json_file)
 
             kwargs = {}
             kwargs['fingerprints_range'] = parameters['fingerprints_range']
@@ -776,7 +775,7 @@ class Amp(Calculator):
         if save_memory:
             data_format = 'db'
         param = self.parameters
-        filename = make_filename(self.label, 'trained-parameters.json')
+        filename = os.path.join(self.label, 'trained-parameters.json')
         if (not overwrite) and os.path.exists(filename):
             raise IOError('File exists: %s.\nIf you want to overwrite,'
                           ' set overwrite=True or manually delete.'
@@ -815,7 +814,7 @@ class Amp(Calculator):
             if extension == '.traj':
                 images = aseio.Trajectory(images, 'r')
             elif extension == '.db':
-                images = aseio.read(images)
+                images = aseio.read(images, ':')
         no_of_images = len(images)
 
         if param.descriptor is None:  # pure atomic-coordinates scheme
@@ -860,6 +859,7 @@ class Amp(Calculator):
         msg += ', '.join(self.elements)
         log(msg)
 
+        # Default fingerprint parameters generated here.
         if param.descriptor is not None:  # fingerprinting scheme
             param = self.fp.log(log, param, self.elements)
 
@@ -867,6 +867,8 @@ class Amp(Calculator):
             variables_exist = False
         else:
             variables_exist = True
+
+        # Default regression parameters generated here.
         param = self.reg.log(log, param, self.elements, images)
 
         # "MultiProcess" object is initialized
@@ -956,7 +958,7 @@ class Amp(Calculator):
             param.regression._variables = gs.get_variables()
 
         # saving initial parameters
-        filename = make_filename(self.label, 'initial-parameters.json')
+        filename = os.path.join(self.label, 'initial-parameters.json')
         save_parameters(filename, param)
         log('Initial parameters saved in file %s.' % filename)
 
@@ -1012,8 +1014,8 @@ class Amp(Calculator):
 
         if not converged:
             log('Saving checkpoint data.')
-            filename = make_filename(self.label,
-                                     'parameters-checkpoint-%i.json' % step)
+            filename = os.path.join(self.label,
+                                     'checkpoint-parameters.json')
             save_parameters(filename, costfxn.param)
             log(' ...could not find parameters for the desired goal\n'
                 'error. Least error parameters saved as checkpoint.\n'
@@ -1024,7 +1026,7 @@ class Amp(Calculator):
             self.reg.update_variables(param)
             log(' ...optimization completed successfully. Optimal '
                 'parameters saved.', toc='optimize')
-            filename = make_filename(self.label, 'trained-parameters.json')
+            filename = os.path.join(self.label, 'trained-parameters.json')
             save_parameters(filename, param)
 
             self.cost_function = costfxn.cost_function
@@ -1131,7 +1133,7 @@ class Amp(Calculator):
             from matplotlib.backends.backend_pdf import PdfPages
             rcParams.update({'figure.autolayout': True})
 
-            filename = make_filename(self.label, 'perturbed-parameters.pdf')
+            filename = os.path.join(self.label, 'perturbed-parameters.pdf')
             with PdfPages(filename) as pdf:
                 count = 0
                 while count < no_of_variables:
@@ -1582,9 +1584,9 @@ class SaveNeighborLists:
             log('Calculating neighborlist for each atom...')
             log.tic()
             if data_format is 'json':
-                filename = make_filename(label, 'neighborlists.json')
+                filename = os.path.join(label, 'neighborlists.json')
             elif data_format is 'db':
-                filename = make_filename(label, 'neighborlists.db')
+                filename = os.path.join(label, 'neighborlists.db')
             self.ncursor = None
             if save_memory:
                 nconn = sqlite3.connect(filename)
@@ -1752,9 +1754,9 @@ class SaveFingerprints:
         log('Calculating atomic fingerprints...')
         log.tic()
         if data_format is 'json':
-            filename = make_filename(label, 'fingerprints.json')
+            filename = os.path.join(label, 'fingerprints.json')
         elif data_format is 'db':
-            filename = make_filename(label, 'fingerprints.db')
+            filename = os.path.join(label, 'fingerprints.db')
         self.fcursor = None
         if save_memory:
             fconn = sqlite3.connect(filename)
@@ -1888,10 +1890,10 @@ class SaveFingerprints:
                 with respect to coordinates...''')
             log.tic()
             if data_format is 'json':
-                filename = make_filename(label,
+                filename = os.path.join(label,
                                          'fingerprint-derivatives.json')
             elif data_format is 'db':
-                filename = make_filename(label,
+                filename = os.path.join(label,
                                          'fingerprint-derivatives.db')
             self.fdcursor = None
             if save_memory:
@@ -2174,7 +2176,7 @@ class CostFxnandDer:
 
         if self.steps % 100 == 0:
             log('Saving checkpoint data.')
-            filename = make_filename(
+            filename = os.path.join(
                 self.label,
                 'parameters-checkpoint-%i.json' % self.nnsizestep)
             save_parameters(filename, self.param)

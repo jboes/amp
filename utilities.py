@@ -326,26 +326,6 @@ def load_parameters(json_file):
 #
 
 
-def make_filename(label, base_filename):
-    """
-    Creates a filename from the label and the base_filename which should be
-    a string.
-
-    :param label: Prefix.
-    :type label: str
-    :param base_filename: Basic name of the file.
-    :type base_filename: str
-    """
-    if not label:
-        filename = base_filename
-    else:
-        filename = os.path.join(label + base_filename)
-
-    return filename
-
-#
-
-
 class IO:
 
     """
