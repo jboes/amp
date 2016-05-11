@@ -1603,7 +1603,7 @@ class SaveNeighborLists:
             else:
                 if save_memory:
                     self.ncursor.execute("SELECT image FROM neighborlists")
-                    old_hashs = set([_ for _ in self.ncursor])
+                    old_hashs = set([i[0] for i in self.ncursor])
                 else:
                     log.tic('read_neighbors')
                     old_hashs, self.nl_data = io.read(filename,
@@ -1639,8 +1639,7 @@ class SaveNeighborLists:
                                                no_of_atoms),
                                       self_interaction=False,
                                       bothways=True, skin=0.)
-                    # FIXME: Is update necessary?
-                    nl.update(image)
+                    nl.build(image)
 
                     if save_memory:
                         self_index = 0
@@ -1771,7 +1770,7 @@ class SaveFingerprints:
         else:
             if save_memory:
                 self.fcursor.execute("SELECT image FROM fingerprints")
-                old_hashs = set([_ for _ in self.fcursor])
+                old_hashs = set([i[0] for i in self.fcursor])
             else:
                 log.tic('read_fps')
                 old_hashs, self.fp_data = io.read(filename, 'fingerprints',
@@ -1912,7 +1911,7 @@ class SaveFingerprints:
                 if save_memory:
                     self.fdcursor.execute(
                         "SELECT image FROM fingerprint_derivatives")
-                    old_hashs = set([_ for _ in self.fdcursor])
+                    old_hashs = set([i[0] for i in self.fdcursor])
                 else:
                     log.tic('read_der_fps')
                     old_hashs, self.der_fp_data = \
