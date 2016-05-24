@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Test of the behler-neural scheme of Amp with force training. Randomly
+"""Test of the Gaussian-neural scheme of Amp with force training. Randomly
 generates data with the EMT potential in MD simulations. Both trains and tests
 getting energy out of the calculator. Shows results for both interpolation and
 extrapolation."""
@@ -87,7 +87,7 @@ def test_none():
 ###############################################################################
 
 
-def test_behler():
+def test_gaussian():
     label = 'force_test'
     if not os.path.exists(label):
         os.mkdir(label)
@@ -96,12 +96,12 @@ def test_behler():
     all_images = generate_data(4)
     train_images, test_images = randomize_images(all_images)
 
-    print('Training behler-neural network.')
-    calc1 = Amp(label=os.path.join(label, 'behler'),
+    print('Training Gaussian-neural network.')
+    calc1 = Amp(label=os.path.join(label, 'Gaussian'),
                 regression=NeuralNetwork(hiddenlayers=(5, 5)))
     calc1.train(train_images, energy_goal=0.01, force_goal=0.05)
 
-    print('Testing behler-neural network.')
+    print('Testing Gaussian-neural network.')
     energies1 = []
     for image in all_images:
         energies1.append(calc1.get_potential_energy(atoms=image))
@@ -128,5 +128,5 @@ def test_behler():
 ###############################################################################
 
 if __name__ == '__main__':
-    test_behler()
+    test_gaussian()
     test_none()

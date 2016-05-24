@@ -1,19 +1,19 @@
 import numpy as np
 from ase.data import atomic_numbers
-from amp.utilities import FingerprintsError
+from ..utilities import FingerprintsError
 import warnings
 try:
-    from amp import fmodules
+    from .. import fmodules
 except ImportError:
     fmodules = None
 
 ###############################################################################
 
 
-class Behler:
+class Gaussian:
 
     """
-    Class that calculates Behler fingerprints.
+    Class that calculates Gaussian fingerprints.
 
     :param cutoff: Radius above which neighbor interactions are ignored.
                    Default is 6.5 Angstroms.
@@ -241,7 +241,7 @@ def calculate_G2(symbols, Rs, G_element, eta, cutoff, home, fortran):
     :type Rs: list of list of float
     :param G_element: Symmetry functions of the center atom.
     :type G_element: dict
-    :param eta: Parameter of Behler symmetry functions.
+    :param eta: Parameter of Gaussian symmetry functions.
     :type eta: float
     :param cutoff: Radius above which neighbor interactions are ignored.
     :type cutoff: float
@@ -292,11 +292,11 @@ def calculate_G4(symbols, Rs, G_elements, gamma, zeta, eta, cutoff, home,
     :type Rs: list of list of float
     :param G_elements: Symmetry functions of the center atom.
     :type G_elements: dict
-    :param gamma: Parameter of Behler symmetry functions.
+    :param gamma: Parameter of Gaussian symmetry functions.
     :type gamma: float
-    :param zeta: Parameter of Behler symmetry functions.
+    :param zeta: Parameter of Gaussian symmetry functions.
     :type zeta: float
-    :param eta: Parameter of Behler symmetry functions.
+    :param eta: Parameter of Gaussian symmetry functions.
     :type eta: float
     :param cutoff: Radius above which neighbor interactions are ignored.
     :type cutoff: float
@@ -583,7 +583,7 @@ def calculate_der_G2(n_indices, symbols, Rs, G_element, eta, cutoff, a, Ra,
     :type Rs: list of list of float
     :param G_element: Symmetry functions of the center atom.
     :type G_element: dict
-    :param eta: Parameter of Behler symmetry functions.
+    :param eta: Parameter of Gaussian symmetry functions.
     :type eta: float
     :param cutoff: Radius above which neighbor interactions are ignored.
     :type cutoff: float
@@ -651,11 +651,11 @@ def calculate_der_G4(n_indices, symbols, Rs, G_elements, gamma, zeta, eta,
     :type Rs: list of list of float
     :param G_elements: Symmetry functions of the center atom.
     :type G_elements: dict
-    :param gamma: Parameter of Behler symmetry functions.
+    :param gamma: Parameter of Gaussian symmetry functions.
     :type gamma: float
-    :param zeta: Parameter of Behler symmetry functions.
+    :param zeta: Parameter of Gaussian symmetry functions.
     :type zeta: float
-    :param eta: Parameter of Behler symmetry functions.
+    :param eta: Parameter of Gaussian symmetry functions.
     :type eta: float
     :param cutoff: Radius above which neighbor interactions are ignored.
     :type cutoff: float

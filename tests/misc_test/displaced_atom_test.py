@@ -11,7 +11,7 @@ import numpy as np
 from ase import Atoms
 from collections import OrderedDict
 from amp import Amp
-from amp.descriptor import Behler
+from amp.descriptor import Gaussian
 from amp.regression import NeuralNetwork
 
 ###############################################################################
@@ -79,7 +79,7 @@ def test():
 
     ###########################################################################
 
-    calc = Amp(descriptor=Behler(cutoff=6.5, Gs=Gs,),
+    calc = Amp(descriptor=Gaussian(cutoff=6.5, Gs=Gs,),
                regression=NeuralNetwork(hiddenlayers=hiddenlayers,
                                         weights=weights,
                                         scalings=scalings,),

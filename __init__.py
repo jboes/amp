@@ -3,6 +3,8 @@ from ase.calculators.calculator import Calculator
 from ase.data import atomic_numbers
 from ase.parallel import paropen
 import os
+import sys
+import ase
 from ase import io as aseio
 import tempfile
 import warnings
@@ -11,18 +13,26 @@ import multiprocessing as mp
 import gc
 import sqlite3
 from collections import OrderedDict
+import platform
+from getpass import getuser
+from socket import gethostname
 from scipy.optimize import fmin_bfgs as optimizer
 from ase.calculators.neighborlist import NeighborList
 from utilities import make_filename, load_parameters, ConvergenceOccurred, IO
 from utilities import TrainingConvergenceError, ExtrapolateError, hash_image
 from utilities import Logger, save_parameters
-from descriptor import Behler, SphericalHarmonics, Zernike
+from descriptor import Gaussian, Bispectrum, Zernike
 from regression import NeuralNetwork
 try:
-    from amp import fmodules  # version 4 of fmodules
+    from . import fmodules  # version 4 of fmodules
     fmodules_version = 4
 except ImportError:
     fmodules = None
+try:
+    from ase import __version__ as aseversion
+except ImportError:
+    # We're on ASE 3.10 or older
+    from ase.version import version as aseversion
 
 ###############################################################################
 
@@ -219,9 +229,9 @@ class Amp(Calculator):
     Atomistic Machine-Learning Potential (Amp) ASE calculator
 
     :param descriptor: Class representing local atomic environment. Can be
-                        only None and Behler for now. Input arguments for
-                        Behler are cutoff and Gs; for more information see
-                        docstring for the class Behler.
+                        only None and Gaussian for now. Input arguments for
+                        Gaussian are cutoff and Gs; for more information see
+                        docstring for the class Gaussian.
     :type descriptor: object
     :param regression: Class representing the regression method. Can be only
                        NeuralNetwork for now. Input arguments for NeuralNetwork
@@ -241,7 +251,7 @@ class Amp(Calculator):
     :param label: Default prefix/location used for all files.
     :type label: str
     :param dblabel: Optional separate prefix/location for database files,
-                    including fingerprints, fingerprint derivatives, and
+                    including fingerprints, fingerprint primes, and
                     neighborlists. This file location can be shared between
                     calculator instances to avoid re-calculating redundant
                     information. If not supplied, just uses the value from
@@ -258,15 +268,19 @@ class Amp(Calculator):
     implemented_properties = ['energy', 'forces']
 
     default_parameters = {
-        'descriptor': Behler(),
+        'descriptor': Gaussian(),
         'regression': NeuralNetwork(),
         'fingerprints_range': None,
     }
 
     ###########################################################################
 
-    def __init__(self, load=None, label=None, dblabel=None, extrapolate=True,
+    def __init__(self, load=None, label='amp', dblabel=None, extrapolate=True,
                  fortran=True, **kwargs):
+
+        log = Logger(make_filename(label, 'log.txt'))
+        self.log = log
+        self._printheader(log)
 
         self.extrapolate = extrapolate
         self.fortran = fortran
@@ -301,19 +315,19 @@ class Amp(Calculator):
 
             kwargs = {}
             kwargs['fingerprints_range'] = parameters['fingerprints_range']
-            if parameters['descriptor'] == 'Behler':
+            if parameters['descriptor'] == 'Gaussian':
                 kwargs['descriptor'] = \
-                    Behler(cutoff=parameters['cutoff'],
-                           Gs=parameters['Gs'],
-                           fingerprints_tag=parameters['fingerprints_tag'],)
+                    Gaussian(cutoff=parameters['cutoff'],
+                             Gs=parameters['Gs'],
+                             fingerprints_tag=parameters['fingerprints_tag'],)
 
-            elif parameters['descriptor'] == 'SphericalHarmonics':
+            elif parameters['descriptor'] == 'Bispectrum':
                 kwargs['descriptor'] = \
-                    SphericalHarmonics(cutoff=parameters['cutoff'],
-                                       Gs=parameters['Gs'],
-                                       jmax=parameters['jmax'],
-                                       fingerprints_tag=parameters[
-                                           'fingerprints_tag'],)
+                    Bispectrum(cutoff=parameters['cutoff'],
+                               Gs=parameters['Gs'],
+                               jmax=parameters['jmax'],
+                               fingerprints_tag=parameters[
+                        'fingerprints_tag'],)
 
             elif parameters['descriptor'] == 'Zernike':
                 kwargs['descriptor'] = \
@@ -467,11 +481,10 @@ class Amp(Calculator):
             # Deciding on whether it is exptrapoling or interpolating is
             # possible only when fingerprints_range is provided by the user.
             elif self.extrapolate is False:
-                if compare_train_test_fingerprints(
-                        self.fp,
-                        self.fp.atoms,
-                        param.fingerprints_range,
-                        _nl) == 1:
+                if compare_train_test_fingerprints(self.fp,
+                                                   self.fp.atoms,
+                                                   param.fingerprints_range,
+                                                   _nl) == 1:
                     raise ExtrapolateError('Trying to extrapolate, which'
                                            ' is not allowed. Change to '
                                            'extrapolate=True if this is'
@@ -647,37 +660,37 @@ class Amp(Calculator):
                                 # for calculating derivatives of fingerprints,
                                 # summation runs over neighboring atoms of type
                                 # I (either inside or outside the main cell)
-                                der_indexfp = self.fp.get_der_fingerprint(
+                                indexfp_prime = self.fp.get_der_fingerprint(
                                     n_index, n_symbol,
                                     neighbor_indices,
                                     neighbor_symbols,
                                     Rs, self_index, i)
 
-                                len_of_der_indexfp = len(der_indexfp)
+                                len_of_indexfp_prime = len(indexfp_prime)
 
                                 # fingerprint derivatives are scaled
-                                scaled_der_indexfp = \
-                                    [None] * len_of_der_indexfp
+                                scaled_indexfp_prime = \
+                                    [None] * len_of_indexfp_prime
                                 count = 0
-                                while count < len_of_der_indexfp:
+                                while count < len_of_indexfp_prime:
                                     if (param.fingerprints_range[
                                         n_symbol][count][1] -
                                         param.fingerprints_range[
                                         n_symbol][count][0]) \
                                             > (10.**(-8.)):
                                         scaled_value = 2. * \
-                                            der_indexfp[count] / \
+                                            indexfp_prime[count] / \
                                             (param.fingerprints_range[
                                                 n_symbol][count][1] -
                                              param.fingerprints_range[
                                                 n_symbol][count][0])
                                     else:
-                                        scaled_value = der_indexfp[count]
-                                    scaled_der_indexfp[count] = scaled_value
+                                        scaled_value = indexfp_prime[count]
+                                    scaled_indexfp_prime[count] = scaled_value
                                     count += 1
 
                                 force += self.reg.get_force(i,
-                                                            scaled_der_indexfp,
+                                                            scaled_indexfp_prime,
                                                             n_index, n_symbol,)
                             n_count += 1
                         self.forces[self_index][i] = force
@@ -782,7 +795,7 @@ class Amp(Calculator):
 
         energy_coefficient = 1.
 
-        log = Logger(make_filename(self.label, 'train-log.txt'))
+        log = self.log
 
         log('Amp training started. ' + now() + '\n')
         if param.descriptor is None:  # pure atomic-coordinates scheme
@@ -813,7 +826,7 @@ class Amp(Calculator):
                 if len(image) != param.no_of_atoms:
                     raise RuntimeError('Number of atoms in different images '
                                        'is not the same. Try '
-                                       'descriptor=Behler.')
+                                       'descriptor=Gaussian.')
                 count += 1
 
         log('Training on %i images.' % no_of_images)
@@ -888,6 +901,14 @@ class Amp(Calculator):
             # If fingerprints_range has not been loaded, it will take value
             # from the json file.
             if param.fingerprints_range is None:
+                param.fingerprints_range = self.sfp.fingerprints_range
+            else:
+                log('Updated fingerprints range from saved version; this is'
+                    ' a temporary bug fix. With this the first iteration of'
+                    ' the training neural network will *not* give identical'
+                    ' results to the saved version if the '
+                    'fingerprints_range has changed.')
+
                 param.fingerprints_range = self.sfp.fingerprints_range
 
         del hashs, images
@@ -1129,6 +1150,39 @@ class Amp(Calculator):
 
         if not converged:
             raise TrainingConvergenceError()
+
+    ###########################################################################
+
+    def _printheader(self, log):
+        """Prints header to log file; inspired by that in GPAW."""
+        log('Amp: Atomistic Machine-learning Package')
+        log('Developed by Andrew Peterson, Alireza Khorshidi, and others,')
+        log('Brown University.')
+        log(' PI Website: http://brown.edu/go/catalyst')
+        log(' Official repository: http://bitbucket.org/andrewpeterson/amp')
+        log(' Official documentation: http://amp.readthedocs.org/')
+        log('=' * 70)
+        log('User: %s' % getuser())
+        log('Hostname: %s' % gethostname())
+        log('Date: %s' % now())
+        uname = platform.uname()
+        log('Architecture: %s' % uname[4])
+        log('PID: %s' % os.getpid())
+        log('Version: 0.4')
+        log('Python: v{0}.{1}.{2}: %s'.format(*sys.version_info[:3]) %
+            sys.executable)
+        log('Amp: %s' % os.path.dirname(os.path.abspath(__file__)))
+        log('ASE v%s: %s' % (aseversion, os.path.dirname(ase.__file__)))
+        log('NumPy v%s: %s' %
+            (np.version.version, os.path.dirname(np.__file__)))
+        # SciPy is not a strict dependency.
+        try:
+            import scipy
+            log('SciPy v%s: %s' %
+                (scipy.version.version, os.path.dirname(scipy.__file__)))
+        except ImportError:
+            log('SciPy: not available')
+        log('=' * 70)
 
 ###############################################################################
 ###############################################################################
@@ -2372,24 +2426,24 @@ def _calculate_der_fingerprints(proc_no, hashs, images, fp, snl, childfiles,
                               np.dot(_offset, atoms.get_cell())
                               for _index, _offset
                               in zip(neighbor_indices, neighbor_offsets)]
-                        der_indexfp = fp.get_der_fingerprint(
+                        indexfp_prime = fp.get_der_fingerprint(
                             n_index, n_symbol,
                             neighbor_indices,
                             neighbor_symbols,
                             Rs, self_index, i)
                         if save_memory:
-                            len_of_der_indexfp = len(der_indexfp)
+                            len_of_indexfp_prime = len(indexfp_prime)
                             _ = 0
-                            while _ < len_of_der_indexfp:
+                            while _ < len_of_indexfp_prime:
                                 # Insert a row of data
                                 row = (hash, self_index, n_index, i, _,
-                                       der_indexfp[_])
+                                       indexfp_prime[_])
                                 fdcursor.execute('''INSERT INTO
                                 fingerprint_derivatives
                                 VALUES (?, ?, ?, ?, ?, ?)''', row)
                                 _ += 1
                         else:
-                            data[hash][(n_index, self_index, i)] = der_indexfp
+                            data[hash][(n_index, self_index, i)] = indexfp_prime
                         i += 1
                 n_count += 1
             self_index += 1
@@ -2621,40 +2675,40 @@ def _calculate_cost_function_python(hashs, images, reg, param, sfp,
                                                           self_index,
                                                           n_index, i))
                                     rows = sfp.fdcursor.fetchall()
-                                    der_indexfp = \
+                                    indexfp_prime = \
                                         [row[5]
                                          for der_fp_index in range(len(rows))
                                          for row in rows
                                          if row[4] == der_fp_index]
                                 else:
-                                    der_indexfp = \
+                                    indexfp_prime = \
                                         sfp.der_fp_data[hash][(n_index,
                                                                self_index,
                                                                i)]
-                                len_of_der_indexfp = len(der_indexfp)
+                                len_of_indexfp_prime = len(indexfp_prime)
 
                                 # fingerprint derivatives are scaled
-                                scaled_der_indexfp = \
-                                    [None] * len_of_der_indexfp
+                                scaled_indexfp_prime = \
+                                    [None] * len_of_indexfp_prime
                                 count = 0
-                                while count < len_of_der_indexfp:
+                                while count < len_of_indexfp_prime:
                                     if (sfp.fingerprints_range[
                                             n_symbol][count][1] -
                                             sfp.fingerprints_range
                                             [n_symbol][count][0]) > \
                                             (10.**(-8.)):
                                         scaled_value = 2. * \
-                                            der_indexfp[count] / \
+                                            indexfp_prime[count] / \
                                             (sfp.fingerprints_range
                                              [n_symbol][count][1] -
                                              sfp.fingerprints_range
                                              [n_symbol][count][0])
                                     else:
-                                        scaled_value = der_indexfp[count]
-                                    scaled_der_indexfp[count] = scaled_value
+                                        scaled_value = indexfp_prime[count]
+                                    scaled_indexfp_prime[count] = scaled_value
                                     count += 1
 
-                                force = reg.get_force(i, scaled_der_indexfp,
+                                force = reg.get_force(i, scaled_indexfp_prime,
                                                       n_index, n_symbol,)
 
                                 amp_forces[self_index][i] += force
@@ -2802,7 +2856,7 @@ def compare_train_test_fingerprints(fp, atoms, fingerprints_range, nl):
 
     :returns: Zero for interpolation, and one for extrapolation.
     """
-    compare_train_test_fingerprints = 0
+    value = 0
 
     no_of_atoms = len(atoms)
     index = 0
@@ -2821,11 +2875,11 @@ def compare_train_test_fingerprints(fp, atoms, fingerprints_range, nl):
         while i < len_of_fingerprints:
             if indexfp[i] < fingerprints_range[symbol][i][0] or \
                     indexfp[i] > fingerprints_range[symbol][i][1]:
-                compare_train_test_fingerprints = 1
+                value = 1
                 break
             i += 1
         index += 1
-    return compare_train_test_fingerprints
+    return value
 
 ###############################################################################
 
@@ -2888,7 +2942,7 @@ def interpolate_images(images, load, fortran=True):
                            skin=0.)
         _nl.update(atoms)
         fp._nl = _nl
-        compare_train_test_fingerprints = 0
+        value = 0
         no_of_atoms = len(atoms)
         index = 0
         while index < no_of_atoms:
@@ -2906,11 +2960,11 @@ def interpolate_images(images, load, fortran=True):
             while i < len_of_fingerprints:
                 if indexfp[i] < fingerprints_range[symbol][i][0] or \
                         indexfp[i] > fingerprints_range[symbol][i][1]:
-                    compare_train_test_fingerprints = 1
+                    value = 1
                     break
                 i += 1
             index += 1
-        if compare_train_test_fingerprints == 0:
+        if value == 0:
             interpolated_images[hash] = image
         count += 1
 
@@ -3076,15 +3130,15 @@ def ravel_neighborlists_and_der_fingerprints_of_images(hashs, images, sfp,
                                                   self_index,
                                                   n_index, i))
                             rows = sfp.fdcursor.fetchall()
-                            der_indexfp = [row[5]
+                            indexfp_prime = [row[5]
                                            for __ in range(len(rows))
                                            for row in rows
                                            if row[4] == __]
                         else:
-                            der_indexfp = sfp.der_fp_data[hash][(n_index,
+                            indexfp_prime = sfp.der_fp_data[hash][(n_index,
                                                                  self_index,
                                                                  i)]
-                        raveled_der_fingerprints.append(der_indexfp)
+                        raveled_der_fingerprints.append(indexfp_prime)
                     count += 1
                 del n_offset
                 n_count += 1

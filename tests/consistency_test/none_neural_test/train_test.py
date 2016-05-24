@@ -1,5 +1,5 @@
 """
-This script creates a list of three images. It then calculates Behler- Neural
+This script creates a list of three images. It then calculates Gaussian-Neural
 scheme cost function, energy per atom RMSE and force RMSE of different
 combinations of images with and without fortran modules on different number of
 cores, and check consistency between them.
@@ -9,6 +9,7 @@ cores, and check consistency between them.
 ###############################################################################
 
 import numpy as np
+import os
 from ase.calculators.emt import EMT
 from collections import OrderedDict
 from ase import Atoms, Atom
@@ -69,6 +70,9 @@ scalings = OrderedDict([('intercept', 3.), ('slope', 2.)])
 
 def test():
 
+    pwd = os.getcwd()
+    os.mkdir(os.path.join(pwd, 'consistnone'))
+
     images = generate_images()
 
     count = 0
@@ -114,7 +118,7 @@ def test():
                             else:
                                 assert (abs(calc.cost_function -
                                             reference_cost_function) <
-                                        10.**(-20.)), \
+                                        10.**(-10.)), \
                                     '''Cost function value for %r fortran, %r
                                 data format, %r save_memory, and %i cores is
                                 not consistent with the value of python version
@@ -123,7 +127,7 @@ def test():
 
                             assert (abs(calc.energy_per_atom_rmse -
                                         reference_energy_rmse) <
-                                    10.**(-20.)), \
+                                    10.**(-10.)), \
                                 '''Energy rmse value for %r fortran, %r data
                             format, %r save_memory, and %i cores is not
                             consistent with the value of python version on
@@ -131,7 +135,7 @@ def test():
                                                save_memory, cores)
 
                             assert (abs(calc.force_rmse -
-                                        reference_force_rmse) < 10.**(-20.)), \
+                                        reference_force_rmse) < 10.**(-10.)), \
                                 '''Force rmse value for %r fortran, %r data
                             format, %r save_memory, and %i cores is not
                             consistent with the value of python version on

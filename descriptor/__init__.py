@@ -5,6 +5,6 @@ Folder that contains different local environment descriptors.
 """
 
 
-from behler import Behler
-from sphericalharmonics import SphericalHarmonics
+from gaussian import Gaussian
+from bispectrum import Bispectrum
 from zernike import Zernike

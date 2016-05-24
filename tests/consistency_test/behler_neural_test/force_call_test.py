@@ -1,5 +1,5 @@
 """
-This script creates a list of three images. It then calculates behler-neural
+This script creates a list of three images. It then calculates Gaussian-neural
 scheme forces and energies of different combinations of them with and without
 fortran modules, and check consistency between them.
 
@@ -10,7 +10,7 @@ fortran modules, and check consistency between them.
 import numpy as np
 from ase import Atoms
 from amp import Amp
-from amp.descriptor import Behler
+from amp.descriptor import Gaussian
 from amp.regression import NeuralNetwork
 
 ###############################################################################
@@ -504,7 +504,7 @@ scalings = {"O": {"intercept": 4.2468934359280288,
                    "slope": 3.1965614888424687}}
 
 ###############################################################################
-# Testing pure-python and fortran versions of behler-neural force call
+# Testing pure-python and fortran versions of Gaussian-neural force call
 
 
 def test():
@@ -513,7 +513,7 @@ def test():
 
     for fortran in [False, True]:
 
-        calc = Amp(descriptor=Behler(cutoff=cutoff, Gs=Gs,),
+        calc = Amp(descriptor=Gaussian(cutoff=cutoff, Gs=Gs,),
                    regression=NeuralNetwork(hiddenlayers=hiddenlayers,
                                             weights=weights,
                                             scalings=scalings,

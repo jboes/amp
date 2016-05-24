@@ -1,5 +1,5 @@
 """
-This script creates a list of three images. It then calculates behler-neural
+This script creates a list of three images. It then calculates Gaussian-neural
 scheme cost function, energy per atom RMSE and force RMSE of different
 combinations of images with and without fortran modules on different number of
 cores, and check consistency between them.
@@ -11,8 +11,9 @@ cores, and check consistency between them.
 import numpy as np
 from ase import Atoms
 from ase.calculators.emt import EMT
+import os
 from amp import Amp
-from amp.descriptor import Behler
+from amp.descriptor import Gaussian
 from amp.regression import NeuralNetwork
 from amp import SimulatedAnnealing
 
@@ -508,10 +509,13 @@ scalings = {"O": {"intercept": 4.2468934359280288,
 
 
 ###############################################################################
-# Testing pure-python and fortran versions of behler-Neural on different
+# Testing pure-python and fortran versions of Gaussian-Neural on different
 # number of processes and different number of images
 
 def test():
+
+    pwd = os.getcwd()
+    os.mkdir(os.path.join(pwd, 'consistbp'))
 
     images = make_images()
 
@@ -532,8 +536,8 @@ def test():
                                 global_search = \
                                     SimulatedAnnealing(temperature=10, steps=5)
 
-                            calc = Amp(descriptor=Behler(cutoff=cutoff,
-                                                         Gs=Gs,),
+                            calc = Amp(descriptor=Gaussian(cutoff=cutoff,
+                                                           Gs=Gs,),
                                        regression=NeuralNetwork(
                                 hiddenlayers=hiddenlayers,
                                 weights=weights,

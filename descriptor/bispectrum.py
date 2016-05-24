@@ -1,20 +1,19 @@
 import numpy as np
 from numpy import sin, cos, sqrt, exp
 from ase.data import atomic_numbers
-from amp.utilities import FingerprintsError
-import math
+from ..utilities import FingerprintsError
 try:
-    from amp import fmodules
+    from .. import fmodules
 except ImportError:
     fmodules = None
 
 ###############################################################################
 
 
-class SphericalHarmonics:
+class Bispectrum:
 
     """
-    Class that calculates spherical harmonic fingerprints.
+    Class that calculates spherical-harmonics bispectrum fingerprints.
 
     :param cutoff: Radius above which neighbor interactions are ignored.
                    Default is 6.5 Angstroms.
@@ -192,10 +191,10 @@ class SphericalHarmonics:
                                    index m.
         """
 
-        raise RuntimeError('SphericalHarmonics descriptor does not work with '
+        raise RuntimeError('Bispectrum descriptor does not work with '
                            'force training yet. Either turn off force '
-                           'training by "force_goal=None", or use Behler '
-                           'descriptor by "descriptor=Behler()".')
+                           'training by "force_goal=None", or use Gaussian '
+                           'descriptor by "descriptor=Gaussian()".')
 
     ###########################################################################
 
