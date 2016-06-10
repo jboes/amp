@@ -1015,7 +1015,7 @@ class Amp(Calculator):
         if not converged:
             log('Saving checkpoint data.')
             filename = os.path.join(self.label,
-                                     'checkpoint-parameters.json')
+                                    'checkpoint-parameters.json')
             save_parameters(filename, costfxn.param)
             log(' ...could not find parameters for the desired goal\n'
                 'error. Least error parameters saved as checkpoint.\n'
@@ -2176,8 +2176,7 @@ class CostFxnandDer:
         if self.steps % 100 == 0:
             log('Saving checkpoint data.')
             filename = os.path.join(
-                self.label,
-                'parameters-checkpoint-%i.json' % self.nnsizestep)
+                self.label, 'checkpoint-parameters.json')
             save_parameters(filename, self.param)
 
         if self.energy_per_atom_rmse < self.energy_goal and \
