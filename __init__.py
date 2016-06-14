@@ -279,7 +279,7 @@ class Amp(Calculator):
     def __init__(self, load=None, label='', dblabel='', extrapolate=True,
                  fortran=True, **kwargs):
 
-        log = Logger(make_filename(label, 'log.txt'))
+        log = Logger(os.path.join(label, 'log.txt'))
         self.log = log
         self._printheader(log)
 
