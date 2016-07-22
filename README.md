@@ -96,20 +96,17 @@ following steps:
 * Compile regression Fortran subroutines inside the regression folder by::
 
    $ cd ~/path/to/my/codes/regression/
-   $ gfortran -c neuralnetwork.f90
+   $ ifort -c neuralnetwork.f90
 
 * Move the module 'regression.mod' created in the last step, to the parent directory by::
 
    $ mv regression.mod ../
 
 * Compile the main Fortran subroutines in the parent directory in companian with the descriptor and regression subroutines
-  by something like::
+  for Gilgamesh this looks like:
 
-   $ f2py -c -m fmodules main.f90 descriptor/gaussian.f90 regression/neuralnetwork.f90
+   $ f2py -c -m fmodules main.f90 descriptor/gaussian.f90 regression/neuralnetwork.f90 --fcompiler=intelem
 
-or on a Windows machine by::
-
-   $ f2py -c -m fmodules main.f90 descriptor/gaussian.f90 regression/neuralnetwork.f90 --fcompiler=gnu95 --compiler=mingw32
 
 If you update the code and your fmodules extension is not updated, an exception will be raised, telling you
 to re-compile.
