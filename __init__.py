@@ -281,7 +281,7 @@ class Amp(Calculator):
 
         log = Logger(os.path.join(label, 'log.txt'))
         self.log = log
-        self._printheader(log)
+        # self._printheader(log)
 
         self.extrapolate = extrapolate
         self.fortran = fortran
